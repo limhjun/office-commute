@@ -5,7 +5,8 @@
       "Bash(./gradlew clean:*)",
       "Bash(rm:*)",
       "Bash(gh pr view:*)",
-      "Bash(gh auth:*)"
+      "Bash(gh auth:*)",
+      "WebFetch(domain:github.blog)"
     ],
     "deny": [],
     "ask": []

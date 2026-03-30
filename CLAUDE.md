@@ -75,3 +75,7 @@ Controller → Service → Repository → Database
 - Controller 테스트: `@WebMvcTest` + MockMvc
 - 동시성 테스트: `*ConcurrentTest`, `*ConcurrencyTest` 클래스
 - 테스트 픽스처: `EmployeeBuilder`, `Employees`, `Teams` 유틸리티 클래스
+
+## Output Format
+
+- 도구 사용 시 앞에 🥕 이모지를 붙여서 표시

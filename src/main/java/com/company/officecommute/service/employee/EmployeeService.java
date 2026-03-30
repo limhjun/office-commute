@@ -7,7 +7,6 @@ import com.company.officecommute.dto.employee.request.EmployeeUpdateTeamNameRequ
 import com.company.officecommute.dto.employee.response.EmployeeFindResponse;
 import com.company.officecommute.repository.employee.EmployeeRepository;
 import com.company.officecommute.repository.team.TeamRepository;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,15 +17,10 @@ public class EmployeeService {
 
     private final EmployeeRepository employeeRepository;
     private final TeamRepository teamRepository;
-    private final PasswordEncoder passwordEncoder;
 
-    public EmployeeService(
-            EmployeeRepository employeeRepository,
-            TeamRepository teamRepository,
-            PasswordEncoder passwordEncoder) {
+    public EmployeeService(EmployeeRepository employeeRepository, TeamRepository teamRepository) {
         this.employeeRepository = employeeRepository;
         this.teamRepository = teamRepository;
-        this.passwordEncoder = passwordEncoder;
     }
 
     @Transactional
@@ -34,14 +28,13 @@ public class EmployeeService {
         if (employeeRepository.existsByEmployeeCode(request.employeeCode())) {
             throw new IllegalArgumentException("이미 존재하는 직원 코드입니다.");
         }
-        String encodedPassword = passwordEncoder.encode(request.password());
         Employee employee = new Employee(
                 request.name(),
                 request.role(),
                 request.birthday(),
                 request.workStartDate(),
                 request.employeeCode(),
-                encodedPassword
+                request.pin()
         );
         employeeRepository.save(employee);
     }
@@ -64,11 +57,11 @@ public class EmployeeService {
         employee.changeTeam(team);
     }
 
-    public Employee authenticate(String employeeCode, String password) {
+    public Employee authenticate(String employeeCode, String pin) {
         Employee employee = employeeRepository.findByEmployeeCode(employeeCode)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사번입니다"));
-        if (!passwordEncoder.matches(password, employee.getPassword())) {
-            throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
+        if (!employee.matchesPin(pin)) {
+            throw new IllegalArgumentException("PIN이 일치하지 않습니다.");
         }
         return employee;
     }

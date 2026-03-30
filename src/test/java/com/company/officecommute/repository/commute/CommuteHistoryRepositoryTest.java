@@ -48,7 +48,7 @@ class CommuteHistoryRepositoryTest {
                 LocalDate.of(1990, 1, 1),
                 LocalDate.of(2020, 1, 1),
                 "EMP001",
-                "password1!"
+                "1234"
         );
 
         Employee unassignedEmployee = new Employee(
@@ -60,7 +60,7 @@ class CommuteHistoryRepositoryTest {
                 LocalDate.of(1991, 2, 2),
                 LocalDate.of(2021, 2, 2),
                 "EMP002",
-                "password2!"
+                "5678"
         );
 
         employeeRepository.saveAll(List.of(assignedEmployee, unassignedEmployee));

@@ -15,7 +15,7 @@ public class EmployeeBuilder {
     private LocalDate birthday;
     private LocalDate workStartDate;
     private String employeeCode;
-    private String password;
+    private String pin;
 
     public EmployeeBuilder withId(Long id) {
         this.id = id;
@@ -57,12 +57,12 @@ public class EmployeeBuilder {
         return this;
     }
 
-    public EmployeeBuilder withPassword(String password) {
-        this.password = password;
+    public EmployeeBuilder withPin(String pin) {
+        this.pin = pin;
         return this;
     }
 
     public Employee build() {
-        return new Employee(id, team, name, teamName, role, birthday, workStartDate, employeeCode, password);
+        return new Employee(id, team, name, teamName, role, birthday, workStartDate, employeeCode, pin);
     }
 }

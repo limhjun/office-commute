@@ -54,7 +54,7 @@ public class CommuteHistoryServiceConcurrencyTest {
                 LocalDate.of(1990, 1, 1),
                 LocalDate.of(2024, 1, 1),
                 "TEST001",
-                "password123!"
+                "1234"
         );
         Employee savedEmployee = employeeRepository.save(employee);
         testEmployeeId = savedEmployee.getEmployeeId();

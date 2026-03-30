@@ -30,9 +30,9 @@ public record EmployeeSaveRequest(
                 message = "사번은 대문자와 숫자 6-10자리여야 합니다.")
         String employeeCode,
 
-        @NotBlank(message = "비밀번호는 필수입니다.")
-        @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d)[a-zA-Z\\d@$!%*?&]{8,}$",
-                message = "비밀번호는 대소문자, 숫자 포함 8자 이상이어야 합니다.")
-        String password
+        @NotBlank(message = "PIN은 필수입니다.")
+        @Pattern(regexp = "^\\d{4,6}$",
+                message = "PIN은 4~6자리 숫자여야 합니다.")
+        String pin
 ) {
 }

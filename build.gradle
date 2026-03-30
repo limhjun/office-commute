@@ -34,9 +34,6 @@ dependencies {
 	runtimeOnly 'com.h2database:h2'
 //	runtimeOnly 'com.mysql:mysql-connector-j'
 
-	// for BCryptPasswordEncoder
-	implementation 'org.springframework.security:spring-security-core'
-
 	// Apache POI for Excel file generation
 	implementation 'org.apache.poi:poi:5.2.4'
 	implementation 'org.apache.poi:poi-ooxml:5.2.4'

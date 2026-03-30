@@ -1,8 +1,6 @@
 package com.company.officecommute.docs;
 
 import com.company.officecommute.controller.employee.EmployeeController;
-import com.company.officecommute.domain.employee.Employee;
-import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.dto.employee.request.EmployeeSaveRequest;
 import com.company.officecommute.dto.employee.request.EmployeeUpdateTeamNameRequest;
 import com.company.officecommute.dto.employee.response.EmployeeFindResponse;
@@ -13,11 +11,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.restdocs.payload.JsonFieldType;
 
-import java.time.LocalDate;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
@@ -41,49 +37,6 @@ class EmployeeControllerDocsTest extends RestDocsSupport {
     }
 
     @Test
-    @DisplayName("로그인 API")
-    void login() throws Exception {
-        Employee employee = new Employee(
-                1L, null, "홍길동", null, Role.MEMBER,
-                LocalDate.of(1990, 1, 1),
-                LocalDate.of(2020, 3, 1),
-                "EMP001", "encodedPassword"
-        );
-        given(employeeService.authenticate(anyString(), anyString())).willReturn(employee);
-
-        String request = """
-                {
-                    "employeeCode": "EMP001",
-                    "password": "password123!"
-                }
-                """;
-
-        mockMvc.perform(post("/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(request))
-                .andDo(print())
-                .andExpect(status().isOk())
-                .andDo(document("employee-login",
-                        requestFields(
-                                fieldWithPath("employeeCode").type(JsonFieldType.STRING)
-                                        .description("사번"),
-                                fieldWithPath("password").type(JsonFieldType.STRING)
-                                        .description("비밀번호")
-                        )
-                ));
-    }
-
-    @Test
-    @DisplayName("로그아웃 API")
-    void logout() throws Exception {
-        mockMvc.perform(post("/logout")
-                        .sessionAttr("employeeId", 1L))
-                .andDo(print())
-                .andExpect(status().isOk())
-                .andDo(document("employee-logout"));
-    }
-
-    @Test
     @DisplayName("직원 등록 API")
     void saveEmployee() throws Exception {
         doNothing().when(employeeService).registerEmployee(any(EmployeeSaveRequest.class));
@@ -95,14 +48,12 @@ class EmployeeControllerDocsTest extends RestDocsSupport {
                     "birthday": "1990-01-15",
                     "workStartDate": "2024-01-02",
                     "employeeCode": "EMP002",
-                    "password": "Password1!"
+                    "pin": "1234"
                 }
                 """;
 
         mockMvc.perform(post("/employee")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .sessionAttr("employeeId", 1L)
-                        .sessionAttr("employeeRole", Role.MANAGER)
                         .content(request))
                 .andDo(print())
                 .andExpect(status().isOk())
@@ -118,8 +69,8 @@ class EmployeeControllerDocsTest extends RestDocsSupport {
                                         .description("입사일 (yyyy-MM-dd)"),
                                 fieldWithPath("employeeCode").type(JsonFieldType.STRING)
                                         .description("사번 (대문자+숫자 6-10자리)"),
-                                fieldWithPath("password").type(JsonFieldType.STRING)
-                                        .description("비밀번호 (대소문자, 숫자 포함 8자 이상)")
+                                fieldWithPath("pin").type(JsonFieldType.STRING)
+                                        .description("PIN (4~6자리 숫자)")
                         )
                 ));
     }
@@ -134,9 +85,7 @@ class EmployeeControllerDocsTest extends RestDocsSupport {
         given(employeeService.findAllEmployee()).willReturn(responses);
 
         mockMvc.perform(get("/employee")
-                        .accept(MediaType.APPLICATION_JSON)
-                        .sessionAttr("employeeId", 1L)
-                        .sessionAttr("employeeRole", Role.MANAGER))
+                        .accept(MediaType.APPLICATION_JSON))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andDo(document("employee-find-all",
@@ -164,8 +113,6 @@ class EmployeeControllerDocsTest extends RestDocsSupport {
 
         mockMvc.perform(put("/employee")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .sessionAttr("employeeId", 1L)
-                        .sessionAttr("employeeRole", Role.MANAGER)
                         .content(objectMapper.writeValueAsString(request)))
                 .andDo(print())
                 .andExpect(status().isOk())

@@ -1,7 +1,6 @@
 package com.company.officecommute.controller.overtime;
 
-import com.company.officecommute.auth.ForbiddenException;
-import com.company.officecommute.domain.employee.Role;
+import com.company.officecommute.auth.ManagerOnly;
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
 import com.company.officecommute.service.overtime.OverTimeReportService;
 import com.company.officecommute.service.overtime.OverTimeService;
@@ -12,7 +11,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.annotation.SessionAttribute;
 
 import java.io.IOException;
 import java.time.YearMonth;
@@ -31,23 +29,17 @@ public class OverTimeController {
         this.overTimeReportService = overTimeReportService;
     }
 
+    @ManagerOnly
     @GetMapping("/overtime")
-    public List<OverTimeCalculateResponse> calculateOverTime(@RequestParam YearMonth yearMonth,
-                                                             @SessionAttribute("employeeRole") Role role) {
-        if (role != Role.MANAGER) {
-            throw new ForbiddenException("관리자만 접근 가능");
-        }
+    public List<OverTimeCalculateResponse> calculateOverTime(@RequestParam YearMonth yearMonth) {
         return overTimeService.calculateOverTime(yearMonth);
     }
 
+    @ManagerOnly
     @GetMapping("/overtime/report/excel")
-    public ResponseEntity<byte[]> downloadOverTimeReport(@RequestParam YearMonth yearMonth, @SessionAttribute("employeeRole") Role role) throws IOException {
-        if (role != Role.MANAGER) {
-            throw new ForbiddenException("관리자만 접근 가능");
-        }
-        
+    public ResponseEntity<byte[]> downloadOverTimeReport(@RequestParam YearMonth yearMonth) throws IOException {
         byte[] excelData = overTimeReportService.generateExcelReport(yearMonth);
-        
+
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
         headers.setContentDisposition(ContentDisposition.attachment().filename(yearMonth.getYear() + "년" + yearMonth.getMonthValue() + "월_초과근무보고서.xlsx", UTF_8).build());

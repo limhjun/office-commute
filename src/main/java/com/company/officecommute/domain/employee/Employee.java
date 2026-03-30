@@ -45,7 +45,7 @@ public class Employee {
     private String employeeCode;
 
     @Column(nullable = false)
-    private String password;
+    private String pin;
 
     protected Employee() {
     }
@@ -56,7 +56,7 @@ public class Employee {
             LocalDate birthday,
             LocalDate workStartDate
     ) {
-        this(null, null, name, null, role, birthday, workStartDate, "TEST001", "password123!");
+        this(null, null, name, null, role, birthday, workStartDate, "TEST001", "1234");
     }
 
     public Employee(
@@ -67,7 +67,7 @@ public class Employee {
             LocalDate birthday,
             LocalDate workStartDate
     ) {
-        this(employeeId, null, name, teamName, role, birthday, workStartDate, "TEST001", "password123!");
+        this(employeeId, null, name, teamName, role, birthday, workStartDate, "TEST001", "1234");
     }
 
     public Employee(
@@ -76,9 +76,9 @@ public class Employee {
             LocalDate birthday,
             LocalDate workStartDate,
             String employeeCode,
-            String password
+            String pin
     ) {
-        this(null, null, name, null, role, birthday, workStartDate, employeeCode, password);
+        this(null, null, name, null, role, birthday, workStartDate, employeeCode, pin);
     }
 
     public Employee(
@@ -90,7 +90,7 @@ public class Employee {
             LocalDate birthday,
             LocalDate workStartDate,
             String employeeCode,
-            String password
+            String pin
     ) {
         this.employeeId = employeeId;
         this.team = team;
@@ -100,7 +100,7 @@ public class Employee {
         this.birthday = Objects.requireNonNull(birthday, "birthday는 null일 수 없습니다");
         this.workStartDate = Objects.requireNonNull(workStartDate, "workStartDate는 null일 수 없습니다");
         this.employeeCode = validateEmployeeCode(employeeCode);
-        this.password = Objects.requireNonNull(password, "password는 null일 수 없습니다");
+        this.pin = validatePin(pin);
     }
 
     private String validateEmployeeCode(String employeeCode) {
@@ -115,6 +115,17 @@ public class Employee {
             throw new IllegalArgumentException("employee의 name이 올바르지 않은 형식입니다.");
         }
         return name.trim();
+    }
+
+    private String validatePin(String pin) {
+        if (pin == null || pin.isBlank()) {
+            throw new IllegalArgumentException("PIN은 null이거나 빈 값일 수 없습니다.");
+        }
+        return pin;
+    }
+
+    public boolean matchesPin(String rawPin) {
+        return this.pin.equals(rawPin);
     }
 
     public void changeTeam(Team newTeam) {
@@ -172,7 +183,7 @@ public class Employee {
         return workStartDate;
     }
 
-    public String getPassword() {
-        return password;
+    public String getPin() {
+        return pin;
     }
 }

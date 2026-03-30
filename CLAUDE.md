@@ -65,8 +65,9 @@ Controller → Service → Repository → Database
 
 ### Authentication
 
-- `AuthInterceptor`: 세션 기반 인증
-- 세션에 `employeeId`, `employeeRole` 저장
+- `AuthInterceptor`: 매 요청마다 `X-Employee-Code` + `X-Employee-Pin` 헤더로 Stateless 인증
+- 인증 성공 시 `currentEmployeeId`, `currentRole`을 request attribute로 설정
+- `@ManagerOnly` 어노테이션으로 MANAGER 전용 API 권한 체크 (인터셉터에서 처리)
 - `Role` enum: MANAGER, MEMBER
 
 ### Test Patterns

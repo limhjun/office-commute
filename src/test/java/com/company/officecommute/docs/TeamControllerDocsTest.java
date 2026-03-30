@@ -42,7 +42,6 @@ class TeamControllerDocsTest extends RestDocsSupport {
 
         mockMvc.perform(post("/team")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .sessionAttr("employeeRole", com.company.officecommute.domain.employee.Role.MANAGER)
                         .content(objectMapper.writeValueAsString(request)))
                 .andDo(print())
                 .andExpect(status().isOk())

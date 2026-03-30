@@ -45,7 +45,7 @@ class CommuteHistoryControllerDocsTest extends RestDocsSupport {
         doNothing().when(commuteHistoryService).registerWorkStartTime(anyLong());
 
         mockMvc.perform(post("/commute")
-                        .sessionAttr("employeeId", 1L))
+                        .requestAttr("currentEmployeeId", 1L))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andDo(document("commute-start"));
@@ -57,7 +57,7 @@ class CommuteHistoryControllerDocsTest extends RestDocsSupport {
         doNothing().when(commuteHistoryService).registerWorkEndTime(anyLong(), any());
 
         mockMvc.perform(put("/commute")
-                        .sessionAttr("employeeId", 1L))
+                        .requestAttr("currentEmployeeId", 1L))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andDo(document("commute-end"));
@@ -78,7 +78,7 @@ class CommuteHistoryControllerDocsTest extends RestDocsSupport {
         mockMvc.perform(get("/commute")
                         .param("yearMonth", "2024-05")
                         .accept(MediaType.APPLICATION_JSON)
-                        .sessionAttr("employeeId", 1L))
+                        .requestAttr("currentEmployeeId", 1L))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andDo(document("commute-duration",

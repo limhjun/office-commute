@@ -6,8 +6,8 @@ import com.company.officecommute.service.commute.CommuteHistoryService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.annotation.SessionAttribute;
 
 import java.time.ZonedDateTime;
 
@@ -21,18 +21,18 @@ public class CommuteHistoryController {
     }
 
     @PostMapping("/commute")
-    public void registerWorkStartTime(@SessionAttribute("employeeId") Long employeeId) {
+    public void registerWorkStartTime(@RequestAttribute("currentEmployeeId") Long employeeId) {
         commuteHistoryService.registerWorkStartTime(employeeId);
     }
 
     @PutMapping("/commute")
-    public void registerWorkEndTime(@SessionAttribute("employeeId") Long employeeId) {
+    public void registerWorkEndTime(@RequestAttribute("currentEmployeeId") Long employeeId) {
         commuteHistoryService.registerWorkEndTime(employeeId, ZonedDateTime.now());
     }
 
     @GetMapping("/commute")
     public WorkDurationPerDateResponse getWorkDurationPerDate(
-            @SessionAttribute("employeeId") Long employeeId,
+            @RequestAttribute("currentEmployeeId") Long employeeId,
             WorkDurationPerDateRequest dateRequest) {
         return commuteHistoryService.getWorkDurationPerDate(employeeId, dateRequest.yearMonth());
     }

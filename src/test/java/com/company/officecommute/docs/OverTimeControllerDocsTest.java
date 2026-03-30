@@ -1,7 +1,6 @@
 package com.company.officecommute.docs;
 
 import com.company.officecommute.controller.overtime.OverTimeController;
-import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
 import com.company.officecommute.service.overtime.OverTimeReportService;
 import com.company.officecommute.service.overtime.OverTimeService;
@@ -48,9 +47,7 @@ class OverTimeControllerDocsTest extends RestDocsSupport {
 
         mockMvc.perform(get("/overtime")
                         .param("yearMonth", "2024-05")
-                        .accept(MediaType.APPLICATION_JSON)
-                        .sessionAttr("employeeId", 1L)
-                        .sessionAttr("employeeRole", Role.MANAGER))
+                        .accept(MediaType.APPLICATION_JSON))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andDo(document("overtime-calculate",

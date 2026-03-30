@@ -1,7 +1,10 @@
 package com.company.officecommute.controller.overtime;
 
+import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
+import com.company.officecommute.service.employee.EmployeeBuilder;
+import com.company.officecommute.service.employee.EmployeeService;
 import com.company.officecommute.service.overtime.OverTimeReportService;
 import com.company.officecommute.service.overtime.OverTimeService;
 import org.junit.jupiter.api.DisplayName;
@@ -17,6 +20,7 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.Arrays;
 import java.util.List;
@@ -37,6 +41,29 @@ class OverTimeControllerTest {
     @MockitoBean
     private OverTimeReportService overTimeReportService;
 
+    @MockitoBean
+    private EmployeeService employeeService;
+
+    private final Employee managerEmployee = new EmployeeBuilder()
+            .withId(1L)
+            .withName("관리자")
+            .withRole(Role.MANAGER)
+            .withBirthday(LocalDate.of(1990, 1, 1))
+            .withStartDate(LocalDate.of(2020, 1, 1))
+            .withEmployeeCode("ADMIN001")
+            .withPin("1234")
+            .build();
+
+    private final Employee memberEmployee = new EmployeeBuilder()
+            .withId(2L)
+            .withName("일반직원")
+            .withRole(Role.MEMBER)
+            .withBirthday(LocalDate.of(1995, 1, 1))
+            .withStartDate(LocalDate.of(2022, 1, 1))
+            .withEmployeeCode("EMP001")
+            .withPin("5678")
+            .build();
+
     @Nested
     @DisplayName("초과근무 조회 API 테스트")
     class CalculateOverTimeTests {
@@ -44,38 +71,37 @@ class OverTimeControllerTest {
         @Test
         @DisplayName("MANAGER 권한이 없는 경우 초과근무 조회 요청 시 예외 발생")
         void calculateOverTime_unauthorized() {
+            given(employeeService.authenticate("EMP001", "5678"))
+                    .willReturn(memberEmployee);
+
             assertThat(mockMvcTester
                     .get()
                     .uri("/overtime?yearMonth=2024-08")
-                    .sessionAttr("employeeId", 1L)
-                    .sessionAttr("employeeRole", Role.MEMBER))
-                    .hasStatus(HttpStatus.FORBIDDEN)
-                    .bodyJson()
-                    .isLenientlyEqualTo("""
-                            {
-                                "code": "FORBIDDEN",
-                                "message": "관리자만 접근 가능"
-                            }
-                        """);
+                    .header("X-Employee-Code", "EMP001")
+                    .header("X-Employee-Pin", "5678"))
+                    .hasStatus(HttpStatus.FORBIDDEN);
         }
 
         @Test
         @DisplayName("MANAGER 권한이 있는 경우 초과근무 조회 성공")
         void calculateOverTime_authorized() {
+            given(employeeService.authenticate("ADMIN001", "1234"))
+                    .willReturn(managerEmployee);
+
             YearMonth yearMonth = YearMonth.of(2024, 8);
             List<OverTimeCalculateResponse> mockData = Arrays.asList(
                     new OverTimeCalculateResponse(1L, "임형준", "팀A", 300L),
                     new OverTimeCalculateResponse(2L, "김개발", "팀B", 120L)
             );
-            
+
             given(overTimeService.calculateOverTime(yearMonth))
                     .willReturn(mockData);
 
             assertThat(mockMvcTester
                     .get()
                     .uri("/overtime?yearMonth=2024-08")
-                    .sessionAttr("employeeId", 1L)
-                    .sessionAttr("employeeRole", Role.MANAGER))
+                    .header("X-Employee-Code", "ADMIN001")
+                    .header("X-Employee-Pin", "1234"))
                     .hasStatus(HttpStatus.OK)
                     .bodyJson()
                     .isLenientlyEqualTo("""
@@ -97,11 +123,14 @@ class OverTimeControllerTest {
         @Test
         @DisplayName("잘못된 yearMonth 형식으로 요청 시 예외 발생")
         void calculateOverTime_invalidYearMonth() {
+            given(employeeService.authenticate("ADMIN001", "1234"))
+                    .willReturn(managerEmployee);
+
             assertThat(mockMvcTester
                     .get()
                     .uri("/overtime?yearMonth=invalid-date")
-                    .sessionAttr("employeeId", 1L)
-                    .sessionAttr("employeeRole", Role.MANAGER))
+                    .header("X-Employee-Code", "ADMIN001")
+                    .header("X-Employee-Pin", "1234"))
                     .hasStatus(HttpStatus.BAD_REQUEST)
                     .bodyJson()
                     .extractingPath("$.code").isEqualTo("INVALID_PARAMETER");
@@ -110,11 +139,14 @@ class OverTimeControllerTest {
         @Test
         @DisplayName("yearMonth 파라미터가 누락된 경우 예외 발생")
         void calculateOverTime_missingYearMonth() {
+            given(employeeService.authenticate("ADMIN001", "1234"))
+                    .willReturn(managerEmployee);
+
             assertThat(mockMvcTester
                     .get()
                     .uri("/overtime")
-                    .sessionAttr("employeeId", 1L)
-                    .sessionAttr("employeeRole", Role.MANAGER))
+                    .header("X-Employee-Code", "ADMIN001")
+                    .header("X-Employee-Pin", "1234"))
                     .hasStatus(HttpStatus.BAD_REQUEST)
                     .bodyJson()
                     .extractingPath("$.code").isEqualTo("MISSING_PARAMETER");
@@ -128,35 +160,34 @@ class OverTimeControllerTest {
         @Test
         @DisplayName("MANAGER 권한이 없는 경우 엑셀 다운로드 요청 시 예외 발생")
         void downloadOverTimeReport_unauthorized() {
+            given(employeeService.authenticate("EMP001", "5678"))
+                    .willReturn(memberEmployee);
+
             assertThat(mockMvcTester
                     .get()
                     .uri("/overtime/report/excel?yearMonth=2024-08")
-                    .sessionAttr("employeeId", 1L)
-                    .sessionAttr("employeeRole", Role.MEMBER))
-                    .hasStatus(HttpStatus.FORBIDDEN)
-                    .bodyJson()
-                    .isLenientlyEqualTo("""
-                            {
-                                "code": "FORBIDDEN",
-                                "message": "관리자만 접근 가능"
-                            }
-                        """);
+                    .header("X-Employee-Code", "EMP001")
+                    .header("X-Employee-Pin", "5678"))
+                    .hasStatus(HttpStatus.FORBIDDEN);
         }
 
         @Test
         @DisplayName("MANAGER 권한이 있는 경우 엑셀 다운로드 성공")
         void downloadOverTimeReport_authorized() throws Exception {
+            given(employeeService.authenticate("ADMIN001", "1234"))
+                    .willReturn(managerEmployee);
+
             YearMonth yearMonth = YearMonth.of(2024, 8);
             byte[] mockExcelData = "mock excel data".getBytes();
-            
+
             given(overTimeReportService.generateExcelReport(yearMonth))
                     .willReturn(mockExcelData);
 
             assertThat(mockMvcTester
                     .get()
                     .uri("/overtime/report/excel?yearMonth=2024-08")
-                    .sessionAttr("employeeId", 1L)
-                    .sessionAttr("employeeRole", Role.MANAGER))
+                    .header("X-Employee-Code", "ADMIN001")
+                    .header("X-Employee-Pin", "1234"))
                     .hasStatus(HttpStatus.OK)
                     .headers()
                     .hasValue("Content-Type", MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet").toString())
@@ -173,11 +204,14 @@ class OverTimeControllerTest {
         @Test
         @DisplayName("잘못된 yearMonth 형식으로 엑셀 다운로드 요청 시 예외 발생")
         void downloadOverTimeReport_invalidYearMonth() {
+            given(employeeService.authenticate("ADMIN001", "1234"))
+                    .willReturn(managerEmployee);
+
             assertThat(mockMvcTester
                     .get()
                     .uri("/overtime/report/excel?yearMonth=invalid-date")
-                    .sessionAttr("employeeId", 1L)
-                    .sessionAttr("employeeRole", Role.MANAGER))
+                    .header("X-Employee-Code", "ADMIN001")
+                    .header("X-Employee-Pin", "1234"))
                     .hasStatus(HttpStatus.BAD_REQUEST)
                     .bodyJson()
                     .extractingPath("$.code").isEqualTo("INVALID_PARAMETER");
@@ -186,11 +220,14 @@ class OverTimeControllerTest {
         @Test
         @DisplayName("yearMonth 파라미터가 누락된 경우 엑셀 다운로드 예외 발생")
         void downloadOverTimeReport_missingYearMonth() {
+            given(employeeService.authenticate("ADMIN001", "1234"))
+                    .willReturn(managerEmployee);
+
             assertThat(mockMvcTester
                     .get()
                     .uri("/overtime/report/excel")
-                    .sessionAttr("employeeId", 1L)
-                    .sessionAttr("employeeRole", Role.MANAGER))
+                    .header("X-Employee-Code", "ADMIN001")
+                    .header("X-Employee-Pin", "1234"))
                     .hasStatus(HttpStatus.BAD_REQUEST)
                     .bodyJson()
                     .extractingPath("$.code").isEqualTo("MISSING_PARAMETER");
@@ -199,27 +236,30 @@ class OverTimeControllerTest {
         @Test
         @DisplayName("엑셀 생성 중 IOException 발생 시 서버 에러 반환")
         void downloadOverTimeReport_ioException() throws Exception {
+            given(employeeService.authenticate("ADMIN001", "1234"))
+                    .willReturn(managerEmployee);
+
             YearMonth yearMonth = YearMonth.of(2024, 8);
-            
+
             given(overTimeReportService.generateExcelReport(yearMonth))
                     .willThrow(new RuntimeException("엑셀 생성 실패"));
 
             assertThat(mockMvcTester
                     .get()
                     .uri("/overtime/report/excel?yearMonth=2024-08")
-                    .sessionAttr("employeeId", 1L)
-                    .sessionAttr("employeeRole", Role.MANAGER))
+                    .header("X-Employee-Code", "ADMIN001")
+                    .header("X-Employee-Pin", "1234"))
                     .hasStatus(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @Nested
-    @DisplayName("세션 권한 테스트")
-    class SessionAuthTests {
+    @DisplayName("인증 헤더 테스트")
+    class AuthHeaderTests {
 
         @Test
-        @DisplayName("employeeId 세션이 없는 경우 예외 발생")
-        void noSessionAttribute() {
+        @DisplayName("인증 헤더가 없는 경우 예외 발생")
+        void noAuthHeaders() {
             assertThat(mockMvcTester
                     .get()
                     .uri("/overtime?yearMonth=2024-08"))

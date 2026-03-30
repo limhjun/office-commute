@@ -6,9 +6,9 @@ import com.company.officecommute.dto.annual_leave.response.AnnualLeaveGetRemaini
 import com.company.officecommute.service.annual_leave.AnnualLeaveService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.annotation.SessionAttribute;
 
 import java.util.List;
 
@@ -23,14 +23,14 @@ public class AnnualLeaveController {
 
     @PostMapping("/annual-leave")
     public List<AnnualLeaveEnrollmentResponse> enrollAnnualLeave(
-            @SessionAttribute("employeeId") Long employeeId,
+            @RequestAttribute("currentEmployeeId") Long employeeId,
             @RequestBody AnnualLeaveEnrollRequest enrollRequest
     ) {
         return annualLeaveService.enrollAnnualLeave(employeeId, enrollRequest.wantedDates());
     }
 
     @GetMapping("/annual-leave")
-    public AnnualLeaveGetRemainingResponse getRemainingAnnualLeaves(@SessionAttribute("employeeId") Long employeeId) {
+    public AnnualLeaveGetRemainingResponse getRemainingAnnualLeaves(@RequestAttribute("currentEmployeeId") Long employeeId) {
         return annualLeaveService.getRemainingAnnualLeaves(employeeId);
     }
 }

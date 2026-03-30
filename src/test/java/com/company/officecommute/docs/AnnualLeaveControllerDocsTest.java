@@ -53,7 +53,7 @@ class AnnualLeaveControllerDocsTest extends RestDocsSupport {
 
         mockMvc.perform(post("/annual-leave")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .sessionAttr("employeeId", 1L)
+                        .requestAttr("currentEmployeeId", 1L)
                         .content(request))
                 .andDo(print())
                 .andExpect(status().isOk())
@@ -83,7 +83,7 @@ class AnnualLeaveControllerDocsTest extends RestDocsSupport {
 
         mockMvc.perform(get("/annual-leave")
                         .accept(MediaType.APPLICATION_JSON)
-                        .sessionAttr("employeeId", 1L))
+                        .requestAttr("currentEmployeeId", 1L))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andDo(document("annual-leave-remaining",

@@ -13,6 +13,6 @@ public class Employees {
             .withBirthday(LocalDate.of(1998, 8, 18))
             .withStartDate(LocalDate.of(2024, 1, 1))
             .withEmployeeCode("EMP001")
-            .withPassword("password123!")
+            .withPin("1234")
             .build();
 }

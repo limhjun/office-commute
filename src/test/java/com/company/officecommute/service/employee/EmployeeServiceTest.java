@@ -15,7 +15,6 @@ import org.mockito.BDDMockito;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -37,8 +36,6 @@ class EmployeeServiceTest {
     private EmployeeRepository employeeRepository;
     @Mock
     private TeamRepository teamRepository;
-    @Mock
-    private PasswordEncoder passwordEncoder;
 
     private Employee employee;
     private Team team;
@@ -55,22 +52,20 @@ class EmployeeServiceTest {
                 .withBirthday(LocalDate.of(1998, 8, 18))
                 .withStartDate(LocalDate.of(2024, 1, 1))
                 .withEmployeeCode("EMP001")
-                .withPassword("password123!")
+                .withPin("1234")
                 .build();
 
     }
 
     @Test
-    @DisplayName("올바른 사번과 비밀번호로 인증 성공")
+    @DisplayName("올바른 사번과 PIN으로 인증 성공")
     void authenticate_success() {
         String employeeCode = "EMP001";
-        String password = "password123!";
+        String pin = "1234";
         BDDMockito.given(employeeRepository.findByEmployeeCode(employeeCode))
                 .willReturn(Optional.of(employee));
-        BDDMockito.given(passwordEncoder.matches(password, employee.getPassword()))
-                .willReturn(true);
 
-        Employee result = employeeService.authenticate(employeeCode, password);
+        Employee result = employeeService.authenticate(employeeCode, pin);
 
         assertThat(result).isEqualTo(employee);
     }
@@ -81,23 +76,21 @@ class EmployeeServiceTest {
         BDDMockito.given(employeeRepository.findByEmployeeCode("INVALID_CODE"))
                 .willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> employeeService.authenticate("INVALID_CODE", "password123!"))
+        assertThatThrownBy(() -> employeeService.authenticate("INVALID_CODE", "1234"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("존재하지 않는 사번입니다");
     }
 
     @Test
-    @DisplayName("잘못된 비밀번호로 인증 실패")
-    void authenticate_wrongPassword() {
-        String wrongPassword = "wrongPassword!";
+    @DisplayName("잘못된 PIN으로 인증 실패")
+    void authenticate_wrongPin() {
+        String wrongPin = "9999";
         BDDMockito.given(employeeRepository.findByEmployeeCode("EMP001"))
                 .willReturn(Optional.of(employee));
-        BDDMockito.given(passwordEncoder.matches(wrongPassword, employee.getPassword()))
-                .willReturn(false);
 
-        assertThatThrownBy(() -> employeeService.authenticate("EMP001", wrongPassword))
+        assertThatThrownBy(() -> employeeService.authenticate("EMP001", wrongPin))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("비밀번호가 일치하지 않습니다.");
+                .hasMessage("PIN이 일치하지 않습니다.");
     }
 
     @Test
@@ -109,17 +102,14 @@ class EmployeeServiceTest {
                 LocalDate.of(1998, 8, 18),
                 LocalDate.of(2024, 1, 1),
                 "EMP001",
-                "password123!"
+                "1234"
         );
         BDDMockito.given(employeeRepository.existsByEmployeeCode("EMP001"))
                 .willReturn(false);
-        BDDMockito.given(passwordEncoder.encode("password123!"))
-                .willReturn("encodedPassword");
 
         employeeService.registerEmployee(request);
 
         verify(employeeRepository).existsByEmployeeCode("EMP001");
-        verify(passwordEncoder).encode("password123!");
         verify(employeeRepository).save(any(Employee.class));
     }
 
@@ -132,7 +122,7 @@ class EmployeeServiceTest {
                 LocalDate.of(1998, 8, 18),
                 LocalDate.of(2024, 1, 1),
                 "EMP001",
-                "password123!"
+                "1234"
         );
         BDDMockito.given(employeeRepository.existsByEmployeeCode("EMP001"))
                 .willReturn(true);
@@ -141,7 +131,6 @@ class EmployeeServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("이미 존재하는 직원 코드입니다.");
         verify(employeeRepository).existsByEmployeeCode("EMP001");
-        verify(passwordEncoder, BDDMockito.never()).encode(anyString());
         verify(employeeRepository, BDDMockito.never()).save(any(Employee.class));
     }
 
@@ -153,12 +142,10 @@ class EmployeeServiceTest {
                 LocalDate.of(1998, 8, 18),
                 LocalDate.of(2024, 1, 1),
                 "EMP001",
-                "password123!"
+                "1234"
         );
         BDDMockito.given(employeeRepository.save(any(Employee.class)))
                 .willReturn(employee);
-        BDDMockito.given(passwordEncoder.encode("password123!"))
-                .willReturn("encodedPassword");
 
         employeeService.registerEmployee(request);
 

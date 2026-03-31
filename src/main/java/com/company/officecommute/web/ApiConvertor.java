@@ -2,6 +2,7 @@ package com.company.officecommute.web;
 
 import com.company.officecommute.domain.overtime.Holiday;
 import com.company.officecommute.domain.overtime.HolidayResponse;
+import com.company.officecommute.global.exception.HolidayDataUnavailableException;
 import com.company.officecommute.repository.overtime.HolidayRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -87,18 +88,21 @@ public class ApiConvertor {
         } catch (Exception e) {
             log.error("공휴일 API 호출 실패. DB 캐시 사용: {}-{}, 오류: {}",
                     yearMonth.getYear(), yearMonth.getMonthValue(), e.getMessage());
-            return fetchHolidaysFromDatabase(yearMonth);
+            return fetchCachedHolidaysOrThrow(yearMonth);
         }
     }
 
-    private Set<LocalDate> fetchHolidaysFromDatabase(YearMonth yearMonth) {
+    private Set<LocalDate> fetchCachedHolidaysOrThrow(YearMonth yearMonth) {
         List<LocalDate> cachedHolidays = holidayRepository.findHolidayDatesByYearAndMonth(
                 yearMonth.getYear(),
                 yearMonth.getMonthValue()
         );
 
         if (cachedHolidays.isEmpty()) {
-            log.warn("DB에도 공휴일 데이터가 없습니다: {}-{}", yearMonth.getYear(), yearMonth.getMonthValue());
+            throw new HolidayDataUnavailableException(
+                    "공휴일 데이터를 확인할 수 없어 초과근무를 계산할 수 없습니다: "
+                            + yearMonth.getYear() + "-" + String.format("%02d", yearMonth.getMonthValue())
+            );
         }
 
         return Set.copyOf(cachedHolidays);

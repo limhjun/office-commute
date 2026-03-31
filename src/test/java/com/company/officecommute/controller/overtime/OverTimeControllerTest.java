@@ -3,6 +3,7 @@ package com.company.officecommute.controller.overtime;
 import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
+import com.company.officecommute.global.exception.HolidayDataUnavailableException;
 import com.company.officecommute.service.employee.EmployeeBuilder;
 import com.company.officecommute.service.employee.EmployeeService;
 import com.company.officecommute.service.overtime.OverTimeReportService;
@@ -155,6 +156,25 @@ class OverTimeControllerTest {
                     .hasStatus(HttpStatus.BAD_REQUEST)
                     .bodyJson()
                     .extractingPath("$.code").isEqualTo("MISSING_PARAMETER");
+        }
+
+        @Test
+        @DisplayName("신뢰할 수 있는 공휴일 데이터가 없으면 초과근무 계산을 중단한다")
+        void calculateOverTime_holidayDataUnavailable() {
+            given(employeeService.authenticate("ADMIN001", "1234"))
+                    .willReturn(managerEmployee);
+
+            given(overTimeService.calculateOverTime(YearMonth.of(2024, 8)))
+                    .willThrow(new HolidayDataUnavailableException("공휴일 데이터를 확인할 수 없어 초과근무를 계산할 수 없습니다: 2024-08"));
+
+            assertThat(mockMvcTester
+                    .get()
+                    .uri("/overtime?yearMonth=2024-08")
+                    .header("X-Employee-Code", "ADMIN001")
+                    .header("X-Employee-Pin", "1234"))
+                    .hasStatus(HttpStatus.SERVICE_UNAVAILABLE)
+                    .bodyJson()
+                    .extractingPath("$.code").isEqualTo("HOLIDAY_DATA_UNAVAILABLE");
         }
     }
 

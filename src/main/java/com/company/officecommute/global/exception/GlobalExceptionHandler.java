@@ -59,6 +59,13 @@ public class GlobalExceptionHandler {
         return new ErrorResult("FORBIDDEN", e.getMessage());
     }
 
+    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+    @ExceptionHandler(HolidayDataUnavailableException.class)
+    public ErrorResult handleHolidayDataUnavailable(HolidayDataUnavailableException e) {
+        log.warn("Holiday data unavailable: {}", e.getMessage());
+        return new ErrorResult("HOLIDAY_DATA_UNAVAILABLE", e.getMessage());
+    }
+
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ErrorResult handleDataIntegrity(DataIntegrityViolationException e) {

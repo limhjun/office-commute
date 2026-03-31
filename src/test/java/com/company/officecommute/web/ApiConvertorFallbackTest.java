@@ -2,6 +2,7 @@ package com.company.officecommute.web;
 
 import com.company.officecommute.domain.overtime.Holiday;
 import com.company.officecommute.domain.overtime.HolidayResponse;
+import com.company.officecommute.global.exception.HolidayDataUnavailableException;
 import com.company.officecommute.repository.overtime.HolidayRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,6 +19,7 @@ import java.time.YearMonth;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -71,18 +73,16 @@ class ApiConvertorFallbackTest {
     }
 
     @Test
-    @DisplayName("API 호출 실패하고 DB에도 데이터가 없으면 공휴일 0개로 계산한다")
-    void countStandardWorkingDays_calculatesWithZeroHolidays_whenApiFailsAndNoDatabaseData() {
+    @DisplayName("API 호출 실패하고 DB에도 데이터가 없으면 계산을 중단한다")
+    void countStandardWorkingDays_throwsException_whenApiFailsAndNoDatabaseData() {
         YearMonth yearMonth = YearMonth.of(2026, 1);
 
         // API 호출 실패 시뮬레이션
         mockFailedApiResponse();
 
-        // 예외 없이 계산 (공휴일 0개로 처리)
-        long workingDays = apiConvertor.countNumberOfStandardWorkingDays(yearMonth);
-
-        // 2026년 1월: 31일 - 9일(주말) = 22일 (공휴일 없음)
-        assertThat(workingDays).isEqualTo(22);
+        assertThatThrownBy(() -> apiConvertor.countNumberOfStandardWorkingDays(yearMonth))
+                .isInstanceOf(HolidayDataUnavailableException.class)
+                .hasMessageContaining("공휴일 데이터를 확인할 수 없어 초과근무를 계산할 수 없습니다");
     }
 
     @Test

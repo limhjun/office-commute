@@ -11,8 +11,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
-import java.io.IOException;
 import java.time.YearMonth;
 import java.util.List;
 
@@ -37,14 +37,15 @@ public class OverTimeController {
 
     @ManagerOnly
     @GetMapping("/overtime/report/excel")
-    public ResponseEntity<byte[]> downloadOverTimeReport(@RequestParam YearMonth yearMonth) throws IOException {
-        byte[] excelData = overTimeReportService.generateExcelReport(yearMonth);
+    public ResponseEntity<StreamingResponseBody> downloadOverTimeReport(@RequestParam YearMonth yearMonth) {
+        StreamingResponseBody body = outputStream ->
+                overTimeReportService.generateExcelReport(yearMonth, outputStream);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
         headers.setContentDisposition(ContentDisposition.attachment().filename(yearMonth.getYear() + "년" + yearMonth.getMonthValue() + "월_초과근무보고서.xlsx", UTF_8).build());
         return ResponseEntity.ok()
                 .headers(headers)
-                .body(excelData);
+                .body(body);
     }
 }

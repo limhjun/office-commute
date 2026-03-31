@@ -18,6 +18,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
+import java.io.OutputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
@@ -26,7 +27,11 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willDoNothing;
+import static org.mockito.BDDMockito.willThrow;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -178,10 +183,9 @@ class OverTimeControllerTest {
                     .willReturn(managerEmployee);
 
             YearMonth yearMonth = YearMonth.of(2024, 8);
-            byte[] mockExcelData = "mock excel data".getBytes();
 
-            given(overTimeReportService.generateExcelReport(yearMonth))
-                    .willReturn(mockExcelData);
+            willDoNothing().given(overTimeReportService)
+                    .generateExcelReport(eq(yearMonth), any(OutputStream.class));
 
             assertThat(mockMvcTester
                     .get()
@@ -234,22 +238,23 @@ class OverTimeControllerTest {
         }
 
         @Test
-        @DisplayName("엑셀 생성 중 IOException 발생 시 서버 에러 반환")
+        @DisplayName("엑셀 생성 중 IOException 발생 시 예외가 전파된다")
         void downloadOverTimeReport_ioException() throws Exception {
             given(employeeService.authenticate("ADMIN001", "1234"))
                     .willReturn(managerEmployee);
 
             YearMonth yearMonth = YearMonth.of(2024, 8);
 
-            given(overTimeReportService.generateExcelReport(yearMonth))
-                    .willThrow(new RuntimeException("엑셀 생성 실패"));
+            willThrow(new RuntimeException("엑셀 생성 실패")).given(overTimeReportService)
+                    .generateExcelReport(eq(yearMonth), any(OutputStream.class));
 
             assertThat(mockMvcTester
                     .get()
                     .uri("/overtime/report/excel?yearMonth=2024-08")
                     .header("X-Employee-Code", "ADMIN001")
                     .header("X-Employee-Pin", "1234"))
-                    .hasStatus(HttpStatus.INTERNAL_SERVER_ERROR);
+                    .failure()
+                    .hasRootCauseMessage("엑셀 생성 실패");
         }
     }
 

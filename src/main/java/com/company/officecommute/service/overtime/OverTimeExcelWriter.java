@@ -23,11 +23,14 @@ public class OverTimeExcelWriter {
     public void write(YearMonth yearMonth, List<OverTimeReportData> reportData, OutputStream outputStream) throws IOException {
         SXSSFWorkbook workbook = new SXSSFWorkbook(100);
         try {
-            Sheet sheet = workbook.createSheet(yearMonth.getMonth() + "월 초과근무 보고서");
+            Sheet sheet = workbook.createSheet(yearMonth.getMonthValue() + "월 초과근무 보고서");
             setColumnWidths(sheet);
             createHeader(sheet);
-            createDataRows(sheet, workbook, reportData);
-            createTotalRow(sheet, workbook, reportData.size());
+
+            CellStyle timeCellStyle = createTimeCellStyle(workbook);
+            CellStyle currencyCellStyle = createCurrencyCellStyle(workbook);
+            createDataRows(sheet, reportData, timeCellStyle, currencyCellStyle);
+            createTotalRow(sheet, reportData.size(), timeCellStyle, currencyCellStyle);
 
             workbook.write(outputStream);
         } finally {
@@ -62,9 +65,7 @@ public class OverTimeExcelWriter {
         }
     }
 
-    private void createDataRows(Sheet sheet, SXSSFWorkbook workbook, List<OverTimeReportData> reportData) {
-        CellStyle timeCellStyle = createTimeCellStyle(workbook);
-        CellStyle currencyCellStyle = createCurrencyCellStyle(workbook);
+    private void createDataRows(Sheet sheet, List<OverTimeReportData> reportData, CellStyle timeCellStyle, CellStyle currencyCellStyle) {
 
         int rowNum = 1;
         for (OverTimeReportData data : reportData) {
@@ -88,10 +89,7 @@ public class OverTimeExcelWriter {
         }
     }
 
-    private void createTotalRow(Sheet sheet, SXSSFWorkbook workbook, int dataRowCount) {
-        CellStyle timeCellStyle = createTimeCellStyle(workbook);
-        CellStyle currencyCellStyle = createCurrencyCellStyle(workbook);
-
+    private void createTotalRow(Sheet sheet, int dataRowCount, CellStyle timeCellStyle, CellStyle currencyCellStyle) {
         int totalRowIdx = dataRowCount + 1;
         Row totalRow = sheet.createRow(totalRowIdx);
 

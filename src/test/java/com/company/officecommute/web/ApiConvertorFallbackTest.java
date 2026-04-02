@@ -2,8 +2,10 @@ package com.company.officecommute.web;
 
 import com.company.officecommute.domain.overtime.Holiday;
 import com.company.officecommute.domain.overtime.HolidayResponse;
+import com.company.officecommute.domain.overtime.HolidaySyncStatus;
 import com.company.officecommute.global.exception.HolidayDataUnavailableException;
 import com.company.officecommute.repository.overtime.HolidayRepository;
+import com.company.officecommute.repository.overtime.HolidaySyncStatusRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,7 +16,10 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
+import java.time.Clock;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.YearMonth;
 import java.util.List;
 
@@ -30,13 +35,16 @@ class ApiConvertorFallbackTest {
 
     @Autowired private ApiConvertor apiConvertor;
     @Autowired private HolidayRepository holidayRepository;
+    @Autowired private HolidaySyncStatusRepository holidaySyncStatusRepository;
 
     @MockitoBean private RestTemplate restTemplate;
     @MockitoBean private ApiProperties apiProperties;
+    @MockitoBean private Clock clock;
 
     @Test
     @DisplayName("API 호출 성공 시 공휴일을 DB에 저장하고 근무일수를 계산한다")
     void countStandardWorkingDays_savesToDatabase_whenApiSucceeds() {
+        mockCurrentTime(LocalDateTime.of(2025, 11, 10, 9, 0));
         YearMonth yearMonth = YearMonth.of(2025, 11);
         mockSuccessfulApiResponse(yearMonth);
 
@@ -55,12 +63,14 @@ class ApiConvertorFallbackTest {
     @Test
     @DisplayName("API 호출 실패 시 DB 캐시 데이터로 계산한다")
     void countStandardWorkingDays_usesDatabaseCache_whenApiFails() {
+        mockCurrentTime(LocalDateTime.of(2026, 1, 5, 9, 0));
         YearMonth yearMonth = YearMonth.of(2025, 12);
 
         // DB에 캐시 데이터 저장 (12/25 크리스마스는 목요일, 12/31 제외는 수요일)
         Holiday holiday1 = new Holiday(2025, 12, LocalDate.of(2025, 12, 25));
         Holiday holiday2 = new Holiday(2025, 12, LocalDate.of(2025, 12, 31));
         holidayRepository.saveAll(List.of(holiday1, holiday2));
+        holidaySyncStatusRepository.save(new HolidaySyncStatus(2025, 12, LocalDateTime.of(2025, 12, 31, 23, 0)));
 
         // API 호출 실패 시뮬레이션 (403 Forbidden)
         mockFailedApiResponse();
@@ -75,6 +85,7 @@ class ApiConvertorFallbackTest {
     @Test
     @DisplayName("API 호출 실패하고 DB에도 데이터가 없으면 계산을 중단한다")
     void countStandardWorkingDays_throwsException_whenApiFailsAndNoDatabaseData() {
+        mockCurrentTime(LocalDateTime.of(2026, 1, 5, 9, 0));
         YearMonth yearMonth = YearMonth.of(2026, 1);
 
         // API 호출 실패 시뮬레이션
@@ -86,8 +97,28 @@ class ApiConvertorFallbackTest {
     }
 
     @Test
+    @DisplayName("API 호출 실패 시 캐시가 있어도 최신성이 검증되지 않으면 계산을 중단한다")
+    void countStandardWorkingDays_throwsException_whenCacheIsStale() {
+        mockCurrentTime(LocalDateTime.of(2026, 1, 5, 9, 0));
+        YearMonth yearMonth = YearMonth.of(2025, 12);
+
+        holidayRepository.saveAll(List.of(
+                new Holiday(2025, 12, LocalDate.of(2025, 12, 25)),
+                new Holiday(2025, 12, LocalDate.of(2025, 12, 31))
+        ));
+        holidaySyncStatusRepository.save(new HolidaySyncStatus(2025, 12, LocalDateTime.of(2025, 12, 20, 9, 0)));
+
+        mockFailedApiResponse();
+
+        assertThatThrownBy(() -> apiConvertor.countNumberOfStandardWorkingDays(yearMonth))
+                .isInstanceOf(HolidayDataUnavailableException.class)
+                .hasMessageContaining("공휴일 캐시가 최신 상태가 아니어서");
+    }
+
+    @Test
     @DisplayName("API 호출 성공 시 기존 DB 데이터를 삭제하고 새로운 데이터로 갱신한다")
     void countStandardWorkingDays_updatesDatabase_whenApiSucceeds() {
+        mockCurrentTime(LocalDateTime.of(2025, 5, 7, 9, 0));
         YearMonth yearMonth = YearMonth.of(2025, 5);
 
         // 기존 DB에 오래된 데이터가 있다고 가정
@@ -164,5 +195,11 @@ class ApiConvertorFallbackTest {
                         null,
                         null
                 ));
+    }
+
+    private void mockCurrentTime(LocalDateTime now) {
+        ZoneId zoneId = ZoneId.of("Asia/Seoul");
+        when(clock.getZone()).thenReturn(zoneId);
+        when(clock.instant()).thenReturn(now.atZone(zoneId).toInstant());
     }
 }

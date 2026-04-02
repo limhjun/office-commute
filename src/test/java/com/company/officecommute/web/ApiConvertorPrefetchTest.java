@@ -2,6 +2,7 @@ package com.company.officecommute.web;
 
 import com.company.officecommute.domain.overtime.HolidayResponse;
 import com.company.officecommute.repository.overtime.HolidayRepository;
+import com.company.officecommute.repository.overtime.HolidaySyncStatusRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,7 +13,10 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
+import java.time.Clock;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.YearMonth;
 import java.util.List;
 
@@ -27,16 +31,18 @@ class ApiConvertorPrefetchTest {
 
     @Autowired private ApiConvertor apiConvertor;
     @Autowired private HolidayRepository holidayRepository;
+    @Autowired private HolidaySyncStatusRepository holidaySyncStatusRepository;
 
     @MockitoBean private RestTemplate restTemplate;
     @MockitoBean private ApiProperties apiProperties;
+    @MockitoBean private Clock clock;
 
     @Test
     @DisplayName("다음 달 공휴일 선제적 저장 성공 시 DB에 저장된다")
     void prefetchNextMonthHolidays_savesToDatabase_whenApiSucceeds() {
+        mockCurrentTime(LocalDateTime.of(2025, 5, 27, 9, 0));
         // given
         YearMonth currentMonth = YearMonth.of(2025, 5);
-        YearMonth nextMonth = YearMonth.of(2025, 6);
 
         // 다음 달(6월) API 응답 모킹
         mockSuccessfulApiResponseForJune();
@@ -48,11 +54,13 @@ class ApiConvertorPrefetchTest {
         List<LocalDate> savedHolidays = holidayRepository.findHolidayDatesByYearAndMonth(2025, 6);
         assertThat(savedHolidays).hasSize(1);
         assertThat(savedHolidays).containsExactly(LocalDate.of(2025, 6, 6));
+        assertThat(holidaySyncStatusRepository.findByYearAndMonth(2025, 6)).isPresent();
     }
 
     @Test
     @DisplayName("다음 달 공휴일 선제적 저장 실패 시 예외를 던지지 않는다")
     void prefetchNextMonthHolidays_doesNotThrowException_whenApiFails() {
+        mockCurrentTime(LocalDateTime.of(2025, 5, 27, 9, 0));
         // given
         YearMonth currentMonth = YearMonth.of(2025, 5);
 
@@ -65,11 +73,13 @@ class ApiConvertorPrefetchTest {
         // DB에 저장되지 않았는지 확인
         List<LocalDate> savedHolidays = holidayRepository.findHolidayDatesByYearAndMonth(2025, 6);
         assertThat(savedHolidays).isEmpty();
+        assertThat(holidaySyncStatusRepository.findByYearAndMonth(2025, 6)).isEmpty();
     }
 
     @Test
     @DisplayName("선제적 저장이 있으면 API 실패 시 캐시 데이터로 근무일수를 계산한다")
     void countStandardWorkingDays_usesCachedData_whenApiFailsButPrefetchExists() {
+        mockCurrentTime(LocalDateTime.of(2025, 6, 2, 9, 0));
         // given
         YearMonth mayMonth = YearMonth.of(2025, 5);
         YearMonth juneMonth = YearMonth.of(2025, 6);
@@ -118,5 +128,11 @@ class ApiConvertorPrefetchTest {
                         null,
                         null
                 ));
+    }
+
+    private void mockCurrentTime(LocalDateTime now) {
+        ZoneId zoneId = ZoneId.of("Asia/Seoul");
+        when(clock.getZone()).thenReturn(zoneId);
+        when(clock.instant()).thenReturn(now.atZone(zoneId).toInstant());
     }
 }

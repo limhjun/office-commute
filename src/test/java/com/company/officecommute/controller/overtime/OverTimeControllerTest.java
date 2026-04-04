@@ -8,6 +8,7 @@ import com.company.officecommute.global.exception.HolidayDataUnavailableExceptio
 import com.company.officecommute.service.employee.EmployeeBuilder;
 import com.company.officecommute.service.employee.EmployeeService;
 import com.company.officecommute.service.overtime.HolidayCacheStatusService;
+import com.company.officecommute.service.overtime.HolidaySyncService;
 import com.company.officecommute.service.overtime.OverTimeReportService;
 import com.company.officecommute.service.overtime.OverTimeService;
 import org.junit.jupiter.api.DisplayName;
@@ -51,6 +52,9 @@ class OverTimeControllerTest {
 
     @MockitoBean
     private HolidayCacheStatusService holidayCacheStatusService;
+
+    @MockitoBean
+    private HolidaySyncService holidaySyncService;
 
     @MockitoBean
     private EmployeeService employeeService;
@@ -223,6 +227,52 @@ class OverTimeControllerTest {
             assertThat(mockMvcTester
                     .get()
                     .uri("/overtime/holiday-status?yearMonth=2026-03")
+                    .header("X-Employee-Code", "EMP001")
+                    .header("X-Employee-Pin", "5678"))
+                    .hasStatus(HttpStatus.FORBIDDEN);
+        }
+    }
+
+    @Nested
+    @DisplayName("공휴일 재동기화 API 테스트")
+    class HolidaySyncTests {
+
+        @Test
+        @DisplayName("MANAGER 권한이 있으면 특정 월 공휴일을 재동기화할 수 있다")
+        void syncHoliday_authorized() {
+            given(employeeService.authenticate("ADMIN001", "1234"))
+                    .willReturn(managerEmployee);
+
+            YearMonth yearMonth = YearMonth.of(2026, 3);
+            given(holidaySyncService.refreshAndGetStatus(yearMonth))
+                    .willReturn(new HolidayCacheStatusResponse(
+                            "2026-03",
+                            2,
+                            true,
+                            "READY",
+                            "초과근무 계산에 사용할 수 있는 공휴일 캐시입니다.",
+                            java.time.LocalDateTime.of(2026, 4, 4, 9, 0)
+                    ));
+
+            assertThat(mockMvcTester
+                    .post()
+                    .uri("/overtime/holiday-sync?yearMonth=2026-03")
+                    .header("X-Employee-Code", "ADMIN001")
+                    .header("X-Employee-Pin", "1234"))
+                    .hasStatus(HttpStatus.OK)
+                    .bodyJson()
+                    .extractingPath("$.status").isEqualTo("READY");
+        }
+
+        @Test
+        @DisplayName("MANAGER 권한이 없으면 공휴일 재동기화를 거부한다")
+        void syncHoliday_unauthorized() {
+            given(employeeService.authenticate("EMP001", "5678"))
+                    .willReturn(memberEmployee);
+
+            assertThat(mockMvcTester
+                    .post()
+                    .uri("/overtime/holiday-sync?yearMonth=2026-03")
                     .header("X-Employee-Code", "EMP001")
                     .header("X-Employee-Pin", "5678"))
                     .hasStatus(HttpStatus.FORBIDDEN);

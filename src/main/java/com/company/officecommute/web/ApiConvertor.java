@@ -3,9 +3,9 @@ package com.company.officecommute.web;
 import com.company.officecommute.domain.overtime.Holiday;
 import com.company.officecommute.domain.overtime.HolidayResponse;
 import com.company.officecommute.domain.overtime.HolidaySyncStatus;
-import com.company.officecommute.global.exception.HolidayDataUnavailableException;
 import com.company.officecommute.repository.overtime.HolidayRepository;
 import com.company.officecommute.repository.overtime.HolidaySyncStatusRepository;
+import com.company.officecommute.service.overtime.HolidayCacheStatusService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -27,7 +27,6 @@ import static java.util.stream.Collectors.toSet;
 @Component
 public class ApiConvertor {
 
-    private static final long RECENT_CACHE_MAX_AGE_DAYS = 7L;
     private static final Logger log = LoggerFactory.getLogger(ApiConvertor.class);
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
 
@@ -36,19 +35,22 @@ public class ApiConvertor {
     private final HolidayRepository holidayRepository;
     private final HolidaySyncStatusRepository holidaySyncStatusRepository;
     private final Clock clock;
+    private final HolidayCacheStatusService holidayCacheStatusService;
 
     public ApiConvertor(
             RestTemplate restTemplate,
             ApiProperties apiProperties,
             HolidayRepository holidayRepository,
             HolidaySyncStatusRepository holidaySyncStatusRepository,
-            Clock clock
+            Clock clock,
+            HolidayCacheStatusService holidayCacheStatusService
     ) {
         this.restTemplate = restTemplate;
         this.apiProperties = apiProperties;
         this.holidayRepository = holidayRepository;
         this.holidaySyncStatusRepository = holidaySyncStatusRepository;
         this.clock = clock;
+        this.holidayCacheStatusService = holidayCacheStatusService;
     }
 
     @Transactional
@@ -104,35 +106,7 @@ public class ApiConvertor {
     }
 
     private Set<LocalDate> fetchCachedHolidaysOrThrow(YearMonth yearMonth) {
-        List<LocalDate> cachedHolidays = holidayRepository.findHolidayDatesByYearAndMonth(
-                yearMonth.getYear(),
-                yearMonth.getMonthValue()
-        );
-
-        if (cachedHolidays.isEmpty()) {
-            throw new HolidayDataUnavailableException(
-                    "공휴일 데이터를 확인할 수 없어 초과근무를 계산할 수 없습니다: "
-                            + yearMonth.getYear() + "-" + String.format("%02d", yearMonth.getMonthValue())
-            );
-        }
-
-        HolidaySyncStatus syncStatus = holidaySyncStatusRepository.findByYearAndMonth(
-                        yearMonth.getYear(),
-                        yearMonth.getMonthValue()
-                )
-                .orElseThrow(() -> new HolidayDataUnavailableException(
-                        "공휴일 캐시의 최신성을 확인할 수 없어 초과근무를 계산할 수 없습니다: "
-                                + yearMonth.getYear() + "-" + String.format("%02d", yearMonth.getMonthValue())
-                ));
-
-        if (!isReliableCache(yearMonth, syncStatus)) {
-            throw new HolidayDataUnavailableException(
-                    "공휴일 캐시가 최신 상태가 아니어서 초과근무를 계산할 수 없습니다: "
-                            + yearMonth.getYear() + "-" + String.format("%02d", yearMonth.getMonthValue())
-            );
-        }
-
-        return Set.copyOf(cachedHolidays);
+        return holidayCacheStatusService.getUsableCachedHolidaysOrThrow(yearMonth);
     }
 
     private void saveHolidaysToDatabase(YearMonth yearMonth, Set<LocalDate> holidays) {
@@ -180,17 +154,6 @@ public class ApiConvertor {
         return items.stream()
                 .map(item -> LocalDate.parse(item.getLocdate(), DATE_FORMATTER))
                 .collect(toSet());
-    }
-
-    private boolean isReliableCache(YearMonth yearMonth, HolidaySyncStatus syncStatus) {
-        LocalDate lastSyncedDate = syncStatus.getLastSuccessfulSyncedAt().toLocalDate();
-        LocalDate today = LocalDate.now(clock);
-        YearMonth currentMonth = YearMonth.from(today);
-
-        if (yearMonth.isBefore(currentMonth)) {
-            return !lastSyncedDate.isBefore(yearMonth.atEndOfMonth());
-        }
-        return !lastSyncedDate.isBefore(today.minusDays(RECENT_CACHE_MAX_AGE_DAYS));
     }
 
     public long calculateStandardWorkingMinutes(long numberOfStandardWorkingDays) {

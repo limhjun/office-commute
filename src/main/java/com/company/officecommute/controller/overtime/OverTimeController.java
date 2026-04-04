@@ -1,7 +1,9 @@
 package com.company.officecommute.controller.overtime;
 
 import com.company.officecommute.auth.ManagerOnly;
+import com.company.officecommute.dto.overtime.response.HolidayCacheStatusResponse;
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
+import com.company.officecommute.service.overtime.HolidayCacheStatusService;
 import com.company.officecommute.service.overtime.OverTimeReportService;
 import com.company.officecommute.service.overtime.OverTimeService;
 import org.springframework.http.ContentDisposition;
@@ -23,16 +25,28 @@ public class OverTimeController {
 
     private final OverTimeService overTimeService;
     private final OverTimeReportService overTimeReportService;
+    private final HolidayCacheStatusService holidayCacheStatusService;
 
-    public OverTimeController(OverTimeService overTimeService, OverTimeReportService overTimeReportService) {
+    public OverTimeController(
+            OverTimeService overTimeService,
+            OverTimeReportService overTimeReportService,
+            HolidayCacheStatusService holidayCacheStatusService
+    ) {
         this.overTimeService = overTimeService;
         this.overTimeReportService = overTimeReportService;
+        this.holidayCacheStatusService = holidayCacheStatusService;
     }
 
     @ManagerOnly
     @GetMapping("/overtime")
     public List<OverTimeCalculateResponse> calculateOverTime(@RequestParam YearMonth yearMonth) {
         return overTimeService.calculateOverTime(yearMonth);
+    }
+
+    @ManagerOnly
+    @GetMapping("/overtime/holiday-status")
+    public HolidayCacheStatusResponse getHolidayStatus(@RequestParam YearMonth yearMonth) {
+        return holidayCacheStatusService.getStatus(yearMonth);
     }
 
     @ManagerOnly

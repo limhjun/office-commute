@@ -2,10 +2,12 @@ package com.company.officecommute.controller.overtime;
 
 import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.domain.employee.Role;
+import com.company.officecommute.dto.overtime.response.HolidayCacheStatusResponse;
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
 import com.company.officecommute.global.exception.HolidayDataUnavailableException;
 import com.company.officecommute.service.employee.EmployeeBuilder;
 import com.company.officecommute.service.employee.EmployeeService;
+import com.company.officecommute.service.overtime.HolidayCacheStatusService;
 import com.company.officecommute.service.overtime.OverTimeReportService;
 import com.company.officecommute.service.overtime.OverTimeService;
 import org.junit.jupiter.api.DisplayName;
@@ -46,6 +48,9 @@ class OverTimeControllerTest {
 
     @MockitoBean
     private OverTimeReportService overTimeReportService;
+
+    @MockitoBean
+    private HolidayCacheStatusService holidayCacheStatusService;
 
     @MockitoBean
     private EmployeeService employeeService;
@@ -175,6 +180,52 @@ class OverTimeControllerTest {
                     .hasStatus(HttpStatus.SERVICE_UNAVAILABLE)
                     .bodyJson()
                     .extractingPath("$.code").isEqualTo("HOLIDAY_DATA_UNAVAILABLE");
+        }
+    }
+
+    @Nested
+    @DisplayName("공휴일 캐시 상태 조회 API 테스트")
+    class HolidayStatusTests {
+
+        @Test
+        @DisplayName("MANAGER 권한이 있으면 공휴일 캐시 상태를 조회할 수 있다")
+        void getHolidayStatus_authorized() {
+            given(employeeService.authenticate("ADMIN001", "1234"))
+                    .willReturn(managerEmployee);
+
+            YearMonth yearMonth = YearMonth.of(2026, 3);
+            given(holidayCacheStatusService.getStatus(yearMonth))
+                    .willReturn(new HolidayCacheStatusResponse(
+                            "2026-03",
+                            2,
+                            false,
+                            "STALE_CACHE",
+                            "공휴일 캐시가 최신 상태가 아니어서 초과근무를 계산할 수 없습니다: 2026-03 (월말 기준 최종 검증 필요)",
+                            java.time.LocalDateTime.of(2026, 3, 20, 9, 0)
+                    ));
+
+            assertThat(mockMvcTester
+                    .get()
+                    .uri("/overtime/holiday-status?yearMonth=2026-03")
+                    .header("X-Employee-Code", "ADMIN001")
+                    .header("X-Employee-Pin", "1234"))
+                    .hasStatus(HttpStatus.OK)
+                    .bodyJson()
+                    .extractingPath("$.status").isEqualTo("STALE_CACHE");
+        }
+
+        @Test
+        @DisplayName("MANAGER 권한이 없으면 공휴일 캐시 상태 조회를 거부한다")
+        void getHolidayStatus_unauthorized() {
+            given(employeeService.authenticate("EMP001", "5678"))
+                    .willReturn(memberEmployee);
+
+            assertThat(mockMvcTester
+                    .get()
+                    .uri("/overtime/holiday-status?yearMonth=2026-03")
+                    .header("X-Employee-Code", "EMP001")
+                    .header("X-Employee-Pin", "5678"))
+                    .hasStatus(HttpStatus.FORBIDDEN);
         }
     }
 

@@ -49,7 +49,6 @@ public class CommuteHistoryServiceConcurrencyTest {
                 null,
                 team,
                 "테스트직원",
-                null,
                 Role.MEMBER,
                 LocalDate.of(1990, 1, 1),
                 LocalDate.of(2024, 1, 1),

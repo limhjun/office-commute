@@ -10,7 +10,6 @@ public class EmployeeBuilder {
     private Long id;
     private Team team;
     private String name;
-    private String teamName;
     private Role role;
     private LocalDate birthday;
     private LocalDate workStartDate;
@@ -47,11 +46,6 @@ public class EmployeeBuilder {
         return this;
     }
 
-    public EmployeeBuilder withTeamName(String teamName) {
-        this.teamName = teamName;
-        return this;
-    }
-
     public EmployeeBuilder withEmployeeCode(String employeeCode) {
         this.employeeCode = employeeCode;
         return this;
@@ -63,6 +57,6 @@ public class EmployeeBuilder {
     }
 
     public Employee build() {
-        return new Employee(id, team, name, teamName, role, birthday, workStartDate, employeeCode, pin);
+        return new Employee(id, team, name, role, birthday, workStartDate, employeeCode, pin);
     }
 }

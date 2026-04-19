@@ -32,8 +32,6 @@ public class Employee {
 
     private String name;
 
-    private String teamName;
-
     @Enumerated(EnumType.STRING)
     private Role role;
 
@@ -56,18 +54,7 @@ public class Employee {
             LocalDate birthday,
             LocalDate workStartDate
     ) {
-        this(null, null, name, null, role, birthday, workStartDate, "TEST001", "1234");
-    }
-
-    public Employee(
-            Long employeeId,
-            String name,
-            String teamName,
-            Role role,
-            LocalDate birthday,
-            LocalDate workStartDate
-    ) {
-        this(employeeId, null, name, teamName, role, birthday, workStartDate, "TEST001", "1234");
+        this(null, null, name, role, birthday, workStartDate, "TEST001", "1234");
     }
 
     public Employee(
@@ -78,14 +65,13 @@ public class Employee {
             String employeeCode,
             String pin
     ) {
-        this(null, null, name, null, role, birthday, workStartDate, employeeCode, pin);
+        this(null, null, name, role, birthday, workStartDate, employeeCode, pin);
     }
 
     public Employee(
             Long employeeId,
             Team team,
             String name,
-            String teamName,
             Role role,
             LocalDate birthday,
             LocalDate workStartDate,
@@ -95,7 +81,6 @@ public class Employee {
         this.employeeId = employeeId;
         this.team = team;
         this.name = validateName(name);
-        this.teamName = teamName;
         this.role = Objects.requireNonNull(role, "role은 null일 수 없습니다");
         this.birthday = Objects.requireNonNull(birthday, "birthday는 null일 수 없습니다");
         this.workStartDate = Objects.requireNonNull(workStartDate, "workStartDate는 null일 수 없습니다");

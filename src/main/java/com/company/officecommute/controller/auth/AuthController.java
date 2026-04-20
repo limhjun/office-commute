@@ -22,10 +22,16 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public void login(@Valid @RequestBody LoginRequest request, HttpSession session) {
+    public void login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
         Employee employee = employeeService.authenticate(request.email(), request.password());
-        session.setAttribute("currentEmployeeId", employee.getEmployeeId());
-        session.setAttribute("currentRole", employee.getRole());
+
+        HttpSession existingSession = httpRequest.getSession(false);
+        if (existingSession != null) {
+            existingSession.invalidate();
+        }
+        HttpSession newSession = httpRequest.getSession(true);
+        newSession.setAttribute("currentEmployeeId", employee.getEmployeeId());
+        newSession.setAttribute("currentRole", employee.getRole());
     }
 
     @PostMapping("/logout")

@@ -14,6 +14,9 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
+import org.springframework.test.web.servlet.assertj.MvcTestResult;
+
+import jakarta.servlet.http.HttpSession;
 
 import java.time.LocalDate;
 
@@ -43,28 +46,36 @@ class AuthControllerTest {
             .build();
 
     @Test
-    @DisplayName("로그인 성공 시 세션에 직원 정보가 저장된다")
+    @DisplayName("로그인 성공 시 기존 세션은 무효화되고 새 세션에 직원 정보가 저장된다")
     void login_success() {
         given(employeeService.authenticate("admin@company.com", "password123"))
                 .willReturn(managerEmployee);
 
-        MockHttpSession session = new MockHttpSession();
+        MockHttpSession existingSession = new MockHttpSession();
+        String existingSessionId = existingSession.getId();
 
-        assertThat(mockMvcTester
+        MvcTestResult result = mockMvcTester
                 .post()
                 .uri("/api/auth/login")
-                .session(session)
+                .session(existingSession)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         {
                             "email": "admin@company.com",
                             "password": "password123"
                         }
-                        """))
-                .hasStatus(HttpStatus.OK);
+                        """)
+                .exchange();
 
-        assertThat(session.getAttribute("currentEmployeeId")).isEqualTo(1L);
-        assertThat(session.getAttribute("currentRole")).isEqualTo(Role.MANAGER);
+        assertThat(result).hasStatus(HttpStatus.OK);
+
+        assertThat(existingSession.isInvalid()).isTrue();
+
+        HttpSession newSession = result.getRequest().getSession(false);
+        assertThat(newSession).isNotNull();
+        assertThat(newSession.getId()).isNotEqualTo(existingSessionId);
+        assertThat(newSession.getAttribute("currentEmployeeId")).isEqualTo(1L);
+        assertThat(newSession.getAttribute("currentRole")).isEqualTo(Role.MANAGER);
     }
 
     @Test

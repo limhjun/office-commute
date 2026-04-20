@@ -33,7 +33,8 @@ class EmployeeTest {
                 .withBirthday(LocalDate.of(1998, 8, 18))
                 .withStartDate(LocalDate.of(2021, 8, 18))
                 .withEmployeeCode("EMP001")
-                .withPin("1234")
+                .withEmail("hyungjunn@company.com")
+                .withPassword("password123")
                 .build();
 
         employee.changeTeam(new Team("A"));

@@ -18,9 +18,13 @@ import jakarta.persistence.ManyToOne;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 @Entity
 public class Employee {
+
+    private static final Pattern EMAIL_PATTERN =
+            Pattern.compile("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -32,8 +36,6 @@ public class Employee {
 
     private String name;
 
-    private String teamName;
-
     @Enumerated(EnumType.STRING)
     private Role role;
 
@@ -44,8 +46,11 @@ public class Employee {
     @Column(unique = true, nullable = false)
     private String employeeCode;
 
+    @Column(unique = true, nullable = false)
+    private String email;
+
     @Column(nullable = false)
-    private String pin;
+    private String password;
 
     protected Employee() {
     }
@@ -56,18 +61,7 @@ public class Employee {
             LocalDate birthday,
             LocalDate workStartDate
     ) {
-        this(null, null, name, null, role, birthday, workStartDate, "TEST001", "1234");
-    }
-
-    public Employee(
-            Long employeeId,
-            String name,
-            String teamName,
-            Role role,
-            LocalDate birthday,
-            LocalDate workStartDate
-    ) {
-        this(employeeId, null, name, teamName, role, birthday, workStartDate, "TEST001", "1234");
+        this(null, null, name, role, birthday, workStartDate, "TEST001", "test@example.com", "password");
     }
 
     public Employee(
@@ -76,31 +70,32 @@ public class Employee {
             LocalDate birthday,
             LocalDate workStartDate,
             String employeeCode,
-            String pin
+            String email,
+            String password
     ) {
-        this(null, null, name, null, role, birthday, workStartDate, employeeCode, pin);
+        this(null, null, name, role, birthday, workStartDate, employeeCode, email, password);
     }
 
     public Employee(
             Long employeeId,
             Team team,
             String name,
-            String teamName,
             Role role,
             LocalDate birthday,
             LocalDate workStartDate,
             String employeeCode,
-            String pin
+            String email,
+            String password
     ) {
         this.employeeId = employeeId;
         this.team = team;
         this.name = validateName(name);
-        this.teamName = teamName;
         this.role = Objects.requireNonNull(role, "role은 null일 수 없습니다");
         this.birthday = Objects.requireNonNull(birthday, "birthday는 null일 수 없습니다");
         this.workStartDate = Objects.requireNonNull(workStartDate, "workStartDate는 null일 수 없습니다");
         this.employeeCode = validateEmployeeCode(employeeCode);
-        this.pin = validatePin(pin);
+        this.email = validateEmail(email);
+        this.password = validatePassword(password);
     }
 
     private String validateEmployeeCode(String employeeCode) {
@@ -117,15 +112,26 @@ public class Employee {
         return name.trim();
     }
 
-    private String validatePin(String pin) {
-        if (pin == null || pin.isBlank()) {
-            throw new IllegalArgumentException("PIN은 null이거나 빈 값일 수 없습니다.");
+    private String validateEmail(String email) {
+        if (email == null || email.isBlank()) {
+            throw new IllegalArgumentException("email은 null이거나 빈 값일 수 없습니다.");
         }
-        return pin;
+        String trimmed = email.trim();
+        if (!EMAIL_PATTERN.matcher(trimmed).matches()) {
+            throw new IllegalArgumentException("email 형식이 올바르지 않습니다.");
+        }
+        return trimmed;
     }
 
-    public boolean matchesPin(String rawPin) {
-        return this.pin.equals(rawPin);
+    private String validatePassword(String password) {
+        if (password == null || password.isBlank()) {
+            throw new IllegalArgumentException("password는 null이거나 빈 값일 수 없습니다.");
+        }
+        return password;
+    }
+
+    public boolean matchesPassword(String rawPassword) {
+        return this.password.equals(rawPassword);
     }
 
     public void changeTeam(Team newTeam) {
@@ -183,7 +189,15 @@ public class Employee {
         return workStartDate;
     }
 
-    public String getPin() {
-        return pin;
+    public String getEmployeeCode() {
+        return employeeCode;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public String getPassword() {
+        return password;
     }
 }

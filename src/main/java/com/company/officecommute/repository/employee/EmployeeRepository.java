@@ -10,14 +10,19 @@ import java.util.Optional;
 
 public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     @Query("""
-            SELECT new Employee (e.name, e.role, e.birthday, e.workStartDate)
+            SELECT e
             FROM Employee e
+            LEFT JOIN FETCH e.team
             """)
     List<Employee> findEmployeeHierarchy();
 
     Optional<Employee> findByEmployeeCode(String employeeCode);
 
     boolean existsByEmployeeCode(String employeeCode);
+
+    Optional<Employee> findByEmail(String email);
+
+    boolean existsByEmail(String email);
 
     @Query("""
             SELECT e

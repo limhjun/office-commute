@@ -49,12 +49,12 @@ public class CommuteHistoryServiceConcurrencyTest {
                 null,
                 team,
                 "테스트직원",
-                null,
                 Role.MEMBER,
                 LocalDate.of(1990, 1, 1),
                 LocalDate.of(2024, 1, 1),
                 "TEST001",
-                "1234"
+                "test@company.com",
+                "password123"
         );
         Employee savedEmployee = employeeRepository.save(employee);
         testEmployeeId = savedEmployee.getEmployeeId();

@@ -1,11 +1,13 @@
 package com.company.officecommute.dto.employee.request;
 
 import com.company.officecommute.domain.employee.Role;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Past;
 import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
 
@@ -30,9 +32,12 @@ public record EmployeeSaveRequest(
                 message = "사번은 대문자와 숫자 6-10자리여야 합니다.")
         String employeeCode,
 
-        @NotBlank(message = "PIN은 필수입니다.")
-        @Pattern(regexp = "^\\d{4,6}$",
-                message = "PIN은 4~6자리 숫자여야 합니다.")
-        String pin
+        @NotBlank(message = "이메일은 필수입니다.")
+        @Email(message = "이메일 형식이 올바르지 않습니다.")
+        String email,
+
+        @NotBlank(message = "비밀번호는 필수입니다.")
+        @Size(min = 8, message = "비밀번호는 최소 8자 이상이어야 합니다.")
+        String password
 ) {
 }

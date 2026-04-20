@@ -28,13 +28,17 @@ public class EmployeeService {
         if (employeeRepository.existsByEmployeeCode(request.employeeCode())) {
             throw new IllegalArgumentException("이미 존재하는 직원 코드입니다.");
         }
+        if (employeeRepository.existsByEmail(request.email())) {
+            throw new IllegalArgumentException("이미 존재하는 이메일입니다.");
+        }
         Employee employee = new Employee(
                 request.name(),
                 request.role(),
                 request.birthday(),
                 request.workStartDate(),
                 request.employeeCode(),
-                request.pin()
+                request.email(),
+                request.password()
         );
         employeeRepository.save(employee);
     }
@@ -57,11 +61,11 @@ public class EmployeeService {
         employee.changeTeam(team);
     }
 
-    public Employee authenticate(String employeeCode, String pin) {
-        Employee employee = employeeRepository.findByEmployeeCode(employeeCode)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사번입니다"));
-        if (!employee.matchesPin(pin)) {
-            throw new IllegalArgumentException("PIN이 일치하지 않습니다.");
+    public Employee authenticate(String email, String password) {
+        Employee employee = employeeRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 이메일입니다."));
+        if (!employee.matchesPassword(password)) {
+            throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
         }
         return employee;
     }

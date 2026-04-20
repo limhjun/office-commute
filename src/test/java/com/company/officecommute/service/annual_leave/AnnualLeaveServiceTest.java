@@ -56,7 +56,8 @@ class AnnualLeaveServiceTest {
                 .withBirthday(LocalDate.of(1998, 8, 18))
                 .withStartDate(LocalDate.of(2024, 1, 1))
                 .withEmployeeCode("EMP001")
-                .withPin("1234")
+                .withEmail("hyungjunn@company.com")
+                .withPassword("password123")
                 .build();
     }
 

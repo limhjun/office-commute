@@ -48,7 +48,8 @@ class EmployeeControllerDocsTest extends RestDocsSupport {
                     "birthday": "1990-01-15",
                     "workStartDate": "2024-01-02",
                     "employeeCode": "EMP002",
-                    "pin": "1234"
+                    "email": "hong@company.com",
+                    "password": "password123"
                 }
                 """;
 
@@ -69,8 +70,10 @@ class EmployeeControllerDocsTest extends RestDocsSupport {
                                         .description("입사일 (yyyy-MM-dd)"),
                                 fieldWithPath("employeeCode").type(JsonFieldType.STRING)
                                         .description("사번 (대문자+숫자 6-10자리)"),
-                                fieldWithPath("pin").type(JsonFieldType.STRING)
-                                        .description("PIN (4~6자리 숫자)")
+                                fieldWithPath("email").type(JsonFieldType.STRING)
+                                        .description("이메일"),
+                                fieldWithPath("password").type(JsonFieldType.STRING)
+                                        .description("비밀번호 (최소 8자)")
                         )
                 ));
     }

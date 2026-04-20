@@ -52,45 +52,46 @@ class EmployeeServiceTest {
                 .withBirthday(LocalDate.of(1998, 8, 18))
                 .withStartDate(LocalDate.of(2024, 1, 1))
                 .withEmployeeCode("EMP001")
-                .withPin("1234")
+                .withEmail("hyungjunn@company.com")
+                .withPassword("password123")
                 .build();
 
     }
 
     @Test
-    @DisplayName("올바른 사번과 PIN으로 인증 성공")
+    @DisplayName("올바른 이메일과 비밀번호로 인증 성공")
     void authenticate_success() {
-        String employeeCode = "EMP001";
-        String pin = "1234";
-        BDDMockito.given(employeeRepository.findByEmployeeCode(employeeCode))
+        String email = "hyungjunn@company.com";
+        String password = "password123";
+        BDDMockito.given(employeeRepository.findByEmail(email))
                 .willReturn(Optional.of(employee));
 
-        Employee result = employeeService.authenticate(employeeCode, pin);
+        Employee result = employeeService.authenticate(email, password);
 
         assertThat(result).isEqualTo(employee);
     }
 
     @Test
-    @DisplayName("존재하지 않는 사번으로 인증 실패")
-    void authenticate_employeeCodeNotFound() {
-        BDDMockito.given(employeeRepository.findByEmployeeCode("INVALID_CODE"))
+    @DisplayName("존재하지 않는 이메일로 인증 실패")
+    void authenticate_emailNotFound() {
+        BDDMockito.given(employeeRepository.findByEmail("unknown@company.com"))
                 .willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> employeeService.authenticate("INVALID_CODE", "1234"))
+        assertThatThrownBy(() -> employeeService.authenticate("unknown@company.com", "password123"))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("존재하지 않는 사번입니다");
+                .hasMessage("존재하지 않는 이메일입니다.");
     }
 
     @Test
-    @DisplayName("잘못된 PIN으로 인증 실패")
-    void authenticate_wrongPin() {
-        String wrongPin = "9999";
-        BDDMockito.given(employeeRepository.findByEmployeeCode("EMP001"))
+    @DisplayName("잘못된 비밀번호로 인증 실패")
+    void authenticate_wrongPassword() {
+        String wrongPassword = "wrongpassword";
+        BDDMockito.given(employeeRepository.findByEmail("hyungjunn@company.com"))
                 .willReturn(Optional.of(employee));
 
-        assertThatThrownBy(() -> employeeService.authenticate("EMP001", wrongPin))
+        assertThatThrownBy(() -> employeeService.authenticate("hyungjunn@company.com", wrongPassword))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("PIN이 일치하지 않습니다.");
+                .hasMessage("비밀번호가 일치하지 않습니다.");
     }
 
     @Test
@@ -102,14 +103,18 @@ class EmployeeServiceTest {
                 LocalDate.of(1998, 8, 18),
                 LocalDate.of(2024, 1, 1),
                 "EMP001",
-                "1234"
+                "hyungjunn@company.com",
+                "password123"
         );
         BDDMockito.given(employeeRepository.existsByEmployeeCode("EMP001"))
+                .willReturn(false);
+        BDDMockito.given(employeeRepository.existsByEmail("hyungjunn@company.com"))
                 .willReturn(false);
 
         employeeService.registerEmployee(request);
 
         verify(employeeRepository).existsByEmployeeCode("EMP001");
+        verify(employeeRepository).existsByEmail("hyungjunn@company.com");
         verify(employeeRepository).save(any(Employee.class));
     }
 
@@ -122,7 +127,8 @@ class EmployeeServiceTest {
                 LocalDate.of(1998, 8, 18),
                 LocalDate.of(2024, 1, 1),
                 "EMP001",
-                "1234"
+                "hyungjunn@company.com",
+                "password123"
         );
         BDDMockito.given(employeeRepository.existsByEmployeeCode("EMP001"))
                 .willReturn(true);
@@ -135,6 +141,29 @@ class EmployeeServiceTest {
     }
 
     @Test
+    @DisplayName("중복된 이메일로 등록시 예외가 발생한다")
+    void registerEmployee_with_duplicateEmail() {
+        EmployeeSaveRequest request = new EmployeeSaveRequest(
+                "임형준",
+                MEMBER,
+                LocalDate.of(1998, 8, 18),
+                LocalDate.of(2024, 1, 1),
+                "EMP001",
+                "hyungjunn@company.com",
+                "password123"
+        );
+        BDDMockito.given(employeeRepository.existsByEmployeeCode("EMP001"))
+                .willReturn(false);
+        BDDMockito.given(employeeRepository.existsByEmail("hyungjunn@company.com"))
+                .willReturn(true);
+
+        assertThatThrownBy(() -> employeeService.registerEmployee(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("이미 존재하는 이메일입니다.");
+        verify(employeeRepository, BDDMockito.never()).save(any(Employee.class));
+    }
+
+    @Test
     void testRegisterEmployee() {
         EmployeeSaveRequest request = new EmployeeSaveRequest(
                 "임형준",
@@ -142,7 +171,8 @@ class EmployeeServiceTest {
                 LocalDate.of(1998, 8, 18),
                 LocalDate.of(2024, 1, 1),
                 "EMP001",
-                "1234"
+                "hyungjunn@company.com",
+                "password123"
         );
         BDDMockito.given(employeeRepository.save(any(Employee.class)))
                 .willReturn(employee);

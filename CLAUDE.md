@@ -65,10 +65,12 @@ Controller → Service → Repository → Database
 
 ### Authentication
 
-- `AuthInterceptor`: 매 요청마다 `X-Employee-Code` + `X-Employee-Pin` 헤더로 Stateless 인증
-- 인증 성공 시 `currentEmployeeId`, `currentRole`을 request attribute로 설정
+- `AuthController`: `POST /api/auth/login` (email + password) → `HttpSession`에 `currentEmployeeId`, `currentRole` 저장. `POST /api/auth/logout`은 세션 무효화.
+- `AuthInterceptor`: 매 요청마다 세션에서 `currentEmployeeId`, `currentRole`을 읽어 request attribute로 복사. 세션 없으면 401.
+- `WebConfig`에서 `/api/auth/**`는 인터셉터 제외 (로그인/로그아웃은 세션 없이도 호출 가능).
 - `@ManagerOnly` 어노테이션으로 MANAGER 전용 API 권한 체크 (인터셉터에서 처리)
 - `Role` enum: MANAGER, MEMBER
+- 비밀번호는 현재 평문 저장 (BCrypt 해싱은 별도 작업)
 
 ### Test Patterns
 

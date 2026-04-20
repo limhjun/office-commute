@@ -1,5 +1,6 @@
 package com.company.officecommute.controller.auth;
 
+import com.company.officecommute.auth.AuthenticationFailedException;
 import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.service.employee.EmployeeBuilder;
@@ -82,7 +83,7 @@ class AuthControllerTest {
     @DisplayName("잘못된 자격 증명으로 로그인 시 401 응답")
     void login_invalidCredentials() {
         when(employeeService.authenticate("admin@company.com", "wrongpassword"))
-                .thenThrow(new IllegalArgumentException("비밀번호가 일치하지 않습니다."));
+                .thenThrow(new AuthenticationFailedException("비밀번호가 일치하지 않습니다."));
 
         assertThat(mockMvcTester
                 .post()
@@ -94,7 +95,7 @@ class AuthControllerTest {
                             "password": "wrongpassword"
                         }
                         """))
-                .hasStatus(HttpStatus.BAD_REQUEST);
+                .hasStatus(HttpStatus.UNAUTHORIZED);
     }
 
     @Test

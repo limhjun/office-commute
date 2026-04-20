@@ -1,5 +1,6 @@
 package com.company.officecommute.global.exception;
 
+import com.company.officecommute.auth.AuthenticationFailedException;
 import com.company.officecommute.auth.ForbiddenException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,6 +51,13 @@ public class GlobalExceptionHandler {
     public ErrorResult handleInvalidJson(HttpMessageNotReadableException e) {
         log.warn("Invalid JSON request: {}", e.getMessage());
         return new ErrorResult("INVALID_JSON", "역할 값이 올바르지 않습니다.");
+    }
+
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    @ExceptionHandler(AuthenticationFailedException.class)
+    public ErrorResult handleAuthenticationFailed(AuthenticationFailedException e) {
+        log.warn("Authentication failed: {}", e.getMessage());
+        return new ErrorResult("UNAUTHORIZED", e.getMessage());
     }
 
     @ResponseStatus(HttpStatus.FORBIDDEN)

@@ -1,5 +1,6 @@
 package com.company.officecommute.service.employee;
 
+import com.company.officecommute.auth.AuthenticationFailedException;
 import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.domain.team.Team;
 import com.company.officecommute.dto.employee.request.EmployeeSaveRequest;
@@ -80,7 +81,7 @@ class EmployeeServiceTest {
                 .willReturn(Optional.empty());
 
         assertThatThrownBy(() -> employeeService.authenticate("unknown@company.com", "password123"))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(AuthenticationFailedException.class)
                 .hasMessage("존재하지 않는 이메일입니다.");
     }
 
@@ -92,7 +93,7 @@ class EmployeeServiceTest {
                 .willReturn(Optional.of(employee));
 
         assertThatThrownBy(() -> employeeService.authenticate("hyungjunn@company.com", wrongPassword))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(AuthenticationFailedException.class)
                 .hasMessage("비밀번호가 일치하지 않습니다.");
     }
 

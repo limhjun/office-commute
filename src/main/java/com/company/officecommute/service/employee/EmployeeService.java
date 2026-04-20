@@ -1,5 +1,6 @@
 package com.company.officecommute.service.employee;
 
+import com.company.officecommute.auth.AuthenticationFailedException;
 import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.domain.team.Team;
 import com.company.officecommute.dto.employee.request.EmployeeSaveRequest;
@@ -70,9 +71,9 @@ public class EmployeeService {
 
     public Employee authenticate(String email, String password) {
         Employee employee = employeeRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 이메일입니다."));
+                .orElseThrow(() -> new AuthenticationFailedException("존재하지 않는 이메일입니다."));
         if (!passwordEncoder.matches(password, employee.getPassword())) {
-            throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
+            throw new AuthenticationFailedException("비밀번호가 일치하지 않습니다.");
         }
         return employee;
     }

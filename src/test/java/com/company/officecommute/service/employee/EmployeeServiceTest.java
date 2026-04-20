@@ -12,9 +12,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.BDDMockito;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -30,18 +31,19 @@ import static org.mockito.Mockito.verify;
 @ExtendWith(MockitoExtension.class)
 class EmployeeServiceTest {
 
-    @InjectMocks
     private EmployeeService employeeService;
     @Mock
     private EmployeeRepository employeeRepository;
     @Mock
     private TeamRepository teamRepository;
+    private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     private Employee employee;
     private Team team;
 
     @BeforeEach
     void setUp() {
+        employeeService = new EmployeeService(employeeRepository, teamRepository, passwordEncoder);
         Long employeeId = 1L;
         team = new Team("백엔드팀");
         employee = new EmployeeBuilder()
@@ -53,7 +55,7 @@ class EmployeeServiceTest {
                 .withStartDate(LocalDate.of(2024, 1, 1))
                 .withEmployeeCode("EMP001")
                 .withEmail("hyungjunn@company.com")
-                .withPassword("password123")
+                .withPassword(passwordEncoder.encode("password123"))
                 .build();
 
     }

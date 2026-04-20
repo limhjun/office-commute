@@ -130,10 +130,6 @@ public class Employee {
         return password;
     }
 
-    public boolean matchesPassword(String rawPassword) {
-        return this.password.equals(rawPassword);
-    }
-
     public void changeTeam(Team newTeam) {
         Team oldTeam = this.team;
         this.team = newTeam;

@@ -7,6 +7,7 @@ import com.company.officecommute.dto.employee.request.EmployeeUpdateTeamNameRequ
 import com.company.officecommute.dto.employee.response.EmployeeFindResponse;
 import com.company.officecommute.repository.employee.EmployeeRepository;
 import com.company.officecommute.repository.team.TeamRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,10 +18,16 @@ public class EmployeeService {
 
     private final EmployeeRepository employeeRepository;
     private final TeamRepository teamRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public EmployeeService(EmployeeRepository employeeRepository, TeamRepository teamRepository) {
+    public EmployeeService(
+            EmployeeRepository employeeRepository,
+            TeamRepository teamRepository,
+            PasswordEncoder passwordEncoder
+    ) {
         this.employeeRepository = employeeRepository;
         this.teamRepository = teamRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Transactional
@@ -38,7 +45,7 @@ public class EmployeeService {
                 request.workStartDate(),
                 request.employeeCode(),
                 request.email(),
-                request.password()
+                passwordEncoder.encode(request.password())
         );
         employeeRepository.save(employee);
     }
@@ -64,7 +71,7 @@ public class EmployeeService {
     public Employee authenticate(String email, String password) {
         Employee employee = employeeRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 이메일입니다."));
-        if (!employee.matchesPassword(password)) {
+        if (!passwordEncoder.matches(password, employee.getPassword())) {
             throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
         }
         return employee;

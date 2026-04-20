@@ -20,6 +20,36 @@ open build/docs/asciidoc/index.html
 
 ---
 
+## 로컬 MySQL로 실행하기
+
+운영 DB 계열과 동일하게 검증하려면 로컬에서도 MySQL 프로필을 사용할 수 있습니다.
+
+```bash
+# Docker Compose 플러그인이 있으면
+docker compose up -d
+
+# Compose 플러그인이 없으면
+docker run -d \
+  --name office-commute-mysql \
+  -e MYSQL_DATABASE=office_commute \
+  -e MYSQL_USER=office_user \
+  -e MYSQL_PASSWORD=office_password \
+  -e MYSQL_ROOT_PASSWORD=root_password \
+  -p 3306:3306 \
+  mysql:8.0
+
+# 환경 파일 준비
+cp .env.example .env
+
+# MySQL 프로필로 애플리케이션 실행
+SPRING_PROFILES_ACTIVE=mysql ./gradlew bootRun
+```
+
+- `application-mysql.yml`은 로컬 MySQL 검증용 프로필입니다.
+- `docker-compose.yml`은 Docker Compose 플러그인이 있는 환경에서 사용할 수 있습니다.
+- 기본 접속 정보는 `office_commute / office_user / office_password` 입니다.
+- MySQL 계열 스키마는 Flyway 마이그레이션으로 관리하고, 애플리케이션은 `ddl-auto: validate`로만 검증합니다.
+
 ## 개요
 Spring Boot와 JPA 학습 후, 시간, 날짜, 돈과 관련된 데이터를 다루는 실무적인 문제 해결 경험을 목표로 `사내 출퇴근 관리 시스템`을 개발했습니다. 
 

@@ -1,0 +1,20 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: office-commute-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: office_commute
+      MYSQL_USER: office_user
+      MYSQL_PASSWORD: office_password
+      MYSQL_ROOT_PASSWORD: root_password
+    ports:
+      - "3306:3306"
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql-data:/var/lib/mysql
+
+volumes:
+  mysql-data:

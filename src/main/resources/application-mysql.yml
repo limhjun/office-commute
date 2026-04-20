@@ -1,31 +1,27 @@
-# 개발 환경 설정
+# 로컬 MySQL 검증용 설정
 spring:
-  # H2 메모리 데이터베이스 사용
   datasource:
-    url: jdbc:h2:tcp://localhost/~/test
-    username: sa
-    password: 
-    driver-class-name: org.h2.Driver
-  
-  # JPA 개발 설정
+    url: ${DB_URL:jdbc:mysql://localhost:3306/office_commute?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
+    username: ${DB_USERNAME:office_user}
+    password: ${DB_PASSWORD:office_password}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
   jpa:
     hibernate:
-      ddl-auto: create-drop  # 시작할 때 생성, 종료할 때 삭제
-    defer-datasource-initialization: true
+      ddl-auto: validate
     properties:
       hibernate:
-        show_sql: true  # SQL 쿼리 출력
+        show_sql: true
         use_sql_comments: true
-  
-  # SQL 초기화
+
   sql:
     init:
-      mode: always  # 항상 data.sql 실행
+      mode: never
 
   flyway:
-    enabled: false
+    enabled: true
+    baseline-on-migrate: true
 
-# P6Spy - SQL 로깅 라이브러리
 decorator:
   datasource:
     p6spy:
@@ -34,7 +30,6 @@ decorator:
       logging: slf4j
       log-format: "Hibernate: %(sql)"
 
-# 개발용 로깅 설정 (상세하게)
 logging:
   level:
     org.hibernate.SQL: debug
@@ -44,7 +39,6 @@ logging:
     com.company.officecommute: debug
     root: info
 
-# 개발용 API 설정 (환경변수 사용)
 public:
   data:
     api:

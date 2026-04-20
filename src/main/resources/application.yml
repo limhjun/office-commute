@@ -12,7 +12,6 @@ spring:
     properties:
       hibernate:
         format_sql: true
-    defer-datasource-initialization: true
   
   # SQL 초기화 설정
 #  sql:
@@ -29,4 +28,3 @@ server:
     encoding:
       charset: UTF-8
       force: true
-

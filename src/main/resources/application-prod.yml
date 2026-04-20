@@ -22,12 +22,15 @@ spring:
     properties:
       hibernate:
         show_sql: false  # 성능을 위해 SQL 출력 안함
-        dialect: org.hibernate.dialect.MySQLDialect
   
   # SQL 초기화 비활성화
   sql:
     init:
       mode: never  # 운영에서는 data.sql 실행 안함
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
 
 # P6Spy 비활성화 (운영 성능을 위해)
 decorator:

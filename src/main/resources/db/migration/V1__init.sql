@@ -15,9 +15,11 @@ CREATE TABLE employee (
     birthday DATE,
     work_start_date DATE,
     employee_code VARCHAR(255) NOT NULL,
-    pin VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    password VARCHAR(255) NOT NULL,
     PRIMARY KEY (employee_id),
     CONSTRAINT uk_employee_code UNIQUE (employee_code),
+    CONSTRAINT uk_employee_email UNIQUE (email),
     CONSTRAINT fk_employee_team FOREIGN KEY (team_id) REFERENCES team (team_id)
 );
 

@@ -1,124 +1,82 @@
 # AGENTS.md
 
-This file guides agentic coding assistants working in this repo.
-Follow the existing architecture, test patterns, and naming conventions.
+Guide for agentic coding assistants working in this repository.
+Keep changes small, follow existing patterns, and verify behavior with the narrowest relevant Gradle task.
 
 ## Project Snapshot
-- Language: Java 21
-- Framework: Spring Boot 3.5.5
-- Build Tool: Gradle (`./gradlew`)
-- Database: H2 (dev), MySQL 8.0 (prod)
-- Test stack: JUnit 5, Spring Boot test, MockMvc, Mockito
-- REST Docs: Asciidoctor + Spring REST Docs
+- Java 21, Spring Boot 3.5.5, Gradle wrapper.
+- Main stack: Spring MVC, Spring Data JPA, validation, session-based auth, Flyway, Apache POI.
+- Databases: H2 for `dev`, MySQL 8.0 for local `mysql` and `prod`.
+- Tests: JUnit 5, Spring Boot test, MockMvc/MockMvcTester, Mockito, Spring REST Docs.
 
-## Build / Run / Test
-### Build
-- Build (includes tests + REST Docs): `./gradlew build`
+## Commands
+- Run all tests: `./gradlew test`
+- Run one test class: `./gradlew test --tests "com.company.officecommute.service.employee.EmployeeServiceTest"`
+- Run one test method: `./gradlew test --tests "com.company.officecommute.service.employee.EmployeeServiceTest.methodName"`
+- Build with tests and REST Docs: `./gradlew build`
 - Clean build: `./gradlew clean build`
-- Generate REST Docs only: `./gradlew asciidoctor`
+- Generate REST Docs: `./gradlew asciidoctor`
+- Run dev profile: `./gradlew bootRun`
+- Run local MySQL profile: `SPRING_PROFILES_ACTIVE=mysql ./gradlew bootRun`
+- Start local MySQL: `docker compose up -d`
 
-### Run
-- Run app with dev profile (H2): `./gradlew bootRun`
+## Configuration
+- Default profile is `dev` from `src/main/resources/application.yml`.
+- `dev` uses H2 TCP at `jdbc:h2:tcp://localhost/~/test`, `ddl-auto: create-drop`, `data.sql`, and Flyway disabled.
+- `mysql` uses local MySQL, Flyway, and `ddl-auto: validate`; `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` can override defaults.
+- `prod` uses MySQL 8.0, Flyway, and `ddl-auto: validate`.
+- Flyway migrations live in `src/main/resources/db/migration/V*__*.sql`; schema changes for MySQL/prod should be new migration files.
+- Environment variables can be loaded from `.env`; start from `.env.example`.
+- Public holiday API calls require `PUBLIC_API_SERVICE_KEY`.
 
-### Tests
-- All tests: `./gradlew test`
-- Single test class:
-  - `./gradlew test --tests "com.company.officecommute.service.employee.EmployeeServiceTest"`
-- Single test method:
-  - `./gradlew test --tests "com.company.officecommute.service.employee.EmployeeServiceTest.authenticate_success"`
+## Architecture
+- Keep the existing package boundaries: `controller`, `service`, `repository`, `domain`, `dto`, `auth`, `config`, `web`, `scheduler`.
+- Request flow is Controller -> Service -> Repository -> Database.
+- Put business rules and invariants in domain objects or services, not controllers.
+- Use repositories for persistence access only.
+- Session auth is handled by `AuthInterceptor`; authenticated values are exposed as request attributes such as `currentEmployeeId` and `currentRole`.
+- `POST /api/auth/login` authenticates by email/password, invalidates any existing session, then stores `currentEmployeeId` and `currentRole` in a new session.
+- Passwords are hashed and verified through `BCryptPasswordEncoder`.
+- `WebConfig` excludes `/api/auth/**` from the interceptor; other endpoints require a valid session.
+- Manager-only endpoints use `@ManagerOnly`; roles are `MANAGER` and `MEMBER`.
 
-### Lint / Format
-- No dedicated linter/formatter configured in repo.
-- Follow existing style; do not introduce new tooling.
+## Key Domain Concepts
+- `CommuteHistory` records work start/end, enforces one record per `employee_id + work_date`, and calculates working minutes in `endWork()`.
+- Annual leave is represented through `AnnualLeave`, `AnnualLeaves`, and `AnnualLeaveEnrollment`; enrollment validates team criteria and duplicate dates.
+- `ApiConvertor` fetches holidays from the public API, stores successful responses in the database, and falls back to usable cached holiday data when the API fails.
+- Overtime calculation subtracts weekends and weekday holidays from the month, then uses 8 hours per standard working day.
 
-## External Dependencies / Env
-- External holiday API requires `PUBLIC_API_SERVICE_KEY`.
-- Dev profile uses H2 TCP: `jdbc:h2:tcp://localhost/~/test`.
-
-## Architecture Conventions
-- Layering: Controller → Service → Repository → Database
-- Domain layer hosts business rules and invariants.
-- Auth is session-based using `AuthInterceptor`.
-- Role enum values: `MANAGER`, `MEMBER`.
-
-## Coding Style (Java)
-### Imports
-- Group imports: project → third-party → `java.*`.
-- No wildcard imports.
-- Keep static imports grouped and at the end of import list.
-
-### Formatting
-- Indent with 4 spaces.
-- One blank line between class members (fields, constructors, methods).
-- Method parameters wrap with standard alignment (see controllers/services).
-- Keep braces on the same line (K&R style).
-
-### Naming
-- Packages: all lowercase (`com.company.officecommute.*`).
-- Classes: `PascalCase` (e.g., `EmployeeService`).
-- Methods/fields: `camelCase` (e.g., `updateEmployeeTeamName`).
-- Constants: `UPPER_SNAKE_CASE`.
-- Tests: `*Test`, `*ConcurrentTest`, `*ConcurrencyTest`.
-
-### Types / DTOs
-- Use Java `record` for request/response DTOs when immutable.
-- Annotate request DTOs with `jakarta.validation` constraints.
-- Prefer domain objects for business logic; map to DTOs in service/controller.
-
-### Controllers
-- Use Spring MVC annotations (`@RestController`, `@PostMapping`, etc.).
-- Validate request bodies with `@Valid`.
-- Use `@SessionAttribute` for session-scoped auth info.
-- Authorization checks throw `ForbiddenException`.
-- Return `ResponseEntity` or void for simple endpoints.
-
-### Services
-- Annotate with `@Service` and `@Transactional`.
-- Use `@Transactional(readOnly = true)` for read paths.
-- Prefer repository methods returning Optional; throw `IllegalArgumentException` for domain errors.
-
-### Domain Model
-- Enforce invariants in constructors or private validators.
-- Use descriptive exception messages for invalid state.
-- Prefer value objects or helper classes for domain calculations.
-
-### Repositories
-- Spring Data JPA repositories in `repository.*` packages.
-- Query methods are named explicitly (`findByEmployeeCode`, etc.).
+## Coding Guidelines
+- Follow the style already present in nearby files; no new formatter or lint tooling is configured.
+- Use 4-space indentation, K&R braces, no wildcard imports.
+- Prefer Java `record` for immutable request/response DTOs.
+- Validate request bodies with `jakarta.validation` and `@Valid` where the endpoint accepts a body.
+- Services should use `@Service` and `@Transactional`; use `@Transactional(readOnly = true)` for read paths.
+- Prefer repository methods returning `Optional` and convert missing/domain-invalid state to clear exceptions at the service boundary.
+- Do not add dependencies or change build tooling unless the task explicitly requires it.
 
 ## Error Handling
-- Business validation errors use `IllegalArgumentException`.
-- Authorization errors use `ForbiddenException`.
-- Global handler maps errors to `ErrorResult` / `ValidationErrorResult`.
-- Log with SLF4J at `warn` for client errors, `error` for system failures.
+- Business validation errors generally use `IllegalArgumentException`.
+- Login failures use `AuthenticationFailedException`.
+- Authorization failures use `ForbiddenException` or `@ManagerOnly` through `AuthInterceptor`.
+- Holiday API/cache failures use `HolidayDataUnavailableException`.
+- Keep responses aligned with `GlobalExceptionHandler`, `ErrorResult`, and `ValidationErrorResult`.
 
-## Tests
-### Patterns
-- Service tests: `@SpringBootTest` or `MockitoExtension` as needed.
-- Controller tests: `@SpringBootTest` + `@AutoConfigureMockMvc` or `@WebMvcTest`.
-- Use `MockMvcTester` for request/response assertions.
-- Use `@DisplayName` and nested classes for grouped scenarios.
+## Tests And Docs
+- Controller integration tests use `@SpringBootTest`, `@AutoConfigureMockMvc`, and `MockMvcTester`.
+- REST Docs tests extend `RestDocsSupport` and generate snippets under `build/generated-snippets`.
+- Service/domain tests use Mockito or Spring context according to the existing test in that package.
+- Use existing fixtures such as `EmployeeBuilder`, `Employees`, and `Teams`.
+- Add or update tests when behavior changes; REST Docs only renders after tests pass.
 
-### Fixtures
-- Builder utilities: `EmployeeBuilder`, `Employees`, `Teams`.
-- Keep test data localized and descriptive.
-- Prefer `BDDMockito.given()` and AssertJ assertions.
+## Output Format
+- 도구 사용 시 앞에 🥕 이모지를 붙여서 표시
 
-## REST Docs
-- REST Docs output lives in `build/generated-snippets`.
-- `./gradlew asciidoctor` depends on tests and generates HTML.
+## Language
+For every prompt I enter, whether in Korean or English, first rewrite it into proper English. If I write in English, point out any grammatical errors and suggest improvements to make the sentence more natural. Then, proceed with the rewritten, polished English prompt.
 
-## Pitfalls
-- REST Docs only renders after tests pass.
-- External holiday API calls require `PUBLIC_API_SERVICE_KEY`.
-- Session-based auth means missing `@SessionAttribute` yields `FORBIDDEN`.
-- H2 dev profile expects TCP URL `jdbc:h2:tcp://localhost/~/test`.
-
-## Repo Rules (Cursor/Copilot)
-- No `.cursor/rules/`, `.cursorrules`, or `.github/copilot-instructions.md` found.
-
-## Working With This Repo
-- Keep changes minimal and consistent with existing style.
-- Avoid adding new dependencies unless necessary.
-- Do not modify build tooling without explicit request.
-- When in doubt, follow patterns in existing controllers/services/tests.
+## Working Rules
+- Keep edits focused on the requested behavior.
+- Preserve existing user changes in the working tree.
+- Prefer existing helper APIs and naming conventions over new abstractions.
+- If unsure, inspect the closest controller/service/test and match that pattern.

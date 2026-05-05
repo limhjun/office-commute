@@ -12,6 +12,7 @@ import org.mockito.BDDMockito;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.List;
 import java.util.Optional;
@@ -70,6 +71,21 @@ class TeamServiceTest {
 
         BDDMockito.given(teamRepository.findByName(teamName))
                 .willReturn(Optional.of(new Team(teamName)));
+
+        Assertions.assertThatThrownBy(() -> teamService.registerTeam(request))
+                .isInstanceOf(TeamAlreadyExistsException.class)
+                .hasMessageContaining(teamName);
+    }
+
+    @Test
+    void testRegisterTeamConvertsDataIntegrityViolationToDomainException() {
+        String teamName = "ATeam";
+        TeamRegisterRequest request = new TeamRegisterRequest(teamName, "이매니저");
+
+        BDDMockito.given(teamRepository.findByName(teamName))
+                .willReturn(Optional.empty());
+        BDDMockito.given(teamRepository.save(any(Team.class)))
+                .willThrow(new DataIntegrityViolationException("uk_team_name"));
 
         Assertions.assertThatThrownBy(() -> teamService.registerTeam(request))
                 .isInstanceOf(TeamAlreadyExistsException.class)

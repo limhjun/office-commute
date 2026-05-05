@@ -46,18 +46,18 @@ PLAN.md를 실행 단위로 쪼갠 체크리스트. 작업이 끝난 항목은 `
   - 주의: 기존 운영 데이터에 `name = NULL`인 row가 있으면 MODIFY 실패. 운영 적용 전 데이터 점검 필요
 
 ### F. 컨트롤러 (`TeamController`)
-- [ ] **F1.** 시그니처 변경 없음(요청/응답 DTO 변경에만 의존) — 빌드 통과 확인
+- [x] **F1.** 시그니처 변경 없음(요청/응답 DTO 변경에만 의존) — 빌드 통과 확인
 
 ### G. 테스트
-- [ ] **G1.** `TeamServiceTest` — `managerName` 포함 등록 검증
-- [ ] **G2.** `TeamServiceTest` — `managerName` null 등록 허용 검증
-- [ ] **G3.** `TeamServiceTest` — 중복 이름 등록 시 `IllegalArgumentException`
-- [ ] **G4.** `TeamServiceTest` — 동시성/`DataIntegrityViolationException` 변환은 단위 테스트로 구분 가능 시 추가
-- [ ] **G5.** `TeamServiceTest` — 조회 결과에 `teamId` 매핑 검증
-- [ ] **G6.** `TeamControllerTest` — 등록 요청 바디에 `managerName` 포함/누락 시 동작
-- [ ] **G7.** `TeamControllerTest` — 조회 응답에 `teamId` 필드 존재
-- [ ] **G8.** `TeamControllerDocsTest` — REST Docs 필드 스니펫 갱신 (요청/응답 양쪽)
-- [ ] **G9.** 픽스처(`Teams`)에서 `Team` 생성자 호출부 일관성 확인 및 보정
+- [x] **G1.** `TeamServiceTest` — `managerName` 포함 등록 검증
+- [x] **G2.** `TeamServiceTest` — `managerName` null 등록 허용 검증
+- [x] **G3.** `TeamServiceTest` — 중복 이름 등록 시 `TeamAlreadyExistsException`
+- [x] **G4.** `TeamServiceTest` — `DataIntegrityViolationException` → `TeamAlreadyExistsException` 변환 단위 테스트
+- [x] **G5.** `TeamServiceTest` — 조회 결과에 `teamId` / `managerName` 매핑 검증
+- [x] **G6.** `TeamControllerTest` — 등록 권한(401/403/200), 매니저 누락/빈 문자열 허용, 팀 이름 빈 문자열 400, 중복 시 409 등 입력·충돌 케이스 전반
+- [x] **G7.** `TeamControllerTest` — 조회 응답에 `teamId`/`name`/`managerName`(null 포함)/`memberCount` 모두 검증, 빈 목록 / 비인증 401
+- [x] **G8.** `TeamControllerDocsTest` — REST Docs 요청에 `managerName` 옵셔널, 응답에 `teamId` 필드 추가
+- [x] **G9.** 픽스처(`Teams`)는 기존 4-arg / 5-arg 생성자 사용으로 호환 — 변경 불필요
 
 ### H. 검증
 - [ ] **H1.** `./gradlew test --tests "com.company.officecommute.service.team.*"` 통과

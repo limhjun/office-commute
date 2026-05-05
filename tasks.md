@@ -32,8 +32,8 @@ PLAN.md를 실행 단위로 쪼갠 체크리스트. 작업이 끝난 항목은 `
 - [x] **C6.** `GlobalExceptionHandler`에 핸들러 추가 → 409 Conflict + `TEAM_ALREADY_EXISTS` 코드
 
 ### D. 리포지토리 (`TeamRepository`)
-- [ ] **D1.** `findTeam()` JPQL 메서드 삭제 (데드 코드)
-- [ ] **D2.** `findByName` 시그니처 유지 확인
+- [x] **D1.** `findTeam()` JPQL 메서드 삭제 (데드 코드)
+- [x] **D2.** `findByName` 시그니처 유지 확인
 
 ### E. 스키마 / Flyway
 - [ ] **E1.** `src/main/resources/db/migration/V2__team_constraints.sql` 추가

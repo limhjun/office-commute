@@ -1,0 +1,3 @@
+ALTER TABLE team
+    MODIFY COLUMN name VARCHAR(255) NOT NULL,
+    ADD CONSTRAINT uk_team_name UNIQUE (name);

@@ -36,11 +36,14 @@ PLAN.md를 실행 단위로 쪼갠 체크리스트. 작업이 끝난 항목은 `
 - [x] **D2.** `findByName` 시그니처 유지 확인
 
 ### E. 스키마 / Flyway
-- [ ] **E1.** `src/main/resources/db/migration/V2__team_constraints.sql` 추가
+- [x] **E1.** `src/main/resources/db/migration/V2__team_constraints.sql` 추가
   - `team.name` NOT NULL
   - `team.name` UNIQUE (`uk_team_name`)
   - `manager_name`은 변경 없음 (NULL 허용 유지)
-- [ ] **E2.** mysql 프로필에서 마이그레이션 정상 적용 확인 (`SPRING_PROFILES_ACTIVE=mysql ./gradlew bootRun` 또는 통합 테스트)
+- [x] **E2.** mysql 프로필에서 마이그레이션 정상 적용 확인
+  - 로컬 MySQL 8.0(docker)에 V1+V2 fresh 적용 성공 (flyway_schema_history.success=1)
+  - `team.name` NOT NULL + `uk_team_name` UNIQUE 인덱스 생성, `manager_name`은 nullable 유지 확인
+  - 주의: 기존 운영 데이터에 `name = NULL`인 row가 있으면 MODIFY 실패. 운영 적용 전 데이터 점검 필요
 
 ### F. 컨트롤러 (`TeamController`)
 - [ ] **F1.** 시그니처 변경 없음(요청/응답 DTO 변경에만 의존) — 빌드 통과 확인

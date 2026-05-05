@@ -60,12 +60,12 @@ PLAN.md를 실행 단위로 쪼갠 체크리스트. 작업이 끝난 항목은 `
 - [x] **G9.** 픽스처(`Teams`)는 기존 4-arg / 5-arg 생성자 사용으로 호환 — 변경 불필요
 
 ### H. 검증
-- [ ] **H1.** `./gradlew test --tests "com.company.officecommute.service.team.*"` 통과
-- [ ] **H2.** `./gradlew test --tests "com.company.officecommute.controller.team.*"` 통과
-- [ ] **H3.** `./gradlew test --tests "com.company.officecommute.docs.TeamControllerDocsTest"` 통과
-- [ ] **H4.** `./gradlew build` 전체 빌드 통과
-- [ ] **H5.** REST Docs 산출물 확인 (`build/docs/asciidoc/index.html`)
+- [x] **H1.** `./gradlew test --tests "com.company.officecommute.service.team.*"` 통과 (5/5)
+- [x] **H2.** `./gradlew test --tests "com.company.officecommute.controller.team.*"` 통과 (10/10)
+- [x] **H3.** `./gradlew test --tests "com.company.officecommute.docs.TeamControllerDocsTest"` 통과 (2/2)
+- [x] **H4.** `./gradlew build` 전체 빌드 통과 (총 128 tests / asciidoctor / bootJar 모두 성공)
+- [ ] **H5.** REST Docs 산출물 확인 (`build/docs/asciidoc/index.html`) — 사용자 브라우저 확인 필요
 
 ### I. 마무리
-- [ ] **I1.** `WORKS.md`의 1-① 항목 체크박스 `[x]`로 갱신
-- [ ] **I2.** 1-② 항목으로 이동 — 새 PLAN/tasks 섹션 추가
+- [x] **I1.** `WORKS.md`의 1-① 항목 체크박스 `[x]`로 갱신
+- [ ] **I2.** 1-② 항목 시작 시 PLAN/tasks 섹션 추가

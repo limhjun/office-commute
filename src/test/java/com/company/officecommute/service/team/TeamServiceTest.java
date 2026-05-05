@@ -1,6 +1,7 @@
 package com.company.officecommute.service.team;
 
 import com.company.officecommute.domain.team.Team;
+import com.company.officecommute.domain.team.TeamAlreadyExistsException;
 import com.company.officecommute.dto.team.request.TeamRegisterRequest;
 import com.company.officecommute.dto.team.response.TeamFindResponse;
 import com.company.officecommute.repository.team.TeamRepository;
@@ -28,7 +29,18 @@ class TeamServiceTest {
 
     @Test
     void testRegisterTeam() {
-        TeamRegisterRequest request = new TeamRegisterRequest("ATeam");
+        TeamRegisterRequest request = new TeamRegisterRequest("ATeam", "이매니저");
+        BDDMockito.given(teamRepository.findByName("ATeam"))
+                .willReturn(Optional.empty());
+
+        teamService.registerTeam(request);
+
+        BDDMockito.verify(teamRepository).save(any(Team.class));
+    }
+
+    @Test
+    void testRegisterTeamWithoutManager() {
+        TeamRegisterRequest request = new TeamRegisterRequest("ATeam", null);
         BDDMockito.given(teamRepository.findByName("ATeam"))
                 .willReturn(Optional.empty());
 
@@ -39,26 +51,28 @@ class TeamServiceTest {
 
     @Test
     void testFindTeam() {
-        Team team = new Team("ATeam");
+        Team team = new Team(1L, "ATeam", "이매니저", 0);
         BDDMockito.given(teamRepository.findAll())
                 .willReturn(List.of(team));
 
         List<TeamFindResponse> teams = teamService.findTeam();
 
         assertThat(teams.size()).isEqualTo(1);
+        assertThat(teams.get(0).teamId()).isEqualTo(1L);
         assertThat(teams.get(0).name()).isEqualTo("ATeam");
+        assertThat(teams.get(0).managerName()).isEqualTo("이매니저");
     }
 
     @Test
     void testRegisterTeamException() {
         String teamName = "ATeam";
-        TeamRegisterRequest request = new TeamRegisterRequest(teamName);
+        TeamRegisterRequest request = new TeamRegisterRequest(teamName, null);
 
         BDDMockito.given(teamRepository.findByName(teamName))
                 .willReturn(Optional.of(new Team(teamName)));
 
         Assertions.assertThatThrownBy(() -> teamService.registerTeam(request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("이미 존재하는 팀입니다.");
+                .isInstanceOf(TeamAlreadyExistsException.class)
+                .hasMessageContaining(teamName);
     }
 }

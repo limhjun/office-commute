@@ -1,9 +1,11 @@
 package com.company.officecommute.service.team;
 
 import com.company.officecommute.domain.team.Team;
+import com.company.officecommute.domain.team.TeamAlreadyExistsException;
 import com.company.officecommute.dto.team.request.TeamRegisterRequest;
 import com.company.officecommute.dto.team.response.TeamFindResponse;
 import com.company.officecommute.repository.team.TeamRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,10 +22,15 @@ public class TeamService {
 
     @Transactional
     public void registerTeam(TeamRegisterRequest request) {
-        teamRepository.findByName(request.teamName()).ifPresent(team -> {
-            throw new IllegalArgumentException("이미 존재하는 팀입니다.");
+        String teamName = request.teamName();
+        teamRepository.findByName(teamName).ifPresent(team -> {
+            throw new TeamAlreadyExistsException(teamName);
         });
-        teamRepository.save(new Team(request.teamName()));
+        try {
+            teamRepository.save(Team.register(teamName, request.managerName()));
+        } catch (DataIntegrityViolationException e) {
+            throw new TeamAlreadyExistsException(teamName);
+        }
     }
 
     @Transactional(readOnly = true)

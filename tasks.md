@@ -2,6 +2,12 @@
 
 PLAN.md를 실행 단위로 쪼갠 체크리스트. 작업이 끝난 항목은 `[x]`로 표시한다.
 
+## 진행 원칙
+- 실서비스(HR 플랫폼) 품질 기준으로 작업한다. "학습용이라 단순하게"는 금지.
+- 점진적으로 진행한다. 한 번에 큰 폭의 리팩터링/마이그레이션을 하지 않는다.
+- **테스트는 꼼꼼하게**: 도메인/서비스/컨트롤러/REST Docs 각 레이어에서 빠짐없이 갱신·추가한다. 동시성·예외·null·경계 케이스를 명시적으로 다룬다.
+- 변경마다 가장 좁은 Gradle 테스트 태스크로 즉시 확인한다.
+
 ---
 
 ## 1-① 팀 등록 및 조회
@@ -12,16 +18,18 @@ PLAN.md를 실행 단위로 쪼갠 체크리스트. 작업이 끝난 항목은 `
 - [x] **A3.** `TeamFindResponse.from(Team)` 매핑에 `team.getTeamId()` 반영
 
 ### B. 도메인 (`Team` 엔티티)
-- [ ] **B1.** `name` 필드에 `@Column(nullable = false, unique = true)` 적용
-- [ ] **B2.** `managerName`은 nullable 유지 (어노테이션 생략 또는 명시적 nullable=true)
-- [ ] **B3.** 등록 흐름용 생성자 정리 — `new Team(String name, String managerName)` 형태로 사용 (memberCount=0, criteria=0 기본)
-- [ ] **B4.** 사용처 없는 생성자 오버로딩 점검 (보수적으로 유지 가능, 명백한 데드 코드만 제거)
+- [x] **B1.** `name` 필드에 `@Column(nullable = false, unique = true)` 적용
+- [x] **B2.** `managerName`은 nullable 유지 (어노테이션 생략 또는 명시적 nullable=true)
+- [x] **B3.** 등록 흐름은 정적 팩토리 `Team.register(name, managerName)` 사용 — blank managerName은 null로 정규화
+- [x] **B4.** 기존 생성자 오버로딩은 테스트 픽스처에서 사용 중이라 단기 유지. 중기적으로 테스트를 `Team.register(...)` / `Teams` 픽스처로 통일 후 public 생성자 제거 검토 (별도 리팩터링 작업)
 
 ### C. 서비스 (`TeamService`)
-- [ ] **C1.** `registerTeam`이 `managerName`을 함께 저장하도록 수정 (빈 문자열은 trim 후 null 정규화)
-- [ ] **C2.** 사전 `findByName` 중복 검사 유지
-- [ ] **C3.** `DataIntegrityViolationException` catch → `IllegalArgumentException("이미 존재하는 팀입니다.")`로 변환 (동시성 안전)
-- [ ] **C4.** `findTeam`은 `teamRepository.findAll()` 그대로 사용 (JPQL `findTeam()` 호출 제거)
+- [x] **C1.** `registerTeam`이 `Team.register(name, managerName)` 사용 (정적 팩토리에서 blank → null 정규화 처리)
+- [x] **C2.** 사전 `findByName` 중복 검사 유지 — `TeamAlreadyExistsException` throw
+- [x] **C3.** `DataIntegrityViolationException` catch → `TeamAlreadyExistsException` 변환 (동시성 안전망)
+- [x] **C4.** `findTeam`은 `teamRepository.findAll()` 그대로 사용
+- [x] **C5.** `TeamAlreadyExistsException` 도메인 예외 신규 추가 (`domain/team/`)
+- [x] **C6.** `GlobalExceptionHandler`에 핸들러 추가 → 409 Conflict + `TEAM_ALREADY_EXISTS` 코드
 
 ### D. 리포지토리 (`TeamRepository`)
 - [ ] **D1.** `findTeam()` JPQL 메서드 삭제 (데드 코드)

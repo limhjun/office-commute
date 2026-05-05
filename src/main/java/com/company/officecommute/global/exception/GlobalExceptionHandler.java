@@ -2,6 +2,7 @@ package com.company.officecommute.global.exception;
 
 import com.company.officecommute.auth.AuthenticationFailedException;
 import com.company.officecommute.auth.ForbiddenException;
+import com.company.officecommute.domain.team.TeamAlreadyExistsException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -65,6 +66,13 @@ public class GlobalExceptionHandler {
     public ErrorResult handleForbidden(ForbiddenException e) {
         log.warn("Access denied: {}", e.getMessage());
         return new ErrorResult("FORBIDDEN", e.getMessage());
+    }
+
+    @ResponseStatus(HttpStatus.CONFLICT)
+    @ExceptionHandler(TeamAlreadyExistsException.class)
+    public ErrorResult handleTeamAlreadyExists(TeamAlreadyExistsException e) {
+        log.warn("Team already exists: {}", e.getMessage());
+        return new ErrorResult("TEAM_ALREADY_EXISTS", e.getMessage());
     }
 
     @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)

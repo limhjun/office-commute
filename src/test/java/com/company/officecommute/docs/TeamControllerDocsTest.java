@@ -37,7 +37,7 @@ class TeamControllerDocsTest extends RestDocsSupport {
     @Test
     @DisplayName("팀 등록 API")
     void registerTeam() throws Exception {
-        TeamRegisterRequest request = new TeamRegisterRequest("개발팀");
+        TeamRegisterRequest request = new TeamRegisterRequest("개발팀", "홍길동");
         doNothing().when(teamService).registerTeam(any(TeamRegisterRequest.class));
 
         mockMvc.perform(post("/team")
@@ -48,7 +48,10 @@ class TeamControllerDocsTest extends RestDocsSupport {
                 .andDo(document("team-register",
                         requestFields(
                                 fieldWithPath("teamName").type(JsonFieldType.STRING)
-                                        .description("등록할 팀 이름")
+                                        .description("등록할 팀 이름"),
+                                fieldWithPath("managerName").type(JsonFieldType.STRING)
+                                        .optional()
+                                        .description("팀 매니저 이름 (옵셔널, 미배정 가능)")
                         )
                 ));
     }
@@ -57,8 +60,8 @@ class TeamControllerDocsTest extends RestDocsSupport {
     @DisplayName("팀 전체 조회 API")
     void findAllTeam() throws Exception {
         List<TeamFindResponse> responses = List.of(
-                new TeamFindResponse("개발팀", "홍길동", 5),
-                new TeamFindResponse("기획팀", "김철수", 3)
+                new TeamFindResponse(1L, "개발팀", "홍길동", 5),
+                new TeamFindResponse(2L, "기획팀", null, 3)
         );
         given(teamService.findTeam()).willReturn(responses);
 
@@ -68,10 +71,13 @@ class TeamControllerDocsTest extends RestDocsSupport {
                 .andExpect(status().isOk())
                 .andDo(document("team-find-all",
                         responseFields(
+                                fieldWithPath("[].teamId").type(JsonFieldType.NUMBER)
+                                        .description("팀 ID"),
                                 fieldWithPath("[].name").type(JsonFieldType.STRING)
                                         .description("팀 이름"),
                                 fieldWithPath("[].managerName").type(JsonFieldType.STRING)
-                                        .description("팀 관리자 이름"),
+                                        .optional()
+                                        .description("팀 매니저 이름 (미배정 시 null)"),
                                 fieldWithPath("[].memberCount").type(JsonFieldType.NUMBER)
                                         .description("팀 멤버 수")
                         )

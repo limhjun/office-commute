@@ -71,6 +71,35 @@ class TeamServiceTest {
     }
 
     @Test
+    void testFindTeamReturnsEmptyListShortCircuitsCountQuery() {
+        BDDMockito.given(teamRepository.findAll()).willReturn(List.of());
+
+        List<TeamFindResponse> teams = teamService.findTeam();
+
+        assertThat(teams).isEmpty();
+        BDDMockito.verify(employeeRepository, BDDMockito.never())
+                .countMembersByTeamIdsRaw(BDDMockito.anyList());
+    }
+
+    @Test
+    void testFindTeamMembersWithMissingTeamsCountedAsZero() {
+        Team teamWithMembers = new Team(1L, "ATeam", null);
+        Team emptyTeam = new Team(2L, "BTeam", null);
+        BDDMockito.given(teamRepository.findAll())
+                .willReturn(List.of(teamWithMembers, emptyTeam));
+        BDDMockito.given(employeeRepository.countMembersByTeamIdsRaw(List.of(1L, 2L)))
+                .willReturn(List.<Object[]>of(new Object[]{1L, 5L}));
+
+        List<TeamFindResponse> teams = teamService.findTeam();
+
+        assertThat(teams).extracting(TeamFindResponse::teamId, TeamFindResponse::memberCount)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple(1L, 5L),
+                        org.assertj.core.groups.Tuple.tuple(2L, 0L)
+                );
+    }
+
+    @Test
     void testRegisterTeamException() {
         String teamName = "ATeam";
         TeamRegisterRequest request = new TeamRegisterRequest(teamName, null);

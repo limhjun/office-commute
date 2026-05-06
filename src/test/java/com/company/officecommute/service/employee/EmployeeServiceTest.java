@@ -3,19 +3,24 @@ package com.company.officecommute.service.employee;
 import com.company.officecommute.auth.AuthenticationFailedException;
 import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.domain.employee.EmployeeAlreadyExistsException;
+import com.company.officecommute.domain.employee.EmployeeNotFoundException;
 import com.company.officecommute.domain.team.Team;
+import com.company.officecommute.domain.team.TeamNotFoundException;
 import com.company.officecommute.dto.employee.request.EmployeeSaveRequest;
 import com.company.officecommute.dto.employee.response.EmployeeFindResponse;
+import com.company.officecommute.dto.employee.response.EmployeeRegisterResponse;
 import com.company.officecommute.repository.employee.EmployeeRepository;
 import com.company.officecommute.repository.team.TeamRepository;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.BDDMockito;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -27,7 +32,7 @@ import static com.company.officecommute.domain.employee.Role.MEMBER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -46,10 +51,9 @@ class EmployeeServiceTest {
     @BeforeEach
     void setUp() {
         employeeService = new EmployeeService(employeeRepository, teamRepository, passwordEncoder);
-        Long employeeId = 1L;
-        team = new Team("백엔드팀");
+        team = new Team(1L, "백엔드팀", "이매니저");
         employee = new EmployeeBuilder()
-                .withId(employeeId)
+                .withId(1L)
                 .withTeam(team)
                 .withName("임형준")
                 .withRole(MEMBER)
@@ -59,49 +63,10 @@ class EmployeeServiceTest {
                 .withEmail("hyungjunn@company.com")
                 .withPassword(passwordEncoder.encode("password123"))
                 .build();
-
     }
 
-    @Test
-    @DisplayName("올바른 이메일과 비밀번호로 인증 성공")
-    void authenticate_success() {
-        String email = "hyungjunn@company.com";
-        String password = "password123";
-        BDDMockito.given(employeeRepository.findByEmail(email))
-                .willReturn(Optional.of(employee));
-
-        Employee result = employeeService.authenticate(email, password);
-
-        assertThat(result).isEqualTo(employee);
-    }
-
-    @Test
-    @DisplayName("존재하지 않는 이메일로 인증 실패")
-    void authenticate_emailNotFound() {
-        BDDMockito.given(employeeRepository.findByEmail("unknown@company.com"))
-                .willReturn(Optional.empty());
-
-        assertThatThrownBy(() -> employeeService.authenticate("unknown@company.com", "password123"))
-                .isInstanceOf(AuthenticationFailedException.class)
-                .hasMessage("존재하지 않는 이메일입니다.");
-    }
-
-    @Test
-    @DisplayName("잘못된 비밀번호로 인증 실패")
-    void authenticate_wrongPassword() {
-        String wrongPassword = "wrongpassword";
-        BDDMockito.given(employeeRepository.findByEmail("hyungjunn@company.com"))
-                .willReturn(Optional.of(employee));
-
-        assertThatThrownBy(() -> employeeService.authenticate("hyungjunn@company.com", wrongPassword))
-                .isInstanceOf(AuthenticationFailedException.class)
-                .hasMessage("비밀번호가 일치하지 않습니다.");
-    }
-
-    @Test
-    @DisplayName("직원이 정상적으로 등록된다")
-    void registerEmployee_success() {
-        EmployeeSaveRequest request = new EmployeeSaveRequest(
+    private EmployeeSaveRequest sampleRequest(Long teamId) {
+        return new EmployeeSaveRequest(
                 "임형준",
                 MEMBER,
                 LocalDate.of(1998, 8, 18),
@@ -109,98 +74,224 @@ class EmployeeServiceTest {
                 "EMP001",
                 "hyungjunn@company.com",
                 "password123",
-                null
+                teamId
         );
-        BDDMockito.given(employeeRepository.existsByEmployeeCode("EMP001"))
-                .willReturn(false);
-        BDDMockito.given(employeeRepository.existsByEmail("hyungjunn@company.com"))
-                .willReturn(false);
-        BDDMockito.given(employeeRepository.save(any(Employee.class)))
-                .willReturn(employee);
-
-        employeeService.registerEmployee(request);
-
-        verify(employeeRepository).existsByEmployeeCode("EMP001");
-        verify(employeeRepository).existsByEmail("hyungjunn@company.com");
-        verify(employeeRepository).save(any(Employee.class));
     }
 
-    @Test
-    @DisplayName("중복된 직원 코드로 등록시 예외가 발생한다")
-    void registerEmployee_with_duplicateEmpCode() {
-        EmployeeSaveRequest request = new EmployeeSaveRequest(
-                "임형준",
-                MEMBER,
-                LocalDate.of(1998, 8, 18),
-                LocalDate.of(2024, 1, 1),
-                "EMP001",
-                "hyungjunn@company.com",
-                "password123",
-                null
-        );
-        BDDMockito.given(employeeRepository.existsByEmployeeCode("EMP001"))
-                .willReturn(true);
+    @Nested
+    @DisplayName("registerEmployee")
+    class Register {
 
-        assertThatThrownBy(() -> employeeService.registerEmployee(request))
-                .isInstanceOf(EmployeeAlreadyExistsException.class)
-                .hasMessageContaining("EMP001");
-        verify(employeeRepository).existsByEmployeeCode("EMP001");
-        verify(employeeRepository, BDDMockito.never()).save(any(Employee.class));
+        @Test
+        @DisplayName("teamId 없이 등록하면 미배정 직원으로 저장되고 employeeId가 반환된다")
+        void registerWithoutTeam() {
+            EmployeeSaveRequest request = sampleRequest(null);
+            BDDMockito.given(employeeRepository.existsByEmployeeCode("EMP001")).willReturn(false);
+            BDDMockito.given(employeeRepository.existsByEmail("hyungjunn@company.com")).willReturn(false);
+            BDDMockito.given(employeeRepository.save(any(Employee.class))).willReturn(employee);
+
+            EmployeeRegisterResponse response = employeeService.registerEmployee(request);
+
+            assertThat(response.employeeId()).isEqualTo(1L);
+            ArgumentCaptor<Employee> captor = ArgumentCaptor.forClass(Employee.class);
+            verify(employeeRepository).save(captor.capture());
+            assertThat(captor.getValue().getTeam()).isNull();
+        }
+
+        @Test
+        @DisplayName("teamId가 있으면 팀과 연결되어 저장된다")
+        void registerWithTeam() {
+            EmployeeSaveRequest request = sampleRequest(1L);
+            BDDMockito.given(employeeRepository.existsByEmployeeCode("EMP001")).willReturn(false);
+            BDDMockito.given(employeeRepository.existsByEmail("hyungjunn@company.com")).willReturn(false);
+            BDDMockito.given(teamRepository.findById(1L)).willReturn(Optional.of(team));
+            BDDMockito.given(employeeRepository.save(any(Employee.class))).willReturn(employee);
+
+            employeeService.registerEmployee(request);
+
+            ArgumentCaptor<Employee> captor = ArgumentCaptor.forClass(Employee.class);
+            verify(employeeRepository).save(captor.capture());
+            assertThat(captor.getValue().getTeam()).isEqualTo(team);
+        }
+
+        @Test
+        @DisplayName("password는 BCrypt로 인코딩되어 저장된다 (평문 저장 금지)")
+        void registerEncodesPassword() {
+            EmployeeSaveRequest request = sampleRequest(null);
+            BDDMockito.given(employeeRepository.existsByEmployeeCode("EMP001")).willReturn(false);
+            BDDMockito.given(employeeRepository.existsByEmail("hyungjunn@company.com")).willReturn(false);
+            BDDMockito.given(employeeRepository.save(any(Employee.class))).willReturn(employee);
+
+            employeeService.registerEmployee(request);
+
+            ArgumentCaptor<Employee> captor = ArgumentCaptor.forClass(Employee.class);
+            verify(employeeRepository).save(captor.capture());
+            String stored = captor.getValue().getPassword();
+            assertThat(stored).isNotEqualTo("password123");
+            assertThat(passwordEncoder.matches("password123", stored)).isTrue();
+        }
+
+        @Test
+        @DisplayName("중복된 employeeCode로 등록하면 EMPLOYEE_ALREADY_EXISTS")
+        void duplicateEmployeeCode() {
+            EmployeeSaveRequest request = sampleRequest(null);
+            BDDMockito.given(employeeRepository.existsByEmployeeCode("EMP001")).willReturn(true);
+
+            assertThatThrownBy(() -> employeeService.registerEmployee(request))
+                    .isInstanceOf(EmployeeAlreadyExistsException.class)
+                    .hasMessageContaining("EMP001");
+            verify(employeeRepository, never()).save(any(Employee.class));
+        }
+
+        @Test
+        @DisplayName("중복된 email로 등록하면 EMPLOYEE_ALREADY_EXISTS")
+        void duplicateEmail() {
+            EmployeeSaveRequest request = sampleRequest(null);
+            BDDMockito.given(employeeRepository.existsByEmployeeCode("EMP001")).willReturn(false);
+            BDDMockito.given(employeeRepository.existsByEmail("hyungjunn@company.com")).willReturn(true);
+
+            assertThatThrownBy(() -> employeeService.registerEmployee(request))
+                    .isInstanceOf(EmployeeAlreadyExistsException.class)
+                    .hasMessageContaining("hyungjunn@company.com");
+            verify(employeeRepository, never()).save(any(Employee.class));
+        }
+
+        @Test
+        @DisplayName("동시성 race로 DataIntegrityViolation이 나면 EMPLOYEE_ALREADY_EXISTS로 변환된다")
+        void raceConvertedToDomainException() {
+            EmployeeSaveRequest request = sampleRequest(null);
+            BDDMockito.given(employeeRepository.existsByEmployeeCode("EMP001"))
+                    .willReturn(false)
+                    .willReturn(true);
+            BDDMockito.given(employeeRepository.existsByEmail("hyungjunn@company.com")).willReturn(false);
+            BDDMockito.given(employeeRepository.save(any(Employee.class)))
+                    .willThrow(new DataIntegrityViolationException("uk_employee_code"));
+
+            assertThatThrownBy(() -> employeeService.registerEmployee(request))
+                    .isInstanceOf(EmployeeAlreadyExistsException.class)
+                    .hasMessageContaining("EMP001");
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 teamId면 TEAM_NOT_FOUND")
+        void teamNotFound() {
+            EmployeeSaveRequest request = sampleRequest(99L);
+            BDDMockito.given(employeeRepository.existsByEmployeeCode("EMP001")).willReturn(false);
+            BDDMockito.given(employeeRepository.existsByEmail("hyungjunn@company.com")).willReturn(false);
+            BDDMockito.given(teamRepository.findById(99L)).willReturn(Optional.empty());
+
+            assertThatThrownBy(() -> employeeService.registerEmployee(request))
+                    .isInstanceOf(TeamNotFoundException.class)
+                    .hasMessageContaining("99");
+            verify(employeeRepository, never()).save(any(Employee.class));
+        }
     }
 
-    @Test
-    @DisplayName("중복된 이메일로 등록시 예외가 발생한다")
-    void registerEmployee_with_duplicateEmail() {
-        EmployeeSaveRequest request = new EmployeeSaveRequest(
-                "임형준",
-                MEMBER,
-                LocalDate.of(1998, 8, 18),
-                LocalDate.of(2024, 1, 1),
-                "EMP001",
-                "hyungjunn@company.com",
-                "password123",
-                null
-        );
-        BDDMockito.given(employeeRepository.existsByEmployeeCode("EMP001"))
-                .willReturn(false);
-        BDDMockito.given(employeeRepository.existsByEmail("hyungjunn@company.com"))
-                .willReturn(true);
+    @Nested
+    @DisplayName("changeTeam")
+    class ChangeTeam {
 
-        assertThatThrownBy(() -> employeeService.registerEmployee(request))
-                .isInstanceOf(EmployeeAlreadyExistsException.class)
-                .hasMessageContaining("hyungjunn@company.com");
-        verify(employeeRepository, BDDMockito.never()).save(any(Employee.class));
+        @Test
+        @DisplayName("teamId가 있으면 직원의 팀이 해당 팀으로 변경된다")
+        void changeToTeam() {
+            Team newTeam = new Team(2L, "프론트팀", null);
+            BDDMockito.given(employeeRepository.findById(1L)).willReturn(Optional.of(employee));
+            BDDMockito.given(teamRepository.findById(2L)).willReturn(Optional.of(newTeam));
+
+            employeeService.changeTeam(1L, 2L);
+
+            assertThat(employee.getTeam()).isEqualTo(newTeam);
+        }
+
+        @Test
+        @DisplayName("teamId가 null이면 직원이 팀 미배정 상태로 변경된다")
+        void changeToUnassigned() {
+            BDDMockito.given(employeeRepository.findById(1L)).willReturn(Optional.of(employee));
+
+            employeeService.changeTeam(1L, null);
+
+            assertThat(employee.getTeam()).isNull();
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 employeeId면 EMPLOYEE_NOT_FOUND")
+        void employeeNotFound() {
+            BDDMockito.given(employeeRepository.findById(99L)).willReturn(Optional.empty());
+
+            assertThatThrownBy(() -> employeeService.changeTeam(99L, 1L))
+                    .isInstanceOf(EmployeeNotFoundException.class)
+                    .hasMessageContaining("99");
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 teamId로 변경하면 TEAM_NOT_FOUND")
+        void teamNotFound() {
+            BDDMockito.given(employeeRepository.findById(1L)).willReturn(Optional.of(employee));
+            BDDMockito.given(teamRepository.findById(99L)).willReturn(Optional.empty());
+
+            assertThatThrownBy(() -> employeeService.changeTeam(1L, 99L))
+                    .isInstanceOf(TeamNotFoundException.class)
+                    .hasMessageContaining("99");
+        }
     }
 
-    @Test
-    void testRegisterEmployee() {
-        EmployeeSaveRequest request = new EmployeeSaveRequest(
-                "임형준",
-                MEMBER,
-                LocalDate.of(1998, 8, 18),
-                LocalDate.of(2024, 1, 1),
-                "EMP001",
-                "hyungjunn@company.com",
-                "password123",
-                null
-        );
-        BDDMockito.given(employeeRepository.save(any(Employee.class)))
-                .willReturn(employee);
+    @Nested
+    @DisplayName("findAllEmployee")
+    class FindAll {
 
-        employeeService.registerEmployee(request);
+        @Test
+        @DisplayName("findAllWithTeam 결과를 DTO로 매핑하여 반환한다")
+        void mapsResponses() {
+            BDDMockito.given(employeeRepository.findAllWithTeam()).willReturn(List.of(employee));
 
-        verify(employeeRepository).save(any(Employee.class));
+            List<EmployeeFindResponse> employees = employeeService.findAllEmployee();
+
+            assertThat(employees).hasSize(1);
+            EmployeeFindResponse first = employees.get(0);
+            assertThat(first.employeeId()).isEqualTo(1L);
+            assertThat(first.teamId()).isEqualTo(1L);
+            assertThat(first.teamName()).isEqualTo("백엔드팀");
+            assertThat(first.name()).isEqualTo("임형준");
+            assertThat(first.role()).isEqualTo("MEMBER");
+            assertThat(first.birthday()).isEqualTo(LocalDate.of(1998, 8, 18));
+            assertThat(first.workStartDate()).isEqualTo(LocalDate.of(2024, 1, 1));
+        }
     }
 
-    @Test
-    void testFindAllEmployee() {
-        BDDMockito.given(employeeRepository.findAllWithTeam())
-                .willReturn(List.of(employee));
+    @Nested
+    @DisplayName("authenticate")
+    class Authenticate {
 
-        List<EmployeeFindResponse> employees = employeeService.findAllEmployee();
+        @Test
+        @DisplayName("올바른 이메일과 비밀번호로 인증 성공")
+        void success() {
+            BDDMockito.given(employeeRepository.findByEmail("hyungjunn@company.com"))
+                    .willReturn(Optional.of(employee));
 
-        assertThat(employees).hasSize(1);
-        assertThat(employees.contains(EmployeeFindResponse.from(employee))).isTrue();
+            Employee result = employeeService.authenticate("hyungjunn@company.com", "password123");
+
+            assertThat(result).isEqualTo(employee);
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 이메일로 인증 실패")
+        void emailNotFound() {
+            BDDMockito.given(employeeRepository.findByEmail("unknown@company.com")).willReturn(Optional.empty());
+
+            assertThatThrownBy(() -> employeeService.authenticate("unknown@company.com", "password123"))
+                    .isInstanceOf(AuthenticationFailedException.class)
+                    .hasMessage("존재하지 않는 이메일입니다.");
+        }
+
+        @Test
+        @DisplayName("잘못된 비밀번호로 인증 실패")
+        void wrongPassword() {
+            BDDMockito.given(employeeRepository.findByEmail("hyungjunn@company.com"))
+                    .willReturn(Optional.of(employee));
+
+            assertThatThrownBy(() -> employeeService.authenticate("hyungjunn@company.com", "wrongpassword"))
+                    .isInstanceOf(AuthenticationFailedException.class)
+                    .hasMessage("비밀번호가 일치하지 않습니다.");
+        }
     }
-
 }

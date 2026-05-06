@@ -79,7 +79,7 @@ PLAN.md를 실행 단위로 쪼갠 체크리스트. 작업이 끝난 항목은 `
 - [x] **A2.** `EmployeeRegisterResponse(Long employeeId)` 신규
 - [x] **A3.** `EmployeeFindResponse` 재설계: `employeeId`/`teamId`/`teamName`/`name`/`role`/`birthday`/`workStartDate` (날짜는 `LocalDate` 그대로 — Jackson ISO-8601)
 - [x] **A4.** `EmployeeChangeTeamRequest(Long teamId)` 신규
-- [ ] **A5.** `EmployeeUpdateTeamNameRequest` 삭제 — H 그룹(컨트롤러 재설계)에서 함께 처리 (참조 제거 필요)
+- [x] **A5.** `EmployeeUpdateTeamNameRequest` 삭제 (F+H 그룹과 함께)
 
 ### B. 도메인 (`Employee`)
 - [x] **B1.** 정적 팩토리 `Employee.register(name, role, birthday, workStartDate, employeeCode, email, encodedPassword, team)` 추가
@@ -101,24 +101,25 @@ PLAN.md를 실행 단위로 쪼갠 체크리스트. 작업이 끝난 항목은 `
 - [x] **D4.** `GlobalExceptionHandler`에 3개 핸들러 추가 (코드: `EMPLOYEE_ALREADY_EXISTS` 409, `EMPLOYEE_NOT_FOUND` 404, `TEAM_NOT_FOUND` 404)
 
 ### E. 리포지토리
-- [ ] **E1.** `EmployeeRepository.findEmployeeHierarchy()` → `findAllWithTeam()` 명명 변경
+- [x] **E1.** `EmployeeRepository.findEmployeeHierarchy()` → `findAllWithTeam()` 명명 변경
 - [x] **E2.** `EmployeeRepository.countMembersByTeamIdsRaw(List<Long>)` 추가 + 서비스에서 `Map<Long, Long>` 변환 헬퍼
 
 ### F. 서비스 (`EmployeeService`)
-- [ ] **F1.** `registerEmployee` — 사전 중복 검사 + `Employee.register` + 인코딩 password + race 안전망(DataIntegrityViolationException 변환)
-- [ ] **F2.** `registerEmployee` — `teamId` 검증 (없으면 `TeamNotFoundException`)
-- [ ] **F3.** `registerEmployee` — `EmployeeRegisterResponse` 반환
-- [ ] **F4.** `changeTeam(Long employeeId, Long teamId)` 신규 — employee/team 존재 검증
-- [ ] **F5.** `findEmployees` — `findAllWithTeam` + DTO 매핑
+- [x] **F1.** `registerEmployee` — 사전 중복 검사 + `Employee.register` + 인코딩 password + race 안전망(DataIntegrityViolationException 변환)
+- [x] **F2.** `registerEmployee` — `teamId` 검증 (없으면 `TeamNotFoundException`) — `resolveTeam` 헬퍼
+- [x] **F3.** `registerEmployee` — `EmployeeRegisterResponse` 반환
+- [x] **F4.** `changeTeam(Long employeeId, Long teamId)` 신규 — employee/team 존재 검증, null teamId로 미배정 가능
+- [x] **F5.** `findAllEmployee` — `findAllWithTeam` + DTO 매핑
+- [x] **F6.** `updateEmployeeTeamName` 제거 (H의 PUT 재설계와 동시)
 
 ### G. 서비스 (`TeamService.findTeams`) — COUNT 파생
 - [x] **G1.** `teamRepository.findAll()` → `EmployeeRepository.countMembersByTeamIdsRaw` → `TeamFindResponse.from(team, count)` 합성. 빈 팀 리스트 short-circuit
 - [x] **G2.** `TeamFindResponse.from(Team, long memberCount)` 시그니처 변경 (memberCount 타입을 `long`으로 — COUNT 결과 타입 일치)
 
 ### H. 컨트롤러 (`EmployeeController`)
-- [ ] **H1.** `POST /employee` — 응답 `201 Created` + body `EmployeeRegisterResponse`
-- [ ] **H2.** `PUT /employee/{employeeId}/team` 신규 + 기존 `PUT /employee` 제거
-- [ ] **H3.** `GET /employee` — DTO 변경에 맞게 매핑 확인
+- [x] **H1.** `POST /employee` — 응답 `201 Created` + body `EmployeeRegisterResponse`
+- [x] **H2.** `PUT /employee/{employeeId}/team` 신규 + 기존 `PUT /employee` 제거
+- [x] **H3.** `GET /employee` — DTO 변경에 맞게 매핑 확인 (변경 불필요, DTO 자동 매핑)
 
 ### I. 스키마 / Flyway
 - [ ] **I1.** `src/main/resources/db/migration/V3__employee_constraints_and_member_count.sql` 추가

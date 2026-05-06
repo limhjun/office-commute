@@ -2,12 +2,16 @@ package com.company.officecommute.service.employee;
 
 import com.company.officecommute.auth.AuthenticationFailedException;
 import com.company.officecommute.domain.employee.Employee;
+import com.company.officecommute.domain.employee.EmployeeAlreadyExistsException;
+import com.company.officecommute.domain.employee.EmployeeNotFoundException;
 import com.company.officecommute.domain.team.Team;
+import com.company.officecommute.domain.team.TeamNotFoundException;
 import com.company.officecommute.dto.employee.request.EmployeeSaveRequest;
-import com.company.officecommute.dto.employee.request.EmployeeUpdateTeamNameRequest;
 import com.company.officecommute.dto.employee.response.EmployeeFindResponse;
+import com.company.officecommute.dto.employee.response.EmployeeRegisterResponse;
 import com.company.officecommute.repository.employee.EmployeeRepository;
 import com.company.officecommute.repository.team.TeamRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,41 +36,49 @@ public class EmployeeService {
     }
 
     @Transactional
-    public void registerEmployee(EmployeeSaveRequest request) {
+    public EmployeeRegisterResponse registerEmployee(EmployeeSaveRequest request) {
         if (employeeRepository.existsByEmployeeCode(request.employeeCode())) {
-            throw new IllegalArgumentException("이미 존재하는 직원 코드입니다.");
+            throw EmployeeAlreadyExistsException.ofEmployeeCode(request.employeeCode());
         }
         if (employeeRepository.existsByEmail(request.email())) {
-            throw new IllegalArgumentException("이미 존재하는 이메일입니다.");
+            throw EmployeeAlreadyExistsException.ofEmail(request.email());
         }
-        Employee employee = new Employee(
+        Team team = resolveTeam(request.teamId());
+        Employee employee = Employee.register(
                 request.name(),
                 request.role(),
                 request.birthday(),
                 request.workStartDate(),
                 request.employeeCode(),
                 request.email(),
-                passwordEncoder.encode(request.password())
+                passwordEncoder.encode(request.password()),
+                team
         );
-        employeeRepository.save(employee);
+        try {
+            Employee saved = employeeRepository.save(employee);
+            return new EmployeeRegisterResponse(saved.getEmployeeId());
+        } catch (DataIntegrityViolationException e) {
+            if (employeeRepository.existsByEmployeeCode(request.employeeCode())) {
+                throw EmployeeAlreadyExistsException.ofEmployeeCode(request.employeeCode());
+            }
+            throw EmployeeAlreadyExistsException.ofEmail(request.email());
+        }
+    }
+
+    @Transactional
+    public void changeTeam(Long employeeId, Long teamId) {
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new EmployeeNotFoundException(employeeId));
+        Team team = resolveTeam(teamId);
+        employee.changeTeam(team);
     }
 
     @Transactional(readOnly = true)
     public List<EmployeeFindResponse> findAllEmployee() {
-        return employeeRepository.findEmployeeHierarchy()
+        return employeeRepository.findAllWithTeam()
                 .stream()
                 .map(EmployeeFindResponse::from)
                 .toList();
-    }
-
-    @Transactional
-    public void updateEmployeeTeamName(EmployeeUpdateTeamNameRequest request) {
-        Employee employee = employeeRepository.findById(request.employeeId())
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 직원입니다."));
-        String wantedTeamName = request.teamName();
-        Team team = teamRepository.findByName(wantedTeamName)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 팀입니다."));
-        employee.changeTeam(team);
     }
 
     public Employee authenticate(String email, String password) {
@@ -78,4 +90,11 @@ public class EmployeeService {
         return employee;
     }
 
+    private Team resolveTeam(Long teamId) {
+        if (teamId == null) {
+            return null;
+        }
+        return teamRepository.findById(teamId)
+                .orElseThrow(() -> new TeamNotFoundException(teamId));
+    }
 }

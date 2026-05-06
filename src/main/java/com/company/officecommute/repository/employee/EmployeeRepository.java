@@ -14,7 +14,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
             FROM Employee e
             LEFT JOIN FETCH e.team
             """)
-    List<Employee> findEmployeeHierarchy();
+    List<Employee> findAllWithTeam();
 
     Optional<Employee> findByEmployeeCode(String employeeCode);
 

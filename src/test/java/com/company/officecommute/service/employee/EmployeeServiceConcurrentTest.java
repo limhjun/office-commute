@@ -4,7 +4,6 @@ import com.company.officecommute.domain.annual_leave.AnnualLeave;
 import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.domain.team.Team;
-import com.company.officecommute.dto.employee.request.EmployeeUpdateTeamNameRequest;
 import com.company.officecommute.repository.annual_leave.AnnualLeaveRepository;
 import com.company.officecommute.repository.employee.EmployeeRepository;
 import com.company.officecommute.repository.team.TeamRepository;
@@ -53,7 +52,7 @@ class EmployeeServiceConcurrentTest {
         teamRepository.deleteAll();
 
         Team team = new Team("teamName", "managerName");
-        teamRepository.save(team);
+        Team savedTeam = teamRepository.save(team);
         Employee employee = new Employee(
                 "testUser",
                 Role.MEMBER,
@@ -65,7 +64,7 @@ class EmployeeServiceConcurrentTest {
         );
         Employee savedEmployee = employeeRepository.save(employee);
         employeeId = savedEmployee.getEmployeeId();
-        employeeService.updateEmployeeTeamName(new EmployeeUpdateTeamNameRequest(employeeId, "teamName"));
+        employeeService.changeTeam(employeeId, savedTeam.getTeamId());
     }
 
     @Test

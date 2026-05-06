@@ -1,12 +1,16 @@
 package com.company.officecommute.controller.employee;
 
 import com.company.officecommute.auth.ManagerOnly;
+import com.company.officecommute.dto.employee.request.EmployeeChangeTeamRequest;
 import com.company.officecommute.dto.employee.request.EmployeeSaveRequest;
-import com.company.officecommute.dto.employee.request.EmployeeUpdateTeamNameRequest;
 import com.company.officecommute.dto.employee.response.EmployeeFindResponse;
+import com.company.officecommute.dto.employee.response.EmployeeRegisterResponse;
 import com.company.officecommute.service.employee.EmployeeService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -25,8 +29,9 @@ public class EmployeeController {
 
     @ManagerOnly
     @PostMapping("/employee")
-    public void saveEmployee(@Valid @RequestBody EmployeeSaveRequest request) {
-        employeeService.registerEmployee(request);
+    public ResponseEntity<EmployeeRegisterResponse> saveEmployee(@Valid @RequestBody EmployeeSaveRequest request) {
+        EmployeeRegisterResponse response = employeeService.registerEmployee(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @ManagerOnly
@@ -36,8 +41,11 @@ public class EmployeeController {
     }
 
     @ManagerOnly
-    @PutMapping("/employee")
-    public void updateEmployeeTeamName(@RequestBody EmployeeUpdateTeamNameRequest request) {
-        employeeService.updateEmployeeTeamName(request);
+    @PutMapping("/employee/{employeeId}/team")
+    public void changeTeam(
+            @PathVariable Long employeeId,
+            @RequestBody EmployeeChangeTeamRequest request
+    ) {
+        employeeService.changeTeam(employeeId, request.teamId());
     }
 }

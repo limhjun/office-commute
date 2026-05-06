@@ -2,9 +2,9 @@ package com.company.officecommute.service.employee;
 
 import com.company.officecommute.auth.AuthenticationFailedException;
 import com.company.officecommute.domain.employee.Employee;
+import com.company.officecommute.domain.employee.EmployeeAlreadyExistsException;
 import com.company.officecommute.domain.team.Team;
 import com.company.officecommute.dto.employee.request.EmployeeSaveRequest;
-import com.company.officecommute.dto.employee.request.EmployeeUpdateTeamNameRequest;
 import com.company.officecommute.dto.employee.response.EmployeeFindResponse;
 import com.company.officecommute.repository.employee.EmployeeRepository;
 import com.company.officecommute.repository.team.TeamRepository;
@@ -115,6 +115,8 @@ class EmployeeServiceTest {
                 .willReturn(false);
         BDDMockito.given(employeeRepository.existsByEmail("hyungjunn@company.com"))
                 .willReturn(false);
+        BDDMockito.given(employeeRepository.save(any(Employee.class)))
+                .willReturn(employee);
 
         employeeService.registerEmployee(request);
 
@@ -140,8 +142,8 @@ class EmployeeServiceTest {
                 .willReturn(true);
 
         assertThatThrownBy(() -> employeeService.registerEmployee(request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("이미 존재하는 직원 코드입니다.");
+                .isInstanceOf(EmployeeAlreadyExistsException.class)
+                .hasMessageContaining("EMP001");
         verify(employeeRepository).existsByEmployeeCode("EMP001");
         verify(employeeRepository, BDDMockito.never()).save(any(Employee.class));
     }
@@ -165,8 +167,8 @@ class EmployeeServiceTest {
                 .willReturn(true);
 
         assertThatThrownBy(() -> employeeService.registerEmployee(request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("이미 존재하는 이메일입니다.");
+                .isInstanceOf(EmployeeAlreadyExistsException.class)
+                .hasMessageContaining("hyungjunn@company.com");
         verify(employeeRepository, BDDMockito.never()).save(any(Employee.class));
     }
 
@@ -192,28 +194,13 @@ class EmployeeServiceTest {
 
     @Test
     void testFindAllEmployee() {
-        BDDMockito.given(employeeRepository.findEmployeeHierarchy())
+        BDDMockito.given(employeeRepository.findAllWithTeam())
                 .willReturn(List.of(employee));
 
         List<EmployeeFindResponse> employees = employeeService.findAllEmployee();
 
         assertThat(employees).hasSize(1);
         assertThat(employees.contains(EmployeeFindResponse.from(employee))).isTrue();
-    }
-
-    @Test
-    @Disabled("1-② group K — to be rewritten as changeTeam(employeeId, teamId) ID-based test; memberCount assertion no longer applicable")
-    void testUpdateEmployeeTeamName() {
-        EmployeeUpdateTeamNameRequest request = new EmployeeUpdateTeamNameRequest(1L, "백엔드팀");
-        BDDMockito.given(employeeRepository.findById(1L))
-                .willReturn(Optional.of(employee));
-
-        BDDMockito.given(teamRepository.findByName(anyString()))
-                .willReturn(Optional.of(team));
-
-        employeeService.updateEmployeeTeamName(request);
-
-        assertThat(employee.getTeamName()).isEqualTo("백엔드팀");
     }
 
 }

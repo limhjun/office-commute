@@ -82,11 +82,11 @@ PLAN.md를 실행 단위로 쪼갠 체크리스트. 작업이 끝난 항목은 `
 - [ ] **A5.** `EmployeeUpdateTeamNameRequest` 삭제 — H 그룹(컨트롤러 재설계)에서 함께 처리 (참조 제거 필요)
 
 ### B. 도메인 (`Employee`)
-- [ ] **B1.** 정적 팩토리 `Employee.register(name, role, birthday, workStartDate, employeeCode, email, encodedPassword, team)` 추가
-- [ ] **B2.** 4-arg 하드코딩 생성자 (`"TEST001"`, `"test@example.com"`, `"password"`) 제거
-- [ ] **B3.** `changeTeam(Team)` 카운터 mutation 제거 — 참조 변경만 수행
-- [ ] **B4.** 컬럼 NOT NULL 어노테이션 보강 (`name`, `role`, `birthday`, `workStartDate`)
-- [ ] **B5.** 검증 로직(name/email/code/password) 정적 팩토리에서 일관 호출 확인
+- [x] **B1.** 정적 팩토리 `Employee.register(name, role, birthday, workStartDate, employeeCode, email, encodedPassword, team)` 추가
+- [x] **B2.** 4-arg 하드코딩 생성자 (`"TEST001"`, `"test@example.com"`, `"password"`) 제거 — `EmployeeServiceConcurrentTest`의 사용처를 7-arg로 갱신
+- [x] **B3.** `changeTeam(Team)` 카운터 mutation 제거 — 참조 변경만 수행
+- [x] **B4.** 컬럼 NOT NULL 어노테이션 보강 (`name`, `role`, `birthday`, `workStartDate`)
+- [x] **B5.** 검증 로직(name/email/code/password) 9-arg 생성자에서 호출 — 정적 팩토리는 9-arg를 위임
 
 ### C. 도메인 (`Team`) — memberCount 제거
 - [ ] **C1.** `memberCount` 필드 제거

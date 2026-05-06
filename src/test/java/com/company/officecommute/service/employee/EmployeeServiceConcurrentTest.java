@@ -54,7 +54,15 @@ class EmployeeServiceConcurrentTest {
 
         Team team = new Team("teamName", "managerName", 5);
         teamRepository.save(team);
-        Employee employee = new Employee("testUser", Role.MEMBER, LocalDate.now(), LocalDate.now());
+        Employee employee = new Employee(
+                "testUser",
+                Role.MEMBER,
+                LocalDate.of(1990, 1, 1),
+                LocalDate.now(),
+                "EMPCC01",
+                "concurrent@company.com",
+                "password123"
+        );
         Employee savedEmployee = employeeRepository.save(employee);
         employeeId = savedEmployee.getEmployeeId();
         employeeService.updateEmployeeTeamName(new EmployeeUpdateTeamNameRequest(employeeId, "teamName"));

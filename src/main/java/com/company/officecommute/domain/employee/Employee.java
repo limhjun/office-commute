@@ -30,17 +30,21 @@ public class Employee {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long employeeId;
 
-    @ManyToOne(fetch = FetchType.LAZY) // 왜? LAZY?
-    @JoinColumn(name= "team_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "team_id")
     private Team team;
 
+    @Column(nullable = false)
     private String name;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private Role role;
 
+    @Column(nullable = false)
     private LocalDate birthday;
 
+    @Column(nullable = false)
     private LocalDate workStartDate;
 
     @Column(unique = true, nullable = false)
@@ -55,13 +59,17 @@ public class Employee {
     protected Employee() {
     }
 
-    public Employee(
+    public static Employee register(
             String name,
             Role role,
             LocalDate birthday,
-            LocalDate workStartDate
+            LocalDate workStartDate,
+            String employeeCode,
+            String email,
+            String encodedPassword,
+            Team team
     ) {
-        this(null, null, name, role, birthday, workStartDate, "TEST001", "test@example.com", "password");
+        return new Employee(null, team, name, role, birthday, workStartDate, employeeCode, email, encodedPassword);
     }
 
     public Employee(
@@ -131,14 +139,7 @@ public class Employee {
     }
 
     public void changeTeam(Team newTeam) {
-        Team oldTeam = this.team;
         this.team = newTeam;
-        if (oldTeam != null) {
-            oldTeam.decreaseMemberCount();
-        }
-        if (newTeam != null) {
-            newTeam.increaseMemberCount();
-        }
     }
 
     public List<AnnualLeave> enrollAnnualLeave(List<LocalDate> wantedDates, List<AnnualLeave> existingAnnualLeaves) {

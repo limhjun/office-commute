@@ -2,11 +2,7 @@ plugins {
 	id 'java'
 	id 'org.springframework.boot' version '3.5.5'
 	id 'io.spring.dependency-management' version '1.1.5'
-	id 'org.asciidoctor.jvm.convert' version '3.3.2'
-}
-
-configurations {
-	asciidoctorExt
+	id 'org.openapi.generator' version '7.7.0'
 }
 
 group = 'com.company'
@@ -43,31 +39,24 @@ dependencies {
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-
-	// REST Docs
-	asciidoctorExt 'org.springframework.restdocs:spring-restdocs-asciidoctor'
-	testImplementation 'org.springframework.restdocs:spring-restdocs-mockmvc'
-}
-
-ext {
-	snippetsDir = file('build/generated-snippets')
 }
 
 tasks.named('test') {
-	outputs.dir snippetsDir
 	useJUnitPlatform()
 }
 
-asciidoctor {
-	inputs.dir snippetsDir
-	configurations 'asciidoctorExt'
-	baseDirFollowsSourceFile()
-	dependsOn test
+// ----------------------------------------------------------------------
+// OpenAPI 명세 검증.
+//   openapi.yml 이 진실의 원천. 빌드 시 yml 자체의 문법/구조를 검증한다.
+//   현 시점에는 코드 생성을 사용하지 않는다 (외부 클라이언트가 생기는
+//   시점에 codegen 옵션을 켤 예정). 컨트롤러/DTO는 yml과 정합을 유지하도록
+//   사람이 책임진다.
+// ----------------------------------------------------------------------
+openApiValidate {
+	inputSpec = "$rootDir/openapi.yml"
+	recommend = true
 }
 
-bootJar {
-	dependsOn asciidoctor
-	from("${asciidoctor.outputDir}") {
-		into 'static/docs'
-	}
+tasks.named('check') {
+	dependsOn 'openApiValidate'
 }

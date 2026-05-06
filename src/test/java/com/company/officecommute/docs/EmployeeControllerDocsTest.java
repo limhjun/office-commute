@@ -82,8 +82,10 @@ class EmployeeControllerDocsTest extends RestDocsSupport {
     @DisplayName("직원 전체 조회 API")
     void findAllEmployee() throws Exception {
         List<EmployeeFindResponse> responses = List.of(
-                new EmployeeFindResponse("홍길동", "개발팀", "MANAGER", "1990-01-15", "2020-03-01"),
-                new EmployeeFindResponse("김철수", "개발팀", "MEMBER", "1995-05-20", "2023-01-02")
+                new EmployeeFindResponse(1L, 1L, "개발팀", "홍길동", "MANAGER",
+                        java.time.LocalDate.of(1990, 1, 15), java.time.LocalDate.of(2020, 3, 1)),
+                new EmployeeFindResponse(2L, 1L, "개발팀", "김철수", "MEMBER",
+                        java.time.LocalDate.of(1995, 5, 20), java.time.LocalDate.of(2023, 1, 2))
         );
         given(employeeService.findAllEmployee()).willReturn(responses);
 

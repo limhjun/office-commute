@@ -107,7 +107,8 @@ class EmployeeServiceTest {
                 LocalDate.of(2024, 1, 1),
                 "EMP001",
                 "hyungjunn@company.com",
-                "password123"
+                "password123",
+                null
         );
         BDDMockito.given(employeeRepository.existsByEmployeeCode("EMP001"))
                 .willReturn(false);
@@ -131,7 +132,8 @@ class EmployeeServiceTest {
                 LocalDate.of(2024, 1, 1),
                 "EMP001",
                 "hyungjunn@company.com",
-                "password123"
+                "password123",
+                null
         );
         BDDMockito.given(employeeRepository.existsByEmployeeCode("EMP001"))
                 .willReturn(true);
@@ -153,7 +155,8 @@ class EmployeeServiceTest {
                 LocalDate.of(2024, 1, 1),
                 "EMP001",
                 "hyungjunn@company.com",
-                "password123"
+                "password123",
+                null
         );
         BDDMockito.given(employeeRepository.existsByEmployeeCode("EMP001"))
                 .willReturn(false);
@@ -175,7 +178,8 @@ class EmployeeServiceTest {
                 LocalDate.of(2024, 1, 1),
                 "EMP001",
                 "hyungjunn@company.com",
-                "password123"
+                "password123",
+                null
         );
         BDDMockito.given(employeeRepository.save(any(Employee.class)))
                 .willReturn(employee);

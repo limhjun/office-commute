@@ -68,4 +68,88 @@ PLAN.md를 실행 단위로 쪼갠 체크리스트. 작업이 끝난 항목은 `
 
 ### I. 마무리
 - [x] **I1.** `WORKS.md`의 1-① 항목 체크박스 `[x]`로 갱신
-- [ ] **I2.** 1-② 항목 시작 시 PLAN/tasks 섹션 추가
+- [x] **I2.** 1-② 항목 시작 시 PLAN/tasks 섹션 추가
+
+---
+
+## 1-② 직원 등록 및 조회
+
+### A. 요청/응답 DTO
+- [x] **A1.** `EmployeeSaveRequest`에 `Long teamId` 옵셔널 필드 추가
+- [x] **A2.** `EmployeeRegisterResponse(Long employeeId)` 신규
+- [x] **A3.** `EmployeeFindResponse` 재설계: `employeeId`/`teamId`/`teamName`/`name`/`role`/`birthday`/`workStartDate` (날짜는 `LocalDate` 그대로 — Jackson ISO-8601)
+- [x] **A4.** `EmployeeChangeTeamRequest(Long teamId)` 신규
+- [ ] **A5.** `EmployeeUpdateTeamNameRequest` 삭제 — H 그룹(컨트롤러 재설계)에서 함께 처리 (참조 제거 필요)
+
+### B. 도메인 (`Employee`)
+- [ ] **B1.** 정적 팩토리 `Employee.register(name, role, birthday, workStartDate, employeeCode, email, encodedPassword, team)` 추가
+- [ ] **B2.** 4-arg 하드코딩 생성자 (`"TEST001"`, `"test@example.com"`, `"password"`) 제거
+- [ ] **B3.** `changeTeam(Team)` 카운터 mutation 제거 — 참조 변경만 수행
+- [ ] **B4.** 컬럼 NOT NULL 어노테이션 보강 (`name`, `role`, `birthday`, `workStartDate`)
+- [ ] **B5.** 검증 로직(name/email/code/password) 정적 팩토리에서 일관 호출 확인
+
+### C. 도메인 (`Team`) — memberCount 제거
+- [ ] **C1.** `memberCount` 필드 제거
+- [ ] **C2.** `increaseMemberCount()`, `decreaseMemberCount()` 메서드 제거
+- [ ] **C3.** `getMemberCount()` 게터 제거
+- [ ] **C4.** `Team.register(name, managerName)` 정적 팩토리 시그니처 영향 점검 및 갱신
+
+### D. 도메인 예외
+- [ ] **D1.** `EmployeeAlreadyExistsException` (`domain/employee/`)
+- [ ] **D2.** `EmployeeNotFoundException` (`domain/employee/`)
+- [ ] **D3.** `TeamNotFoundException` (`domain/team/`)
+- [ ] **D4.** `GlobalExceptionHandler`에 3개 핸들러 추가 (코드: `EMPLOYEE_ALREADY_EXISTS` 409, `EMPLOYEE_NOT_FOUND` 404, `TEAM_NOT_FOUND` 404)
+
+### E. 리포지토리
+- [ ] **E1.** `EmployeeRepository.findEmployeeHierarchy()` → `findAllWithTeam()` 명명 변경
+- [ ] **E2.** `EmployeeRepository.countMembersByTeamIdsRaw(List<Long>)` 추가 + 서비스에서 `Map<Long, Long>` 변환 헬퍼
+
+### F. 서비스 (`EmployeeService`)
+- [ ] **F1.** `registerEmployee` — 사전 중복 검사 + `Employee.register` + 인코딩 password + race 안전망(DataIntegrityViolationException 변환)
+- [ ] **F2.** `registerEmployee` — `teamId` 검증 (없으면 `TeamNotFoundException`)
+- [ ] **F3.** `registerEmployee` — `EmployeeRegisterResponse` 반환
+- [ ] **F4.** `changeTeam(Long employeeId, Long teamId)` 신규 — employee/team 존재 검증
+- [ ] **F5.** `findEmployees` — `findAllWithTeam` + DTO 매핑
+
+### G. 서비스 (`TeamService.findTeams`) — COUNT 파생
+- [ ] **G1.** `teamRepository.findAll()` → `EmployeeRepository.countMembersByTeamIdsRaw` → `TeamFindResponse.from(team, count)` 합성
+- [ ] **G2.** `TeamFindResponse.from(Team, long memberCount)` 시그니처 변경
+
+### H. 컨트롤러 (`EmployeeController`)
+- [ ] **H1.** `POST /employee` — 응답 `201 Created` + body `EmployeeRegisterResponse`
+- [ ] **H2.** `PUT /employee/{employeeId}/team` 신규 + 기존 `PUT /employee` 제거
+- [ ] **H3.** `GET /employee` — DTO 변경에 맞게 매핑 확인
+
+### I. 스키마 / Flyway
+- [ ] **I1.** `src/main/resources/db/migration/V3__employee_constraints_and_member_count.sql` 추가
+  - `employee.name`, `employee.role`, `employee.birthday`, `employee.work_start_date` NOT NULL
+  - `team.member_count` DROP COLUMN
+- [ ] **I2.** mysql 프로필 fresh 적용 검증 (V1+V2+V3 success)
+- [ ] **I3.** `data.sql`(dev)에 `member_count` 참조 있으면 정리
+
+### J. 픽스처 정리
+- [ ] **J1.** `Employees` 픽스처 — 4-arg 하드코딩 생성자 의존 제거 → `Employee.register(...)` 또는 명시적 9-arg 생성자 사용
+- [ ] **J2.** `Teams` 픽스처 — `memberCount` 인자 의존 제거
+- [ ] **J3.** 기존 1-① 테스트(TeamServiceTest/TeamControllerTest/TeamControllerDocsTest)에서 `memberCount` 검증부 갱신
+
+### K. 테스트
+- [ ] **K1.** `EmployeeServiceTest` — 등록 성공(team 포함/미포함), employeeCode 중복, email 중복, DataIntegrityViolation 변환, 존재하지 않는 teamId, password 해싱 검증
+- [ ] **K2.** `EmployeeServiceTest` — changeTeam 성공(team↔null 양방향), employee 미존재, team 미존재
+- [ ] **K3.** `EmployeeServiceTest` — findEmployees DTO 매핑
+- [ ] **K4.** `TeamServiceTest` — 팀 조회 시 `memberCount`가 employee count와 일치 (0/1/N + 미배정 직원 존재 케이스)
+- [ ] **K5.** `EmployeeControllerTest` — POST 권한 401/403/201, 필수 필드 누락 400, 중복 409, teamId 검증 404, 응답 `employeeId` 포함
+- [ ] **K6.** `EmployeeControllerTest` — GET 응답 필드 + ISO-8601 형식 검증
+- [ ] **K7.** `EmployeeControllerTest` — PUT /employee/{id}/team 권한, 검증, null teamId 허용
+- [ ] **K8.** `TeamControllerTest` — 팀 조회 통합 시 `memberCount` COUNT 파생 정확성
+- [ ] **K9.** `EmployeeControllerDocsTest` — 등록/조회/팀 변경 스니펫 갱신
+
+### L. 검증
+- [ ] **L1.** `./gradlew test --tests "com.company.officecommute.service.employee.*"` 통과
+- [ ] **L2.** `./gradlew test --tests "com.company.officecommute.service.team.*"` 통과
+- [ ] **L3.** `./gradlew test --tests "com.company.officecommute.controller.employee.*"` 통과
+- [ ] **L4.** `./gradlew test --tests "com.company.officecommute.controller.team.*"` 통과
+- [ ] **L5.** `./gradlew test --tests "com.company.officecommute.docs.*"` 통과
+- [ ] **L6.** `./gradlew build` 전체 빌드 통과
+
+### M. 마무리
+- [ ] **M1.** `WORKS.md`의 1-② 항목 체크박스 `[x]`로 갱신

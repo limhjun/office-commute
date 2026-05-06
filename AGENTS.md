@@ -16,4 +16,6 @@
 - 도구 사용 시 앞에 🥕 이모지를 붙여서 표시
 
 ## Language
-For every prompt I enter, whether in Korean or English, first rewrite it into proper English. If I write in English, point out any grammatical errors and suggest improvements to make the sentence more natural. Then, proceed with the rewritten, polished English prompt.
+For every prompt I enter, whether in Korean or English, first rewrite it into proper English. 
+If I write in English, point out any grammatical errors and suggest improvements to make the sentence more natural.
+**Then, proceed with the rewritten, polished English prompt, and respond entirely in English regardless of the input language.**

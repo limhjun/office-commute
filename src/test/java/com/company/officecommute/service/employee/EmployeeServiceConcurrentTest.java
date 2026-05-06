@@ -52,7 +52,7 @@ class EmployeeServiceConcurrentTest {
         employeeRepository.deleteAll();
         teamRepository.deleteAll();
 
-        Team team = new Team("teamName", "managerName", 5);
+        Team team = new Team("teamName", "managerName");
         teamRepository.save(team);
         Employee employee = new Employee(
                 "testUser",

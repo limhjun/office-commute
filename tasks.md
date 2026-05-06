@@ -89,10 +89,10 @@ PLAN.md를 실행 단위로 쪼갠 체크리스트. 작업이 끝난 항목은 `
 - [x] **B5.** 검증 로직(name/email/code/password) 9-arg 생성자에서 호출 — 정적 팩토리는 9-arg를 위임
 
 ### C. 도메인 (`Team`) — memberCount 제거
-- [ ] **C1.** `memberCount` 필드 제거
-- [ ] **C2.** `increaseMemberCount()`, `decreaseMemberCount()` 메서드 제거
-- [ ] **C3.** `getMemberCount()` 게터 제거
-- [ ] **C4.** `Team.register(name, managerName)` 정적 팩토리 시그니처 영향 점검 및 갱신
+- [x] **C1.** `memberCount` 필드 제거
+- [x] **C2.** `increaseMemberCount()`, `decreaseMemberCount()` 메서드 제거
+- [x] **C3.** `getMemberCount()` 게터 제거
+- [x] **C4.** 생성자 정리 — `Team(String)`, `Team(String, String)`, `Team(Long, String, String)`, `Team(Long, String, String, int annualLeaveCriteria)` 4종으로 정리. `register()` 정적 팩토리는 4-arg 생성자 위임
 
 ### D. 도메인 예외
 - [ ] **D1.** `EmployeeAlreadyExistsException` (`domain/employee/`)
@@ -102,7 +102,7 @@ PLAN.md를 실행 단위로 쪼갠 체크리스트. 작업이 끝난 항목은 `
 
 ### E. 리포지토리
 - [ ] **E1.** `EmployeeRepository.findEmployeeHierarchy()` → `findAllWithTeam()` 명명 변경
-- [ ] **E2.** `EmployeeRepository.countMembersByTeamIdsRaw(List<Long>)` 추가 + 서비스에서 `Map<Long, Long>` 변환 헬퍼
+- [x] **E2.** `EmployeeRepository.countMembersByTeamIdsRaw(List<Long>)` 추가 + 서비스에서 `Map<Long, Long>` 변환 헬퍼
 
 ### F. 서비스 (`EmployeeService`)
 - [ ] **F1.** `registerEmployee` — 사전 중복 검사 + `Employee.register` + 인코딩 password + race 안전망(DataIntegrityViolationException 변환)
@@ -112,8 +112,8 @@ PLAN.md를 실행 단위로 쪼갠 체크리스트. 작업이 끝난 항목은 `
 - [ ] **F5.** `findEmployees` — `findAllWithTeam` + DTO 매핑
 
 ### G. 서비스 (`TeamService.findTeams`) — COUNT 파생
-- [ ] **G1.** `teamRepository.findAll()` → `EmployeeRepository.countMembersByTeamIdsRaw` → `TeamFindResponse.from(team, count)` 합성
-- [ ] **G2.** `TeamFindResponse.from(Team, long memberCount)` 시그니처 변경
+- [x] **G1.** `teamRepository.findAll()` → `EmployeeRepository.countMembersByTeamIdsRaw` → `TeamFindResponse.from(team, count)` 합성. 빈 팀 리스트 short-circuit
+- [x] **G2.** `TeamFindResponse.from(Team, long memberCount)` 시그니처 변경 (memberCount 타입을 `long`으로 — COUNT 결과 타입 일치)
 
 ### H. 컨트롤러 (`EmployeeController`)
 - [ ] **H1.** `POST /employee` — 응답 `201 Created` + body `EmployeeRegisterResponse`

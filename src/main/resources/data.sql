@@ -6,5 +6,5 @@ INSERT INTO employee (name, role, birthday, work_start_date, employee_code, emai
 VALUES ('관리자', 'MANAGER', '1990-01-01', '2024-01-01', 'ADMIN001', 'admin@company.com',
         '$2a$10$jg1.5WoxGYRAvXMnQbjuzO00fqODW80lysuhA0an2vD/VqgHY6MDm');
 
-INSERT INTO team (name, manager_name, member_count, annual_leave_criteria)
-VALUES ('관리팀', '관리자', 1, 15);
+INSERT INTO team (name, manager_name, annual_leave_criteria)
+VALUES ('관리팀', '관리자', 15);

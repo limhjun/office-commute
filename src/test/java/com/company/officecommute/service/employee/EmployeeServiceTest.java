@@ -214,7 +214,6 @@ class EmployeeServiceTest {
         employeeService.updateEmployeeTeamName(request);
 
         assertThat(employee.getTeamName()).isEqualTo("백엔드팀");
-        assertThat(team.getMemberCount()).isEqualTo(1);
     }
 
 }

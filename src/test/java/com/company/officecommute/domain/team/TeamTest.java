@@ -24,14 +24,6 @@ class TeamTest {
     }
 
     @Test
-    void testIncreaseMemberCount() {
-        Team team = Teams.createTeamWithTeamName("teamName");
-        team.increaseMemberCount();
-
-        assertThat(team.getMemberCount()).isEqualTo(1);
-    }
-
-    @Test
     void testIsNotEnoughCriteria_False() {
         Team team = Teams.createTeamWithCriteria(10);
 

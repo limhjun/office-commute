@@ -31,4 +31,12 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
             WHERE e.employeeId = :employeeId
             """)
     Optional<Employee> findByEmployeeIdWithTeam(@Param("employeeId") Long employeeId);
+
+    @Query("""
+            SELECT e.team.teamId, COUNT(e)
+            FROM Employee e
+            WHERE e.team.teamId IN :teamIds
+            GROUP BY e.team.teamId
+            """)
+    List<Object[]> countMembersByTeamIdsRaw(@Param("teamIds") List<Long> teamIds);
 }

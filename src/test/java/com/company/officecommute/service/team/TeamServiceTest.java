@@ -4,6 +4,7 @@ import com.company.officecommute.domain.team.Team;
 import com.company.officecommute.domain.team.TeamAlreadyExistsException;
 import com.company.officecommute.dto.team.request.TeamRegisterRequest;
 import com.company.officecommute.dto.team.response.TeamFindResponse;
+import com.company.officecommute.repository.employee.EmployeeRepository;
 import com.company.officecommute.repository.team.TeamRepository;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,8 @@ class TeamServiceTest {
     private TeamService teamService;
     @Mock
     private TeamRepository teamRepository;
+    @Mock
+    private EmployeeRepository employeeRepository;
 
     @Test
     void testRegisterTeam() {
@@ -52,9 +55,11 @@ class TeamServiceTest {
 
     @Test
     void testFindTeam() {
-        Team team = new Team(1L, "ATeam", "이매니저", 0);
+        Team team = new Team(1L, "ATeam", "이매니저");
         BDDMockito.given(teamRepository.findAll())
                 .willReturn(List.of(team));
+        BDDMockito.given(employeeRepository.countMembersByTeamIdsRaw(List.of(1L)))
+                .willReturn(List.<Object[]>of(new Object[]{1L, 3L}));
 
         List<TeamFindResponse> teams = teamService.findTeam();
 
@@ -62,6 +67,7 @@ class TeamServiceTest {
         assertThat(teams.get(0).teamId()).isEqualTo(1L);
         assertThat(teams.get(0).name()).isEqualTo("ATeam");
         assertThat(teams.get(0).managerName()).isEqualTo("이매니저");
+        assertThat(teams.get(0).memberCount()).isEqualTo(3L);
     }
 
     @Test

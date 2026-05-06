@@ -149,4 +149,4 @@ PLAN.md를 실행 단위로 쪼갠 체크리스트. 작업이 끝난 항목은 `
 - [ ] **L2.** `./gradlew build` 전체 빌드 통과 (asciidoctor + bootJar 포함) — 현재 disabled REST Docs 테스트로 인해 일부 스니펫 누락. OpenAPI 전환 항목에서 깨끗이 정리.
 
 ### M. 마무리
-- [ ] **M1.** `WORKS.md`의 1-② 항목 체크박스 `[x]`로 갱신
+- [x] **M1.** `WORKS.md`의 1-② 항목 체크박스 `[x]`로 갱신

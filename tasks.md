@@ -122,11 +122,11 @@ PLAN.md를 실행 단위로 쪼갠 체크리스트. 작업이 끝난 항목은 `
 - [x] **H3.** `GET /employee` — DTO 변경에 맞게 매핑 확인 (변경 불필요, DTO 자동 매핑)
 
 ### I. 스키마 / Flyway
-- [ ] **I1.** `src/main/resources/db/migration/V3__employee_constraints_and_member_count.sql` 추가
+- [x] **I1.** `src/main/resources/db/migration/V3__employee_constraints_and_drop_team_member_count.sql` 추가
   - `employee.name`, `employee.role`, `employee.birthday`, `employee.work_start_date` NOT NULL
   - `team.member_count` DROP COLUMN
-- [ ] **I2.** mysql 프로필 fresh 적용 검증 (V1+V2+V3 success)
-- [ ] **I3.** `data.sql`(dev)에 `member_count` 참조 있으면 정리
+- [x] **I2.** mysql 프로필 V3 적용 검증 (flyway_schema_history version 3 success=1, DESC employee/team로 컬럼 상태 직접 확인)
+- [x] **I3.** `data.sql`(dev)에서 `member_count` 컬럼 참조 제거 — C 그룹에서 함께 처리됨
 
 ### J. 픽스처 정리
 - [ ] **J1.** `Employees` 픽스처 — 4-arg 하드코딩 생성자 의존 제거 → `Employee.register(...)` 또는 명시적 9-arg 생성자 사용

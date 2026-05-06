@@ -95,10 +95,10 @@ PLAN.md를 실행 단위로 쪼갠 체크리스트. 작업이 끝난 항목은 `
 - [x] **C4.** 생성자 정리 — `Team(String)`, `Team(String, String)`, `Team(Long, String, String)`, `Team(Long, String, String, int annualLeaveCriteria)` 4종으로 정리. `register()` 정적 팩토리는 4-arg 생성자 위임
 
 ### D. 도메인 예외
-- [ ] **D1.** `EmployeeAlreadyExistsException` (`domain/employee/`)
-- [ ] **D2.** `EmployeeNotFoundException` (`domain/employee/`)
-- [ ] **D3.** `TeamNotFoundException` (`domain/team/`)
-- [ ] **D4.** `GlobalExceptionHandler`에 3개 핸들러 추가 (코드: `EMPLOYEE_ALREADY_EXISTS` 409, `EMPLOYEE_NOT_FOUND` 404, `TEAM_NOT_FOUND` 404)
+- [x] **D1.** `EmployeeAlreadyExistsException` (`domain/employee/`) — `ofEmployeeCode` / `ofEmail` 정적 팩토리
+- [x] **D2.** `EmployeeNotFoundException` (`domain/employee/`)
+- [x] **D3.** `TeamNotFoundException` (`domain/team/`)
+- [x] **D4.** `GlobalExceptionHandler`에 3개 핸들러 추가 (코드: `EMPLOYEE_ALREADY_EXISTS` 409, `EMPLOYEE_NOT_FOUND` 404, `TEAM_NOT_FOUND` 404)
 
 ### E. 리포지토리
 - [ ] **E1.** `EmployeeRepository.findEmployeeHierarchy()` → `findAllWithTeam()` 명명 변경

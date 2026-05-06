@@ -2,7 +2,10 @@ package com.company.officecommute.global.exception;
 
 import com.company.officecommute.auth.AuthenticationFailedException;
 import com.company.officecommute.auth.ForbiddenException;
+import com.company.officecommute.domain.employee.EmployeeAlreadyExistsException;
+import com.company.officecommute.domain.employee.EmployeeNotFoundException;
 import com.company.officecommute.domain.team.TeamAlreadyExistsException;
+import com.company.officecommute.domain.team.TeamNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -73,6 +76,27 @@ public class GlobalExceptionHandler {
     public ErrorResult handleTeamAlreadyExists(TeamAlreadyExistsException e) {
         log.warn("Team already exists: {}", e.getMessage());
         return new ErrorResult("TEAM_ALREADY_EXISTS", e.getMessage());
+    }
+
+    @ResponseStatus(HttpStatus.CONFLICT)
+    @ExceptionHandler(EmployeeAlreadyExistsException.class)
+    public ErrorResult handleEmployeeAlreadyExists(EmployeeAlreadyExistsException e) {
+        log.warn("Employee already exists: {}", e.getMessage());
+        return new ErrorResult("EMPLOYEE_ALREADY_EXISTS", e.getMessage());
+    }
+
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    @ExceptionHandler(EmployeeNotFoundException.class)
+    public ErrorResult handleEmployeeNotFound(EmployeeNotFoundException e) {
+        log.warn("Employee not found: {}", e.getMessage());
+        return new ErrorResult("EMPLOYEE_NOT_FOUND", e.getMessage());
+    }
+
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    @ExceptionHandler(TeamNotFoundException.class)
+    public ErrorResult handleTeamNotFound(TeamNotFoundException e) {
+        log.warn("Team not found: {}", e.getMessage());
+        return new ErrorResult("TEAM_NOT_FOUND", e.getMessage());
     }
 
     @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)

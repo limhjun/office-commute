@@ -1,10 +1,5 @@
 # CLAUDE.md
 
-## Language Rules (IMPORTANT)
-For every prompt I enter, whether in Korean or English, first rewrite it into proper English.
-If I write in English, point out any grammatical errors and suggest improvements to make the sentence more natural.
-Then, proceed with the rewritten, polished English prompt.
-
 **YOU MUST ALWAYS RESPOND IN ENGLISH.**
 This applies to ALL outputs: explanations, code comments, commit messages, PR descriptions, and clarifying questions.
 NEVER respond in Korean, even if I write in Korean.
@@ -48,6 +43,3 @@ Skip the rewrite step if my prompt is already short, clear, and grammatically co
 - Session-based (`JSESSIONID`). Login invalidates any existing session, then stores `currentEmployeeId` and `currentRole` on the new one (session-fixation defense).
 - `@ManagerOnly` admits only `currentRole == MANAGER`.
 - Current user in controllers: `@RequestAttribute("currentEmployeeId") Long employeeId`.
-
-## Output Format
-- Prefix tool use with 🥕.

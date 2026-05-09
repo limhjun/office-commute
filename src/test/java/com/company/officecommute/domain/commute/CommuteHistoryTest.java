@@ -29,8 +29,8 @@ public class CommuteHistoryTest {
 
         CommuteHistory commuteHistory = new CommuteHistory(1L, 1L, null, null, 0);
         assertThatThrownBy(() -> commuteHistory.endWork(workEndTime))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("출근을 하지 않은 상태입니다.");
+                .isInstanceOf(CommuteNotStartedException.class)
+                .hasMessage("진행 중인 출근 기록이 없습니다.");
     }
 
     @Test
@@ -40,8 +40,8 @@ public class CommuteHistoryTest {
 
         CommuteHistory commuteHistory = new CommuteHistory(1L, 1L, workStartTime, workEndTime, 10L * 60);
         assertThatThrownBy(() -> commuteHistory.endWork(workEndTime))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("이미 퇴근을 했습니다.");
+                .isInstanceOf(CommuteAlreadyEndedException.class)
+                .hasMessage("이미 퇴근 처리된 근무입니다.");
     }
 
     @Test
@@ -58,7 +58,7 @@ public class CommuteHistoryTest {
         CommuteHistory commuteHistory = new CommuteHistory(1L, 1L, workStartTime, null, 0);
 
         assertThatThrownBy(() -> commuteHistory.endWork(earlierThanStart))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(InvalidCommuteRangeException.class)
                 .hasMessage("퇴근 시간이 출근 시간보다 이릅니다.");
     }
 

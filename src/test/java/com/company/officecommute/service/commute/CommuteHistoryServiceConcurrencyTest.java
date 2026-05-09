@@ -1,6 +1,7 @@
 package com.company.officecommute.service.commute;
 
 import com.company.officecommute.domain.commute.CommuteHistory;
+import com.company.officecommute.domain.commute.PreviousCommuteNotEndedException;
 import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.domain.team.Team;
@@ -105,7 +106,7 @@ public class CommuteHistoryServiceConcurrencyTest {
         commuteHistoryService.registerWorkStartTime(testEmployeeId);
 
         assertThatThrownBy(() -> commuteHistoryService.registerWorkStartTime(testEmployeeId))
-                .isInstanceOf(IllegalStateException.class)
+                .isInstanceOf(PreviousCommuteNotEndedException.class)
                 .hasMessage("이전 근무가 아직 종료되지 않았습니다.");
     }
 

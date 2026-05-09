@@ -1,7 +1,10 @@
 package com.company.officecommute.service.commute;
 
 import com.company.officecommute.domain.commute.CommuteHistory;
+import com.company.officecommute.domain.commute.CommuteNotStartedException;
+import com.company.officecommute.domain.commute.PreviousCommuteNotEndedException;
 import com.company.officecommute.domain.employee.Employee;
+import com.company.officecommute.domain.employee.EmployeeNotFoundException;
 import com.company.officecommute.dto.commute.response.WorkDurationPerDateResponse;
 import com.company.officecommute.repository.commute.CommuteHistoryRepository;
 import com.company.officecommute.repository.employee.EmployeeRepository;
@@ -52,21 +55,21 @@ public class CommuteHistoryService {
 
     private Employee getEmployee(Long employeeId) {
         return employeeRepository.findById(employeeId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 직원입니다."));
+                .orElseThrow(() -> new EmployeeNotFoundException(employeeId));
     }
 
     private void validatePreviousWorkCompleted(Long employeeId) {
         commuteHistoryRepository
                 .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(employeeId)
                 .ifPresent(commuteHistory -> {
-                    throw new IllegalStateException("이전 근무가 아직 종료되지 않았습니다.");
+                    throw new PreviousCommuteNotEndedException();
                 });
     }
 
     private CommuteHistory findFirstByEmployeeId(Long employeeId) {
         return commuteHistoryRepository
                 .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(employeeId)
-                .orElseThrow(() -> new IllegalArgumentException("출근 기록이 없습니다."));
+                .orElseThrow(CommuteNotStartedException::new);
     }
 
     private List<CommuteHistory> findCommuteHistoriesByEmployeeIdAndMonth(Long employeeId, YearMonth yearMonth) {

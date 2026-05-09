@@ -86,13 +86,13 @@ public class CommuteHistory {
 
     public CommuteHistory endWork(ZonedDateTime workEndTime) {
         if (this.workStartTime == null) {
-            throw new IllegalArgumentException("출근을 하지 않은 상태입니다.");
+            throw new CommuteNotStartedException();
         }
         if (this.workEndTime != null) {
-            throw new IllegalArgumentException("이미 퇴근을 했습니다.");
+            throw new CommuteAlreadyEndedException();
         }
         if (workEndTime.isBefore(this.workStartTime)) {
-            throw new IllegalArgumentException("퇴근 시간이 출근 시간보다 이릅니다.");
+            throw new InvalidCommuteRangeException();
         }
         long workingMinutes = Duration.between(this.workStartTime, workEndTime).toMinutes();
         WorkingMinutes validatedWorkingMinutes = new WorkingMinutes(workingMinutes);

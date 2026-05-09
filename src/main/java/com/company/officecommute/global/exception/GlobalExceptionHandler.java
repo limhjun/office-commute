@@ -2,6 +2,10 @@ package com.company.officecommute.global.exception;
 
 import com.company.officecommute.auth.AuthenticationFailedException;
 import com.company.officecommute.auth.ForbiddenException;
+import com.company.officecommute.domain.commute.CommuteAlreadyEndedException;
+import com.company.officecommute.domain.commute.CommuteNotStartedException;
+import com.company.officecommute.domain.commute.InvalidCommuteRangeException;
+import com.company.officecommute.domain.commute.PreviousCommuteNotEndedException;
 import com.company.officecommute.domain.employee.EmployeeAlreadyExistsException;
 import com.company.officecommute.domain.employee.EmployeeNotFoundException;
 import com.company.officecommute.domain.team.TeamAlreadyExistsException;
@@ -97,6 +101,34 @@ public class GlobalExceptionHandler {
     public ErrorResult handleTeamNotFound(TeamNotFoundException e) {
         log.warn("Team not found: {}", e.getMessage());
         return new ErrorResult("TEAM_NOT_FOUND", e.getMessage());
+    }
+
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ExceptionHandler(CommuteNotStartedException.class)
+    public ErrorResult handleCommuteNotStarted(CommuteNotStartedException e) {
+        log.warn("Commute not started: {}", e.getMessage());
+        return new ErrorResult("COMMUTE_NOT_STARTED", e.getMessage());
+    }
+
+    @ResponseStatus(HttpStatus.CONFLICT)
+    @ExceptionHandler(CommuteAlreadyEndedException.class)
+    public ErrorResult handleCommuteAlreadyEnded(CommuteAlreadyEndedException e) {
+        log.warn("Commute already ended: {}", e.getMessage());
+        return new ErrorResult("COMMUTE_ALREADY_ENDED", e.getMessage());
+    }
+
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ExceptionHandler(InvalidCommuteRangeException.class)
+    public ErrorResult handleInvalidCommuteRange(InvalidCommuteRangeException e) {
+        log.warn("Invalid commute range: {}", e.getMessage());
+        return new ErrorResult("INVALID_COMMUTE_RANGE", e.getMessage());
+    }
+
+    @ResponseStatus(HttpStatus.CONFLICT)
+    @ExceptionHandler(PreviousCommuteNotEndedException.class)
+    public ErrorResult handlePreviousCommuteNotEnded(PreviousCommuteNotEndedException e) {
+        log.warn("Previous commute not ended: {}", e.getMessage());
+        return new ErrorResult("PREVIOUS_COMMUTE_NOT_ENDED", e.getMessage());
     }
 
     @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)

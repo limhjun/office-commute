@@ -57,4 +57,20 @@ class ApiConvertorTest {
 
         assertThat(numberOfStandardWorkingDays).isEqualTo(21L);
     }
+
+    @Test
+    void 공휴일이_없는_달의_API_응답을_처리한다() {
+        when(apiProperties.combineURL(any(), any()))
+                .thenReturn("http://fake-api.com");
+
+        HolidayResponse fakeResponse = new HolidayResponse();
+        fakeResponse.setBody(new HolidayResponse.Body());
+
+        when(restTemplate.getForObject(any(URI.class), eq(HolidayResponse.class)))
+                .thenReturn(fakeResponse);
+
+        long numberOfStandardWorkingDays = apiConvertor.countNumberOfStandardWorkingDays(YearMonth.of(2024, 6));
+
+        assertThat(numberOfStandardWorkingDays).isEqualTo(20L);
+    }
 }

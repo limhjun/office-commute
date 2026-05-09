@@ -151,6 +151,9 @@ public class ApiConvertor {
     }
 
     private Set<LocalDate> convertToLocalDate(List<HolidayResponse.Item> items) {
+        if (items == null) {
+            return Set.of();
+        }
         return items.stream()
                 .map(item -> LocalDate.parse(item.getLocdate(), DATE_FORMATTER))
                 .collect(toSet());

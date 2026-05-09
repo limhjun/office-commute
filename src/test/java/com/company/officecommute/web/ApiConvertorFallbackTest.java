@@ -93,7 +93,7 @@ class ApiConvertorFallbackTest {
 
         assertThatThrownBy(() -> apiConvertor.countNumberOfStandardWorkingDays(yearMonth))
                 .isInstanceOf(HolidayDataUnavailableException.class)
-                .hasMessageContaining("공휴일 데이터를 확인할 수 없어 초과근무를 계산할 수 없습니다");
+                .hasMessageContaining("공휴일 캐시의 최신성을 확인할 수 없어 초과근무를 계산할 수 없습니다");
     }
 
     @Test

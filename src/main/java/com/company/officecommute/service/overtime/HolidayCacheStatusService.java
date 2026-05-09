@@ -10,7 +10,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Set;
@@ -41,17 +40,6 @@ public class HolidayCacheStatusService {
                 yearMonth.getYear(),
                 yearMonth.getMonthValue()
         ).orElse(null);
-
-        if (cachedHolidays.isEmpty()) {
-            return new HolidayCacheStatusResponse(
-                    yearMonth.toString(),
-                    0,
-                    false,
-                    "MISSING_CACHE",
-                    buildMissingCacheReason(yearMonth),
-                    getLastSuccessfulSyncedAt(syncStatus)
-            );
-        }
 
         if (syncStatus == null) {
             return new HolidayCacheStatusResponse(
@@ -100,14 +88,6 @@ public class HolidayCacheStatusService {
                 yearMonth.getYear(),
                 yearMonth.getMonthValue()
         );
-    }
-
-    private LocalDateTime getLastSuccessfulSyncedAt(HolidaySyncStatus syncStatus) {
-        return syncStatus == null ? null : syncStatus.getLastSuccessfulSyncedAt();
-    }
-
-    private String buildMissingCacheReason(YearMonth yearMonth) {
-        return "공휴일 데이터를 확인할 수 없어 초과근무를 계산할 수 없습니다: " + yearMonth;
     }
 
     private String buildMissingSyncStatusReason(YearMonth yearMonth) {

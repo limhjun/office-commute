@@ -53,8 +53,26 @@ class HolidayCacheStatusServiceTest {
     }
 
     @Test
-    @DisplayName("캐시가 없으면 MISSING_CACHE 상태를 반환한다")
-    void getStatus_missingCache() {
+    @DisplayName("공휴일이 0개여도 동기화 정보가 있고 최신성이 유효하면 READY 상태를 반환한다")
+    void getStatus_readyWhenNoHolidaysAndSyncStatusExists() {
+        mockCurrentTime(LocalDateTime.of(2026, 4, 4, 9, 0));
+        YearMonth yearMonth = YearMonth.of(2026, 4);
+
+        given(holidayRepository.findHolidayDatesByYearAndMonth(2026, 4))
+                .willReturn(List.of());
+        given(holidaySyncStatusRepository.findByYearAndMonth(2026, 4))
+                .willReturn(Optional.of(new HolidaySyncStatus(2026, 4, LocalDateTime.of(2026, 4, 2, 9, 0))));
+
+        HolidayCacheStatusResponse status = holidayCacheStatusService.getStatus(yearMonth);
+
+        assertThat(status.cacheUsable()).isTrue();
+        assertThat(status.status()).isEqualTo("READY");
+        assertThat(status.cachedHolidayCount()).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("공휴일이 0개이고 동기화 정보가 없으면 MISSING_SYNC_STATUS 상태를 반환한다")
+    void getStatus_missingSyncStatusWhenNoHolidays() {
         YearMonth yearMonth = YearMonth.of(2026, 4);
 
         given(holidayRepository.findHolidayDatesByYearAndMonth(2026, 4))
@@ -65,7 +83,7 @@ class HolidayCacheStatusServiceTest {
         HolidayCacheStatusResponse status = holidayCacheStatusService.getStatus(yearMonth);
 
         assertThat(status.cacheUsable()).isFalse();
-        assertThat(status.status()).isEqualTo("MISSING_CACHE");
+        assertThat(status.status()).isEqualTo("MISSING_SYNC_STATUS");
     }
 
     @Test
@@ -91,10 +109,12 @@ class HolidayCacheStatusServiceTest {
     void getUsableCachedHolidaysOrThrow_unavailable() {
         given(holidayRepository.findHolidayDatesByYearAndMonth(anyInt(), anyInt()))
                 .willReturn(List.of());
+        given(holidaySyncStatusRepository.findByYearAndMonth(anyInt(), anyInt()))
+                .willReturn(Optional.empty());
 
         assertThatThrownBy(() -> holidayCacheStatusService.getUsableCachedHolidaysOrThrow(YearMonth.of(2026, 4)))
                 .isInstanceOf(HolidayDataUnavailableException.class)
-                .hasMessageContaining("공휴일 데이터를 확인할 수 없어");
+                .hasMessageContaining("공휴일 캐시의 최신성을 확인할 수 없어");
     }
 
     private void mockCurrentTime(LocalDateTime now) {

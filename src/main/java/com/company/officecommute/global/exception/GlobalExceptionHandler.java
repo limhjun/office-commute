@@ -5,9 +5,7 @@ import com.company.officecommute.auth.ForbiddenException;
 import com.company.officecommute.domain.employee.EmployeeAlreadyExistsException;
 import com.company.officecommute.domain.employee.EmployeeNotFoundException;
 import com.company.officecommute.domain.team.TeamAlreadyExistsException;
-import com.company.officecommute.domain.team.TeamNameInvalidException;
 import com.company.officecommute.domain.team.TeamNotFoundException;
-import com.company.officecommute.domain.team.TeamPolicyInvalidException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -78,20 +76,6 @@ public class GlobalExceptionHandler {
     public ErrorResult handleTeamAlreadyExists(TeamAlreadyExistsException e) {
         log.warn("Team already exists: {}", e.getMessage());
         return new ErrorResult("TEAM_ALREADY_EXISTS", e.getMessage());
-    }
-
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    @ExceptionHandler(TeamNameInvalidException.class)
-    public ErrorResult handleTeamNameInvalid(TeamNameInvalidException e) {
-        log.warn("Team name invalid: {}", e.getMessage());
-        return new ErrorResult("TEAM_NAME_INVALID", e.getMessage());
-    }
-
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    @ExceptionHandler(TeamPolicyInvalidException.class)
-    public ErrorResult handleTeamPolicyInvalid(TeamPolicyInvalidException e) {
-        log.warn("Team policy invalid: {}", e.getMessage());
-        return new ErrorResult("TEAM_POLICY_INVALID", e.getMessage());
     }
 
     @ResponseStatus(HttpStatus.CONFLICT)

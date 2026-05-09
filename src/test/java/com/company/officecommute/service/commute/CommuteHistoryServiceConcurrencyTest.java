@@ -110,6 +110,30 @@ public class CommuteHistoryServiceConcurrencyTest {
     }
 
     @Test
+    @DisplayName("미래 연차 기록이 있어도 오늘 실제 출근과 퇴근이 가능하다")
+    void testFutureAnnualLeaveDoesNotBlockTodayWorkStartAndEnd() {
+        ZonedDateTime futureAnnualLeaveStartTime = LocalDate.now()
+                .plusDays(10)
+                .atStartOfDay(ZonedDateTime.now().getZone());
+        commuteHistoryRepository.save(new CommuteHistory(
+                null,
+                testEmployeeId,
+                futureAnnualLeaveStartTime,
+                null,
+                0,
+                true
+        ));
+
+        commuteHistoryService.registerWorkStartTime(testEmployeeId);
+        commuteHistoryService.registerWorkEndTime(testEmployeeId, ZonedDateTime.now().plusMinutes(1));
+
+        assertThat(commuteHistoryRepository.findAll()).hasSize(2);
+        assertThat(commuteHistoryRepository
+                .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(testEmployeeId))
+                .isEmpty();
+    }
+
+    @Test
     @DisplayName("퇴근 후 같은 날 재출근시 DB 제약조건 위반")
     void testDatabaseConstraintViolation() {
         commuteHistoryService.registerWorkStartTime(testEmployeeId);

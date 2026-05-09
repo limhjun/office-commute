@@ -48,7 +48,8 @@ class CommuteHistoryServiceTest {
     void testRegisterWorkStartTime() {
         BDDMockito.given(employeeRepository.findById(1L))
                 .willReturn(Optional.of(employee));
-        BDDMockito.given(commuteHistoryRepository.findFirstByEmployeeIdOrderByWorkStartTimeDesc(1L))
+        BDDMockito.given(commuteHistoryRepository
+                        .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(1L))
                 .willReturn(Optional.empty());
 
         commuteHistoryService.registerWorkStartTime(1L);
@@ -61,7 +62,8 @@ class CommuteHistoryServiceTest {
         // given
         BDDMockito.given(employeeRepository.findById(1L))
                 .willReturn(Optional.of(employee));
-        BDDMockito.given(commuteHistoryRepository.findFirstByEmployeeIdOrderByWorkStartTimeDesc(1L))
+        BDDMockito.given(commuteHistoryRepository
+                        .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(1L))
                 .willReturn(Optional.of(new CommuteHistory(1L, 1L, workStartTime, null, 0)));
 
         CommuteHistory expectedCommuteHistory = new CommuteHistory(1L, 1L, workStartTime, workEndTime, 10L * 60);

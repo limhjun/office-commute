@@ -13,6 +13,10 @@ public interface CommuteHistoryRepository extends JpaRepository<CommuteHistory, 
 
     Optional<CommuteHistory> findFirstByEmployeeIdOrderByWorkStartTimeDesc(Long employeeId);
 
+    Optional<CommuteHistory> findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(
+            Long employeeId
+    );
+
     List<CommuteHistory> findAllByEmployeeIdAndWorkStartTimeBetween(Long id, ZonedDateTime startOfMonth, ZonedDateTime endOfMonth);
 
     /**

@@ -56,16 +56,16 @@ public class CommuteHistoryService {
     }
 
     private void validatePreviousWorkCompleted(Long employeeId) {
-        commuteHistoryRepository.findFirstByEmployeeIdOrderByWorkStartTimeDesc(employeeId)
+        commuteHistoryRepository
+                .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(employeeId)
                 .ifPresent(commuteHistory -> {
-                    if (commuteHistory.getWorkEndTime() == null) {
-                        throw new IllegalStateException("이전 근무가 아직 종료되지 않았습니다.");
-                    }
+                    throw new IllegalStateException("이전 근무가 아직 종료되지 않았습니다.");
                 });
     }
 
     private CommuteHistory findFirstByEmployeeId(Long employeeId) {
-        return commuteHistoryRepository.findFirstByEmployeeIdOrderByWorkStartTimeDesc(employeeId)
+        return commuteHistoryRepository
+                .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(employeeId)
                 .orElseThrow(() -> new IllegalArgumentException("출근 기록이 없습니다."));
     }
 

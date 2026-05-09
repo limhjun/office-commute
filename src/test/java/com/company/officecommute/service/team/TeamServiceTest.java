@@ -12,6 +12,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.BDDMockito;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 
@@ -33,13 +34,15 @@ class TeamServiceTest {
 
     @Test
     void testRegisterTeam() {
-        TeamRegisterRequest request = new TeamRegisterRequest("ATeam", "이매니저");
+        TeamRegisterRequest request = new TeamRegisterRequest("ATeam", "이매니저", 3);
         BDDMockito.given(teamRepository.findByName("ATeam"))
                 .willReturn(Optional.empty());
 
         teamService.registerTeam(request);
 
-        BDDMockito.verify(teamRepository).save(any(Team.class));
+        ArgumentCaptor<Team> teamCaptor = ArgumentCaptor.forClass(Team.class);
+        BDDMockito.verify(teamRepository).save(teamCaptor.capture());
+        assertThat(teamCaptor.getValue().getAnnualLeaveCriteria()).isEqualTo(3);
     }
 
     @Test
@@ -50,12 +53,14 @@ class TeamServiceTest {
 
         teamService.registerTeam(request);
 
-        BDDMockito.verify(teamRepository).save(any(Team.class));
+        ArgumentCaptor<Team> teamCaptor = ArgumentCaptor.forClass(Team.class);
+        BDDMockito.verify(teamRepository).save(teamCaptor.capture());
+        assertThat(teamCaptor.getValue().getAnnualLeaveCriteria()).isZero();
     }
 
     @Test
     void testFindTeam() {
-        Team team = new Team(1L, "ATeam", "이매니저");
+        Team team = new Team(1L, "ATeam", "이매니저", 3);
         BDDMockito.given(teamRepository.findAll())
                 .willReturn(List.of(team));
         BDDMockito.given(employeeRepository.countMembersByTeamIdsRaw(List.of(1L)))
@@ -67,6 +72,7 @@ class TeamServiceTest {
         assertThat(teams.get(0).teamId()).isEqualTo(1L);
         assertThat(teams.get(0).name()).isEqualTo("ATeam");
         assertThat(teams.get(0).managerName()).isEqualTo("이매니저");
+        assertThat(teams.get(0).annualLeaveCriteria()).isEqualTo(3);
         assertThat(teams.get(0).memberCount()).isEqualTo(3L);
     }
 

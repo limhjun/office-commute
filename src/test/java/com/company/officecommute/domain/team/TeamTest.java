@@ -24,6 +24,13 @@ class TeamTest {
     }
 
     @Test
+    void testAnnualLeaveCriteriaException() {
+        assertThatThrownBy(() -> Teams.createTeamWithCriteria(-1))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("팀 연차 등록 기준은 0 이상이어야 합니다.");
+    }
+
+    @Test
     void testIsNotEnoughCriteria_False() {
         Team team = Teams.createTeamWithCriteria(10);
 

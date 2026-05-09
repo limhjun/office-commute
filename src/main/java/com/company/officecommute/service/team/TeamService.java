@@ -32,7 +32,7 @@ public class TeamService {
             throw new TeamAlreadyExistsException(teamName);
         });
         try {
-            teamRepository.save(Team.register(teamName, request.managerName()));
+            teamRepository.save(Team.register(teamName, request.managerName(), request.annualLeaveCriteria()));
         } catch (DataIntegrityViolationException e) {
             throw new TeamAlreadyExistsException(teamName);
         }

@@ -407,13 +407,24 @@ components:
           type: string
           nullable: true
           description: 옵셔널. 빈 문자열은 null로 정규화됨.
+        annualLeaveCriteria:
+          type: integer
+          format: int32
+          minimum: 0
+          nullable: true
+          default: 0
+          description: 팀 연차 등록 기준. null 또는 생략 시 0으로 처리됨.
     TeamFindResponse:
       type: object
-      required: [teamId, name, memberCount]
+      required: [teamId, name, annualLeaveCriteria, memberCount]
       properties:
         teamId: { type: integer, format: int64 }
         name: { type: string }
         managerName: { type: string, nullable: true }
+        annualLeaveCriteria:
+          type: integer
+          format: int32
+          minimum: 0
         memberCount:
           type: integer
           format: int64

@@ -43,6 +43,9 @@ public class Team {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException(String.format("(%s)는 공백입니다. 팀명을 정확하게 입력해주세요.", name));
         }
+        if (annualLeaveCriteria < 0) {
+            throw new IllegalArgumentException("팀 연차 등록 기준은 0 이상이어야 합니다.");
+        }
         this.teamId = teamId;
         this.name = name;
         this.managerName = managerName;
@@ -50,8 +53,12 @@ public class Team {
     }
 
     public static Team register(String name, String managerName) {
+        return register(name, managerName, 0);
+    }
+
+    public static Team register(String name, String managerName, int annualLeaveCriteria) {
         String normalizedManager = (managerName == null || managerName.isBlank()) ? null : managerName.trim();
-        return new Team(null, name, normalizedManager, 0);
+        return new Team(null, name, normalizedManager, annualLeaveCriteria);
     }
 
     public Long getTeamId() {
@@ -64,6 +71,10 @@ public class Team {
 
     public String getManagerName() {
         return this.managerName;
+    }
+
+    public int getAnnualLeaveCriteria() {
+        return this.annualLeaveCriteria;
     }
 
     public boolean isNotEnoughCriteria(List<AnnualLeave> wantedLeaves) {

@@ -3,6 +3,7 @@ package com.company.officecommute.controller.team;
 import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.domain.team.TeamAlreadyExistsException;
 import com.company.officecommute.dto.team.response.TeamFindResponse;
+import com.company.officecommute.dto.team.response.TeamRegisterResponse;
 import com.company.officecommute.service.team.TeamService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -67,8 +68,11 @@ class TeamControllerTest {
         }
 
         @Test
-        @DisplayName("MANAGER 권한 요청은 성공")
+        @DisplayName("MANAGER 권한 요청은 201과 팀 ID를 반환")
         void managerSucceeds() {
+            given(teamService.registerTeam(any()))
+                    .willReturn(new TeamRegisterResponse(1L));
+
             String body = """
                     { "teamName": "개발팀", "managerName": "홍길동" }
                     """;
@@ -78,7 +82,11 @@ class TeamControllerTest {
                     .session(managerSession())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(body))
-                    .hasStatus(HttpStatus.OK);
+                    .hasStatus(HttpStatus.CREATED)
+                    .bodyJson()
+                    .isLenientlyEqualTo("""
+                            { "teamId": 1 }
+                            """);
         }
     }
 
@@ -89,6 +97,9 @@ class TeamControllerTest {
         @Test
         @DisplayName("매니저 없이도 등록 성공")
         void registerWithoutManager() {
+            given(teamService.registerTeam(any()))
+                    .willReturn(new TeamRegisterResponse(1L));
+
             String body = """
                     { "teamName": "개발팀" }
                     """;
@@ -98,12 +109,15 @@ class TeamControllerTest {
                     .session(managerSession())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(body))
-                    .hasStatus(HttpStatus.OK);
+                    .hasStatus(HttpStatus.CREATED);
         }
 
         @Test
         @DisplayName("매니저가 빈 문자열이어도 등록 성공")
         void registerWithBlankManager() {
+            given(teamService.registerTeam(any()))
+                    .willReturn(new TeamRegisterResponse(1L));
+
             String body = """
                     { "teamName": "개발팀", "managerName": "" }
                     """;
@@ -113,7 +127,7 @@ class TeamControllerTest {
                     .session(managerSession())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(body))
-                    .hasStatus(HttpStatus.OK);
+                    .hasStatus(HttpStatus.CREATED);
         }
 
         @Test

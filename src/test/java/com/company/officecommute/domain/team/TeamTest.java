@@ -19,14 +19,14 @@ class TeamTest {
     @ParameterizedTest
     void testTeamNameException(String expected) {
         assertThatThrownBy(() -> Teams.createTeamWithTeamName(expected))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(TeamNameInvalidException.class)
                 .hasMessage(String.format("(%s)는 공백입니다. 팀명을 정확하게 입력해주세요.", expected));
     }
 
     @Test
     void testAnnualLeaveCriteriaException() {
         assertThatThrownBy(() -> Teams.createTeamWithCriteria(-1))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(TeamPolicyInvalidException.class)
                 .hasMessage("팀 연차 등록 기준은 0 이상이어야 합니다.");
     }
 

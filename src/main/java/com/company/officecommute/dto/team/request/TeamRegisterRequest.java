@@ -17,8 +17,4 @@ public record TeamRegisterRequest(
             annualLeaveCriteria = 0;
         }
     }
-
-    public TeamRegisterRequest(String teamName, String managerName) {
-        this(teamName, managerName, null);
-    }
 }

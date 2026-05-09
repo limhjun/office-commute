@@ -4,6 +4,7 @@ import com.company.officecommute.domain.team.Team;
 import com.company.officecommute.domain.team.TeamAlreadyExistsException;
 import com.company.officecommute.dto.team.request.TeamRegisterRequest;
 import com.company.officecommute.dto.team.response.TeamFindResponse;
+import com.company.officecommute.dto.team.response.TeamRegisterResponse;
 import com.company.officecommute.repository.employee.EmployeeRepository;
 import com.company.officecommute.repository.team.TeamRepository;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -26,13 +27,14 @@ public class TeamService {
     }
 
     @Transactional
-    public void registerTeam(TeamRegisterRequest request) {
+    public TeamRegisterResponse registerTeam(TeamRegisterRequest request) {
         String teamName = request.teamName();
         teamRepository.findByName(teamName).ifPresent(team -> {
             throw new TeamAlreadyExistsException(teamName);
         });
         try {
-            teamRepository.save(Team.register(teamName, request.managerName(), request.annualLeaveCriteria()));
+            Team savedTeam = teamRepository.save(Team.register(teamName, request.managerName(), request.annualLeaveCriteria()));
+            return new TeamRegisterResponse(savedTeam.getTeamId());
         } catch (DataIntegrityViolationException e) {
             throw new TeamAlreadyExistsException(teamName);
         }

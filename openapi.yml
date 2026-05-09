@@ -76,7 +76,11 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/TeamRegisterRequest' }
       responses:
-        '200': { description: 등록됨. 응답 본문 없음. }
+        '201':
+          description: 등록 성공
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeamRegisterResponse' }
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -414,6 +418,11 @@ components:
           nullable: true
           default: 0
           description: 팀 연차 등록 기준. null 또는 생략 시 0으로 처리됨.
+    TeamRegisterResponse:
+      type: object
+      required: [teamId]
+      properties:
+        teamId: { type: integer, format: int64 }
     TeamFindResponse:
       type: object
       required: [teamId, name, annualLeaveCriteria, memberCount]

@@ -41,19 +41,15 @@ public class Team {
 
     public Team(Long teamId, String name, String managerName, int annualLeaveCriteria) {
         if (name == null || name.isBlank()) {
-            throw new IllegalArgumentException(String.format("(%s)는 공백입니다. 팀명을 정확하게 입력해주세요.", name));
+            throw new TeamNameInvalidException(name);
         }
         if (annualLeaveCriteria < 0) {
-            throw new IllegalArgumentException("팀 연차 등록 기준은 0 이상이어야 합니다.");
+            throw new TeamPolicyInvalidException("팀 연차 등록 기준은 0 이상이어야 합니다.");
         }
         this.teamId = teamId;
         this.name = name;
         this.managerName = managerName;
         this.annualLeaveCriteria = annualLeaveCriteria;
-    }
-
-    public static Team register(String name, String managerName) {
-        return register(name, managerName, 0);
     }
 
     public static Team register(String name, String managerName, int annualLeaveCriteria) {

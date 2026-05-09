@@ -4,6 +4,7 @@ import com.company.officecommute.domain.team.Team;
 import com.company.officecommute.domain.team.TeamAlreadyExistsException;
 import com.company.officecommute.dto.team.request.TeamRegisterRequest;
 import com.company.officecommute.dto.team.response.TeamFindResponse;
+import com.company.officecommute.dto.team.response.TeamRegisterResponse;
 import com.company.officecommute.repository.employee.EmployeeRepository;
 import com.company.officecommute.repository.team.TeamRepository;
 import org.assertj.core.api.Assertions;
@@ -37,24 +38,30 @@ class TeamServiceTest {
         TeamRegisterRequest request = new TeamRegisterRequest("ATeam", "이매니저", 3);
         BDDMockito.given(teamRepository.findByName("ATeam"))
                 .willReturn(Optional.empty());
+        BDDMockito.given(teamRepository.save(any(Team.class)))
+                .willReturn(new Team(1L, "ATeam", "이매니저", 3));
 
-        teamService.registerTeam(request);
+        TeamRegisterResponse response = teamService.registerTeam(request);
 
         ArgumentCaptor<Team> teamCaptor = ArgumentCaptor.forClass(Team.class);
         BDDMockito.verify(teamRepository).save(teamCaptor.capture());
+        assertThat(response.teamId()).isEqualTo(1L);
         assertThat(teamCaptor.getValue().getAnnualLeaveCriteria()).isEqualTo(3);
     }
 
     @Test
     void testRegisterTeamWithoutManager() {
-        TeamRegisterRequest request = new TeamRegisterRequest("ATeam", null);
+        TeamRegisterRequest request = new TeamRegisterRequest("ATeam", null, null);
         BDDMockito.given(teamRepository.findByName("ATeam"))
                 .willReturn(Optional.empty());
+        BDDMockito.given(teamRepository.save(any(Team.class)))
+                .willReturn(new Team(1L, "ATeam", null, 0));
 
-        teamService.registerTeam(request);
+        TeamRegisterResponse response = teamService.registerTeam(request);
 
         ArgumentCaptor<Team> teamCaptor = ArgumentCaptor.forClass(Team.class);
         BDDMockito.verify(teamRepository).save(teamCaptor.capture());
+        assertThat(response.teamId()).isEqualTo(1L);
         assertThat(teamCaptor.getValue().getAnnualLeaveCriteria()).isZero();
     }
 
@@ -108,7 +115,7 @@ class TeamServiceTest {
     @Test
     void testRegisterTeamException() {
         String teamName = "ATeam";
-        TeamRegisterRequest request = new TeamRegisterRequest(teamName, null);
+        TeamRegisterRequest request = new TeamRegisterRequest(teamName, null, null);
 
         BDDMockito.given(teamRepository.findByName(teamName))
                 .willReturn(Optional.of(new Team(teamName)));
@@ -121,7 +128,7 @@ class TeamServiceTest {
     @Test
     void testRegisterTeamConvertsDataIntegrityViolationToDomainException() {
         String teamName = "ATeam";
-        TeamRegisterRequest request = new TeamRegisterRequest(teamName, "이매니저");
+        TeamRegisterRequest request = new TeamRegisterRequest(teamName, "이매니저", null);
 
         BDDMockito.given(teamRepository.findByName(teamName))
                 .willReturn(Optional.empty());

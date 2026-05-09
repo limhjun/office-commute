@@ -34,11 +34,15 @@ public class GlobalExceptionHandler {
 
     private final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ErrorResult handleIllegalArgument(IllegalArgumentException e) {
-        log.warn("Business logic error: {}", e.getMessage());
-        return new ErrorResult("BAD_REQUEST", e.getMessage());
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    @ExceptionHandler({
+            IllegalArgumentException.class,
+            IllegalStateException.class,
+            NullPointerException.class
+    })
+    public ErrorResult handleUnexpectedDomainViolation(RuntimeException e) {
+        log.error("Unexpected domain violation — likely a bug. Domain invariant or guard fired on a path that should not be reachable from user input.", e);
+        return new ErrorResult("UNEXPECTED_DOMAIN_VIOLATION", "내부 도메인 검증에 실패했습니다.");
     }
 
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)

@@ -1,62 +1,38 @@
-# Tasks — Phase 3 (Annual Leave 영역 비즈니스 예외 분리)
+# Tasks — Phase 4 (글로벌 IAE 핸들러 제거 / 정책 잠금)
 
-PLAN.md의 Phase 3 실행 단위. 각 항목 완료 시 `[x]`로 갱신.
+PLAN.md의 Phase 4 실행 단위. 각 항목 완료 시 `[x]`로 갱신.
 
 ## 진행 원칙
 - 한 단계가 끝날 때까지 빌드/테스트는 항상 그린이어야 한다.
 - 좁은 Gradle 테스트 → 그린 → TODO 체크 → 다음 항목.
 - Phase 종료 시 전체 테스트 통과 확인 후 커밋.
 
-## 신설 도메인 예외 4종 (`domain/annual_leave/`)
-- `EmployeeWithoutTeamException` — 팀 미배정 직원의 연차 신청
-- `AnnualLeaveCriteriaNotMetException` — 팀 연차 등록 기준 미충족
-- `AnnualLeaveDuplicateException` — 동일 일자 중복 신청
-- `AnnualLeavePastDateException` — 과거 일자 신청
+## 잔존 IAE/ISE/NPE 분류 결과 (사전 점검)
 
-ErrorCode → HTTP:
-- `EMPLOYEE_WITHOUT_TEAM` → 409
-- `ANNUAL_LEAVE_CRITERIA_NOT_MET` → 400
-- `ANNUAL_LEAVE_DUPLICATE` → 409
-- `ANNUAL_LEAVE_PAST_DATE` → 400
+| 위치 | 종류 | 카테고리 | 정책 부합 여부 |
+|---|---|---|---|
+| `Team.java:44,47` | IAE | (a) 값 검증 | ✅ |
+| `WorkingMinutes.java:11` | IAE | (a) 값 검증 (음수 차단) | ✅ |
+| `Employee.java:103-105` | NPE (`Objects.requireNonNull`) | (a) null 체크 | ✅ |
+| `Employee.java:113,120,127,131,138` | IAE | (a) 값 검증 (blank/형식) | ✅ |
+| `ApiConvertor.java:142` | ISE | (c) 인프라/외부 API 응답 이상 | 정책 외 — 별도 정리 가능 |
 
-추가: `AnnualLeaveService.java:42` "존재하지 않는 직원입니다." → 기존 `EmployeeNotFoundException` 재사용.
+→ **모두 사용자 정상 경로에서 닿지 않음.** 핸들러 제거 시 5xx로 빠짐(정책 부합).
 
 ---
 
-## A. 도메인 예외 클래스 신설
-- [x] **A1.** `domain/annual_leave/EmployeeWithoutTeamException.java`
-- [x] **A2.** `domain/annual_leave/AnnualLeaveCriteriaNotMetException.java`
-- [x] **A3.** `domain/annual_leave/AnnualLeaveDuplicateException.java`
-- [x] **A4.** `domain/annual_leave/AnnualLeavePastDateException.java`
+## A. 글로벌 IAE 핸들러 제거
+- [x] **A1.** `GlobalExceptionHandler.handleIllegalArgument` 메서드 제거
 
-## B. throw 지점 교체
-- [x] **B1.** `Employee.java:147` ISE → `EmployeeWithoutTeamException`
-- [x] **B2.** `Employee.java:153` IAE → `AnnualLeaveCriteriaNotMetException`
-- [x] **B3.** `AnnualLeaveEnrollment.java:33` IAE → `AnnualLeaveCriteriaNotMetException`
-- [x] **B4.** `AnnualLeaves.java:18` IAE → `AnnualLeaveDuplicateException`
-- [x] **B5.** `AnnualLeave.java:34` IAE → `AnnualLeavePastDateException`
-- [x] **B6.** `AnnualLeaveService.java:42` IAE → `EmployeeNotFoundException`
+## B. (선택) IAE/NPE/ISE 명시 핸들러 — 모니터링 시그널 강화
+- [x] **B1.** `handleUnexpectedDomainViolation` 신설 — `IllegalArgumentException` + `IllegalStateException` + `NullPointerException` 흡수, 500 응답 + `UNEXPECTED_DOMAIN_VIOLATION` 코드 + ERROR 로그 + stack trace
+- [x] **B2.** 응답 메시지는 일반화 — "내부 도메인 검증에 실패했습니다." (사용자 노출 정보 최소화)
 
-## C. `GlobalExceptionHandler` 핸들러 추가
-- [x] **C1.** `handleEmployeeWithoutTeam` — 409 / `EMPLOYEE_WITHOUT_TEAM`
-- [x] **C2.** `handleAnnualLeaveCriteriaNotMet` — 400 / `ANNUAL_LEAVE_CRITERIA_NOT_MET`
-- [x] **C3.** `handleAnnualLeaveDuplicate` — 409 / `ANNUAL_LEAVE_DUPLICATE`
-- [x] **C4.** `handleAnnualLeavePastDate` — 400 / `ANNUAL_LEAVE_PAST_DATE`
+## C. 컨트롤러/서비스 흐름 회귀 검증
+- [x] **C1.** 사용자 입력 시나리오에서 IAE/NPE/ISE가 5xx로 빠지는 경로가 없는지 — 컨트롤러 테스트 그대로 그린
 
-## D. 테스트 갱신
-- [x] **D1.** `AnnualLeaveTest:16-17` — `assertThatIllegalArgumentException` → `AnnualLeavePastDateException`
-- [x] **D2.** `AnnualLeavesTest:30-31` — `assertThatIllegalArgumentException` → `AnnualLeaveDuplicateException`
-- [x] **D3.** `AnnualLeavesTest:43-44` — `assertThatIllegalArgumentException` → `AnnualLeaveDuplicateException`
-- [x] **D4.** `AnnualLeaveEnrollmentTest:36-37` — `assertThatIllegalArgumentException` → `AnnualLeaveCriteriaNotMetException`
+## D. 검증
+- [x] **D1.** `./gradlew test` 전체 그린
 
-## E. `openapi.yml` 갱신
-- [x] **E1.** `/annual-leave` POST 응답 — `400 ANNUAL_LEAVE_CRITERIA_NOT_MET / ANNUAL_LEAVE_PAST_DATE`, `409 ANNUAL_LEAVE_DUPLICATE / EMPLOYEE_WITHOUT_TEAM`, `404 EMPLOYEE_NOT_FOUND` 추가
-
-## F. 검증
-- [x] **F1.** `./gradlew test --tests "com.company.officecommute.domain.annual_leave.*"` 그린
-- [x] **F2.** `./gradlew test --tests "com.company.officecommute.service.annual_leave.*"` 그린
-- [x] **F3.** `./gradlew test --tests "com.company.officecommute.domain.employee.*"` 그린 (Employee.java 변경 영향)
-- [x] **F4.** `./gradlew test` 전체 그린
-
-## G. 마무리
-- [x] **G1.** 변경사항 커밋 — `refactor: split annual leave business errors into domain exceptions`
+## E. 마무리
+- [x] **E1.** 변경사항 커밋 — `refactor: remove generic IllegalArgumentException handler, lock exception policy`

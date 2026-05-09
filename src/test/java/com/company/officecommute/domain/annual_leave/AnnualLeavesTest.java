@@ -1,6 +1,5 @@
 package com.company.officecommute.domain.annual_leave;
 
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
@@ -8,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class AnnualLeavesTest {
 
@@ -27,8 +27,8 @@ class AnnualLeavesTest {
         AnnualLeaves annualLeaves = new AnnualLeaves(new ArrayList<>(existingLeaves));
         List<AnnualLeave> wantedLeaves = List.of(new AnnualLeave(1L, 1L, LocalDate.now()));
 
-        Assertions.assertThatIllegalArgumentException().isThrownBy(()
-                -> annualLeaves.enroll(new ArrayList<>(wantedLeaves)));
+        assertThatThrownBy(() -> annualLeaves.enroll(new ArrayList<>(wantedLeaves)))
+                .isInstanceOf(AnnualLeaveDuplicateException.class);
     }
 
     @Test
@@ -40,8 +40,8 @@ class AnnualLeavesTest {
                 new AnnualLeave(2L, 1L, wantedDate)
         );
 
-        Assertions.assertThatIllegalArgumentException().isThrownBy(()
-                -> annualLeaves.enroll(new ArrayList<>(wantedLeaves)));
+        assertThatThrownBy(() -> annualLeaves.enroll(new ArrayList<>(wantedLeaves)))
+                .isInstanceOf(AnnualLeaveDuplicateException.class);
     }
 
     @Test

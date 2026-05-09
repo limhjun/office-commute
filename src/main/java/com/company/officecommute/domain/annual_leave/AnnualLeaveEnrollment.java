@@ -30,7 +30,7 @@ public class AnnualLeaveEnrollment {
 
     public void enroll(AnnualLeaves existingLeaves, AnnualLeaves wantedLeaves) {
         if (this.team.isNotEnoughCriteria(wantedLeaves)) {
-            throw new IllegalArgumentException("팀의 연차 등록 기준을 충족하지 못합니다.");
+            throw new AnnualLeaveCriteriaNotMetException();
         }
         existingLeaves.enroll(wantedLeaves.getAnnualLeaves());
     }

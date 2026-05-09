@@ -1,8 +1,9 @@
 package com.company.officecommute.domain.annual_leave;
 
 import com.company.officecommute.service.team.Teams;
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -33,7 +34,7 @@ public class AnnualLeaveEnrollmentTest {
         AnnualLeave wantedLeave = new AnnualLeave(1L, 1L, LocalDate.now().plusDays(9));
         List<AnnualLeave> wantedLeaves = new ArrayList<>(List.of(wantedLeave));
 
-        Assertions.assertThatIllegalArgumentException().isThrownBy(()
-                -> before.enroll(existingLeaves, wantedLeaves));
+        assertThatThrownBy(() -> before.enroll(existingLeaves, wantedLeaves))
+                .isInstanceOf(AnnualLeaveCriteriaNotMetException.class);
     }
 }

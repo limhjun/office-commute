@@ -31,7 +31,7 @@ public class AnnualLeave {
 
     public AnnualLeave(Long id, Long employeeId, LocalDate wantedDate) {
         if (wantedDate.isBefore(LocalDate.now())) {
-            throw new IllegalArgumentException(String.format("(%s)는 지난 날짜입니다.", wantedDate));
+            throw new AnnualLeavePastDateException(wantedDate);
         }
         this.id = id;
         this.employeeId = employeeId;

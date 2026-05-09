@@ -2,6 +2,10 @@ package com.company.officecommute.global.exception;
 
 import com.company.officecommute.auth.AuthenticationFailedException;
 import com.company.officecommute.auth.ForbiddenException;
+import com.company.officecommute.domain.annual_leave.AnnualLeaveCriteriaNotMetException;
+import com.company.officecommute.domain.annual_leave.AnnualLeaveDuplicateException;
+import com.company.officecommute.domain.annual_leave.AnnualLeavePastDateException;
+import com.company.officecommute.domain.annual_leave.EmployeeWithoutTeamException;
 import com.company.officecommute.domain.commute.CommuteAlreadyEndedException;
 import com.company.officecommute.domain.commute.CommuteNotStartedException;
 import com.company.officecommute.domain.commute.InvalidCommuteRangeException;
@@ -129,6 +133,34 @@ public class GlobalExceptionHandler {
     public ErrorResult handlePreviousCommuteNotEnded(PreviousCommuteNotEndedException e) {
         log.warn("Previous commute not ended: {}", e.getMessage());
         return new ErrorResult("PREVIOUS_COMMUTE_NOT_ENDED", e.getMessage());
+    }
+
+    @ResponseStatus(HttpStatus.CONFLICT)
+    @ExceptionHandler(EmployeeWithoutTeamException.class)
+    public ErrorResult handleEmployeeWithoutTeam(EmployeeWithoutTeamException e) {
+        log.warn("Employee without team: {}", e.getMessage());
+        return new ErrorResult("EMPLOYEE_WITHOUT_TEAM", e.getMessage());
+    }
+
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ExceptionHandler(AnnualLeaveCriteriaNotMetException.class)
+    public ErrorResult handleAnnualLeaveCriteriaNotMet(AnnualLeaveCriteriaNotMetException e) {
+        log.warn("Annual leave criteria not met: {}", e.getMessage());
+        return new ErrorResult("ANNUAL_LEAVE_CRITERIA_NOT_MET", e.getMessage());
+    }
+
+    @ResponseStatus(HttpStatus.CONFLICT)
+    @ExceptionHandler(AnnualLeaveDuplicateException.class)
+    public ErrorResult handleAnnualLeaveDuplicate(AnnualLeaveDuplicateException e) {
+        log.warn("Annual leave duplicate: {}", e.getMessage());
+        return new ErrorResult("ANNUAL_LEAVE_DUPLICATE", e.getMessage());
+    }
+
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ExceptionHandler(AnnualLeavePastDateException.class)
+    public ErrorResult handleAnnualLeavePastDate(AnnualLeavePastDateException e) {
+        log.warn("Annual leave past date: {}", e.getMessage());
+        return new ErrorResult("ANNUAL_LEAVE_PAST_DATE", e.getMessage());
     }
 
     @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)

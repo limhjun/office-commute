@@ -263,8 +263,29 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/AnnualLeaveEnrollmentResponse' }
-        '400': { $ref: '#/components/responses/BadRequest' }
+        '400':
+          description: |
+            요청 검증 실패.
+            - VALIDATION_ERROR: 입력 형식 오류
+            - ANNUAL_LEAVE_CRITERIA_NOT_MET: 팀 연차 등록 기준 미충족
+            - ANNUAL_LEAVE_PAST_DATE: 과거 일자 신청
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResult' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '404':
+          description: 세션의 직원이 존재하지 않음 (EMPLOYEE_NOT_FOUND)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResult' }
+        '409':
+          description: |
+            상태/중복 충돌.
+            - ANNUAL_LEAVE_DUPLICATE: 동일 일자 중복 신청
+            - EMPLOYEE_WITHOUT_TEAM: 팀 미배정 직원의 신청
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResult' }
     get:
       tags: [AnnualLeave]
       summary: 잔여 연차 조회 (현재 로그인 직원)

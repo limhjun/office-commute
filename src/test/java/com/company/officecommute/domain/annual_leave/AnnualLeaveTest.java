@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class AnnualLeaveTest {
 
@@ -13,8 +13,8 @@ class AnnualLeaveTest {
     void testInstantiate() {
         new AnnualLeave(1L, 1L, LocalDate.now().plusDays(10));
 
-        assertThatIllegalArgumentException().isThrownBy(()
-                -> new AnnualLeave(1L, 1L, LocalDate.now().minusDays(10)));
+        assertThatThrownBy(() -> new AnnualLeave(1L, 1L, LocalDate.now().minusDays(10)))
+                .isInstanceOf(AnnualLeavePastDateException.class);
     }
 
     @Test

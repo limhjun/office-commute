@@ -1,8 +1,10 @@
 package com.company.officecommute.domain.employee;
 
 import com.company.officecommute.domain.annual_leave.AnnualLeave;
+import com.company.officecommute.domain.annual_leave.AnnualLeaveCriteriaNotMetException;
 import com.company.officecommute.domain.annual_leave.AnnualLeaveEnrollment;
 import com.company.officecommute.domain.annual_leave.AnnualLeaves;
+import com.company.officecommute.domain.annual_leave.EmployeeWithoutTeamException;
 import com.company.officecommute.domain.team.Team;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -144,13 +146,13 @@ public class Employee {
 
     public List<AnnualLeave> enrollAnnualLeave(List<LocalDate> wantedDates, List<AnnualLeave> existingAnnualLeaves) {
         if (team == null) {
-            throw new IllegalStateException("팀이 배정되지 않은 직원은 연차를 신청할 수 없습니다.");
+            throw new EmployeeWithoutTeamException();
         }
         List<AnnualLeave> wantedLeaves = wantedDates.stream()
                 .map(wantedDate -> new AnnualLeave(employeeId, wantedDate))
                 .toList();
         if (team.isNotEnoughCriteria(wantedLeaves)) {
-            throw new IllegalArgumentException("팀의 연차 등록 기준을 충족하지 못합니다.");
+            throw new AnnualLeaveCriteriaNotMetException();
         }
         AnnualLeaveEnrollment enrollment = new AnnualLeaveEnrollment(employeeId, team, existingAnnualLeaves);
         AnnualLeaves annualLeaves = new AnnualLeaves(wantedLeaves);

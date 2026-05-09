@@ -15,7 +15,7 @@ public class AnnualLeaves {
 
     public void enroll(List<AnnualLeave> wantedLeaves) {
         if (hasDuplicate(wantedLeaves) || annualLeaves.stream().anyMatch(wantedLeaves::contains)) {
-            throw new IllegalArgumentException("이미 등록된 휴가입니다.");
+            throw new AnnualLeaveDuplicateException();
         }
         annualLeaves.addAll(wantedLeaves);
     }

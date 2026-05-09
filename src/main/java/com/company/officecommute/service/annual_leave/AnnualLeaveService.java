@@ -4,6 +4,7 @@ import com.company.officecommute.domain.annual_leave.AnnualLeave;
 import com.company.officecommute.domain.annual_leave.AnnualLeaves;
 import com.company.officecommute.domain.commute.CommuteHistory;
 import com.company.officecommute.domain.employee.Employee;
+import com.company.officecommute.domain.employee.EmployeeNotFoundException;
 import com.company.officecommute.dto.annual_leave.response.AnnualLeaveEnrollmentResponse;
 import com.company.officecommute.dto.annual_leave.response.AnnualLeaveGetRemainingResponse;
 import com.company.officecommute.repository.annual_leave.AnnualLeaveRepository;
@@ -39,7 +40,7 @@ public class AnnualLeaveService {
     public List<AnnualLeaveEnrollmentResponse> enrollAnnualLeave(Long employeeId, List<LocalDate> wantedDates) {
         log.info("연차 신청 시작 - employeeId: {}", employeeId);
         Employee employee = employeeRepository.findByEmployeeIdWithTeam(employeeId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 직원입니다."));
+                .orElseThrow(() -> new EmployeeNotFoundException(employeeId));
         List<AnnualLeave> existingAnnualLeaves = annualLeaveRepository.findByEmployeeId(employeeId);
         List<AnnualLeave> enrolledLeaves = employee.enrollAnnualLeave(wantedDates, existingAnnualLeaves);
 

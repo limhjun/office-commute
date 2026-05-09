@@ -27,10 +27,21 @@ class AnnualLeavesTest {
         AnnualLeaves annualLeaves = new AnnualLeaves(new ArrayList<>(existingLeaves));
         List<AnnualLeave> wantedLeaves = List.of(new AnnualLeave(1L, 1L, LocalDate.now()));
 
-        annualLeaves.enroll(new ArrayList<>(wantedLeaves));
+        Assertions.assertThatIllegalArgumentException().isThrownBy(()
+                -> annualLeaves.enroll(new ArrayList<>(wantedLeaves)));
+    }
+
+    @Test
+    void testEnrollExceptionWhenWantedLeavesContainDuplicate() {
+        AnnualLeaves annualLeaves = new AnnualLeaves(new ArrayList<>());
+        LocalDate wantedDate = LocalDate.now().plusDays(1);
+        List<AnnualLeave> wantedLeaves = List.of(
+                new AnnualLeave(1L, 1L, wantedDate),
+                new AnnualLeave(2L, 1L, wantedDate)
+        );
 
         Assertions.assertThatIllegalArgumentException().isThrownBy(()
-        -> annualLeaves.enroll(new ArrayList<>(wantedLeaves)));
+                -> annualLeaves.enroll(new ArrayList<>(wantedLeaves)));
     }
 
     @Test

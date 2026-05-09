@@ -8,6 +8,7 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
 import java.time.LocalDate;
+import java.util.Objects;
 
 @Entity
 @Table(uniqueConstraints = {
@@ -59,5 +60,23 @@ public class AnnualLeave {
 
     public LocalDate getWantedDate() {
         return wantedDate;
+    }
+
+    @Override
+    public boolean equals(Object object) {
+        if (this == object) {
+            return true;
+        }
+        if (object == null || getClass() != object.getClass()) {
+            return false;
+        }
+        AnnualLeave that = (AnnualLeave) object;
+        return Objects.equals(employeeId, that.employeeId)
+                && Objects.equals(wantedDate, that.wantedDate);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(employeeId, wantedDate);
     }
 }

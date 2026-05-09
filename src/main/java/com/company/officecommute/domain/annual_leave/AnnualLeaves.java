@@ -14,10 +14,16 @@ public class AnnualLeaves {
     }
 
     public void enroll(List<AnnualLeave> wantedLeaves) {
-        if (annualLeaves.stream().anyMatch(wantedLeaves::contains)) {
+        if (hasDuplicate(wantedLeaves) || annualLeaves.stream().anyMatch(wantedLeaves::contains)) {
             throw new IllegalArgumentException("이미 등록된 휴가입니다.");
         }
         annualLeaves.addAll(wantedLeaves);
+    }
+
+    private boolean hasDuplicate(List<AnnualLeave> wantedLeaves) {
+        return wantedLeaves.size() != wantedLeaves.stream()
+                .distinct()
+                .count();
     }
 
     public int numberOfLeaves() {

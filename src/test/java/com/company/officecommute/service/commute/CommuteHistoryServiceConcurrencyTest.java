@@ -126,7 +126,7 @@ public class CommuteHistoryServiceConcurrencyTest {
         ));
 
         commuteHistoryService.registerWorkStartTime(testEmployeeId);
-        commuteHistoryService.registerWorkEndTime(testEmployeeId, ZonedDateTime.now().plusMinutes(1));
+        commuteHistoryService.registerWorkEndTime(testEmployeeId);
 
         assertThat(commuteHistoryRepository.findAll()).hasSize(2);
         assertThat(commuteHistoryRepository
@@ -138,7 +138,7 @@ public class CommuteHistoryServiceConcurrencyTest {
     @DisplayName("퇴근 후 같은 날 재출근시 DB 제약조건 위반")
     void testDatabaseConstraintViolation() {
         commuteHistoryService.registerWorkStartTime(testEmployeeId);
-        commuteHistoryService.registerWorkEndTime(testEmployeeId, ZonedDateTime.now());
+        commuteHistoryService.registerWorkEndTime(testEmployeeId);
 
         assertThatThrownBy(() -> commuteHistoryService.registerWorkStartTime(testEmployeeId))
                 .isInstanceOf(DataIntegrityViolationException.class);

@@ -16,6 +16,7 @@ public class EmployeeBuilder {
     private String employeeCode;
     private String email;
     private String password;
+    private String timezone = "Asia/Seoul";
 
     public EmployeeBuilder withId(Long id) {
         this.id = id;
@@ -62,7 +63,12 @@ public class EmployeeBuilder {
         return this;
     }
 
+    public EmployeeBuilder withTimezone(String timezone) {
+        this.timezone = timezone;
+        return this;
+    }
+
     public Employee build() {
-        return new Employee(id, team, name, role, birthday, workStartDate, employeeCode, email, password);
+        return new Employee(id, team, name, role, birthday, workStartDate, employeeCode, email, password, timezone);
     }
 }

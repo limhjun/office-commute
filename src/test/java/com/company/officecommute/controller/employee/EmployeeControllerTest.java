@@ -206,9 +206,9 @@ class EmployeeControllerTest {
         void responseShape() {
             BDDMockito.given(employeeService.findAllEmployee()).willReturn(List.of(
                     new EmployeeFindResponse(1L, 10L, "백엔드팀", "임형준", "MEMBER",
-                            LocalDate.of(1998, 8, 18), LocalDate.of(2024, 1, 1)),
+                            LocalDate.of(1998, 8, 18), LocalDate.of(2024, 1, 1), "Asia/Seoul"),
                     new EmployeeFindResponse(2L, null, null, "미배정직원", "MEMBER",
-                            LocalDate.of(1990, 1, 1), LocalDate.of(2024, 3, 1))
+                            LocalDate.of(1990, 1, 1), LocalDate.of(2024, 3, 1), "America/Los_Angeles")
             ));
 
             assertThat(mockMvcTester.get().uri("/employee").session(managerSession()))

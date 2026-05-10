@@ -9,8 +9,6 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.ZonedDateTime;
-
 @RestController
 public class CommuteHistoryController {
 
@@ -27,7 +25,7 @@ public class CommuteHistoryController {
 
     @PutMapping("/commute")
     public void registerWorkEndTime(@RequestAttribute("currentEmployeeId") Long employeeId) {
-        commuteHistoryService.registerWorkEndTime(employeeId, ZonedDateTime.now());
+        commuteHistoryService.registerWorkEndTime(employeeId);
     }
 
     @GetMapping("/commute")

@@ -18,6 +18,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Objects;
 import java.util.regex.Pattern;
@@ -58,6 +59,9 @@ public class Employee {
     @Column(nullable = false)
     private String password;
 
+    @Column(nullable = false)
+    private String timezone;
+
     protected Employee() {
     }
 
@@ -69,9 +73,10 @@ public class Employee {
             String employeeCode,
             String email,
             String encodedPassword,
+            String timezone,
             Team team
     ) {
-        return new Employee(null, team, name, role, birthday, workStartDate, employeeCode, email, encodedPassword);
+        return new Employee(null, team, name, role, birthday, workStartDate, employeeCode, email, encodedPassword, timezone);
     }
 
     public Employee(
@@ -83,7 +88,7 @@ public class Employee {
             String email,
             String password
     ) {
-        this(null, null, name, role, birthday, workStartDate, employeeCode, email, password);
+        this(null, null, name, role, birthday, workStartDate, employeeCode, email, password, "Asia/Seoul");
     }
 
     public Employee(
@@ -97,6 +102,21 @@ public class Employee {
             String email,
             String password
     ) {
+        this(employeeId, team, name, role, birthday, workStartDate, employeeCode, email, password, "Asia/Seoul");
+    }
+
+    public Employee(
+            Long employeeId,
+            Team team,
+            String name,
+            Role role,
+            LocalDate birthday,
+            LocalDate workStartDate,
+            String employeeCode,
+            String email,
+            String password,
+            String timezone
+    ) {
         this.employeeId = employeeId;
         this.team = team;
         this.name = validateName(name);
@@ -106,6 +126,7 @@ public class Employee {
         this.employeeCode = validateEmployeeCode(employeeCode);
         this.email = validateEmail(email);
         this.password = validatePassword(password);
+        this.timezone = validateTimezone(timezone);
     }
 
     private String validateEmployeeCode(String employeeCode) {
@@ -138,6 +159,18 @@ public class Employee {
             throw new IllegalArgumentException("password는 null이거나 빈 값일 수 없습니다.");
         }
         return password;
+    }
+
+    private String validateTimezone(String timezone) {
+        if (timezone == null || timezone.isBlank()) {
+            throw new IllegalArgumentException("timezone은 null이거나 빈 값일 수 없습니다.");
+        }
+        try {
+            ZoneId.of(timezone);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("timezone이 올바른 ZoneId 형식이 아닙니다: " + timezone);
+        }
+        return timezone;
     }
 
     public void changeTeam(Team newTeam) {
@@ -198,5 +231,13 @@ public class Employee {
 
     public String getPassword() {
         return password;
+    }
+
+    public String getTimezone() {
+        return timezone;
+    }
+
+    public ZoneId getZoneId() {
+        return ZoneId.of(timezone);
     }
 }

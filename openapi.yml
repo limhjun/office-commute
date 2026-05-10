@@ -516,6 +516,13 @@ components:
           format: int64
           nullable: true
           description: 옵셔널. 없으면 미배정.
+        timezone:
+          type: string
+          nullable: true
+          example: 'Asia/Seoul'
+          description: |
+            직원의 기본 시간대 (IANA ZoneId). 옵셔널 — null이거나 빈 문자열이면 서버 기본값 `Asia/Seoul` 적용.
+            출퇴근 등록 시 이 값을 기준으로 `workDate`가 계산되며, 각 출근 레코드에 snapshot으로 저장된다.
     EmployeeRegisterResponse:
       type: object
       required: [employeeId]
@@ -523,7 +530,7 @@ components:
         employeeId: { type: integer, format: int64 }
     EmployeeFindResponse:
       type: object
-      required: [employeeId, name, role, birthday, workStartDate]
+      required: [employeeId, name, role, birthday, workStartDate, timezone]
       properties:
         employeeId: { type: integer, format: int64 }
         teamId: { type: integer, format: int64, nullable: true }
@@ -532,6 +539,7 @@ components:
         role: { $ref: '#/components/schemas/Role' }
         birthday: { type: string, format: date }
         workStartDate: { type: string, format: date }
+        timezone: { type: string, example: 'Asia/Seoul', description: 'IANA ZoneId — 직원의 기본 시간대.' }
     EmployeeChangeTeamRequest:
       type: object
       properties:

@@ -44,6 +44,9 @@ public class EmployeeService {
             throw EmployeeAlreadyExistsException.ofEmail(request.email());
         }
         Team team = resolveTeam(request.teamId());
+        String timezone = (request.timezone() == null || request.timezone().isBlank())
+                ? "Asia/Seoul"
+                : request.timezone();
         Employee employee = Employee.register(
                 request.name(),
                 request.role(),
@@ -52,6 +55,7 @@ public class EmployeeService {
                 request.employeeCode(),
                 request.email(),
                 passwordEncoder.encode(request.password()),
+                timezone,
                 team
         );
         try {

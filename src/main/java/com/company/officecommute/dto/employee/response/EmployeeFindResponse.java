@@ -12,7 +12,8 @@ public record EmployeeFindResponse(
         String name,
         String role,
         LocalDate birthday,
-        LocalDate workStartDate
+        LocalDate workStartDate,
+        String timezone
 ) {
     public static EmployeeFindResponse from(Employee employee) {
         Team team = employee.getTeam();
@@ -23,7 +24,8 @@ public record EmployeeFindResponse(
                 employee.getName(),
                 employee.getRole().name(),
                 employee.getBirthday(),
-                employee.getWorkStartDate()
+                employee.getWorkStartDate(),
+                employee.getTimezone()
         );
     }
 }

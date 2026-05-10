@@ -47,7 +47,7 @@ public class AnnualLeaveService {
         List<AnnualLeave> savedLeaves = annualLeaveRepository.saveAll(enrolledLeaves);
 
         List<CommuteHistory> commuteHistories = savedLeaves.stream()
-                .map(annualLeave -> new CommuteHistory(employeeId, annualLeave.getWantedDate()))
+                .map(annualLeave -> new CommuteHistory(employeeId, annualLeave.getWantedDate(), employee.getZoneId()))
                 .toList();
         commuteHistoryRepository.saveAll(commuteHistories);
 

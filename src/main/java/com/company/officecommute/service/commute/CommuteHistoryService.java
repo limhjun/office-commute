@@ -11,7 +11,9 @@ import com.company.officecommute.repository.employee.EmployeeRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.YearMonth;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
 
@@ -20,28 +22,35 @@ public class CommuteHistoryService {
 
     private final CommuteHistoryRepository commuteHistoryRepository;
     private final EmployeeRepository employeeRepository;
+    private final Clock clock;
 
     public CommuteHistoryService(
             CommuteHistoryRepository commuteHistoryRepository,
-            EmployeeRepository employeeRepository
+            EmployeeRepository employeeRepository,
+            Clock clock
     ) {
         this.commuteHistoryRepository = commuteHistoryRepository;
         this.employeeRepository = employeeRepository;
+        this.clock = clock;
     }
 
     @Transactional
     public void registerWorkStartTime(Long employeeId) {
         Employee employee = getEmployee(employeeId);
         validatePreviousWorkCompleted(employee.getEmployeeId());
-        CommuteHistory newWork = new CommuteHistory(null, employee.getEmployeeId(), ZonedDateTime.now(), null, 0);
+        ZoneId employeeZone = employee.getZoneId();
+        ZonedDateTime now = ZonedDateTime.now(clock.withZone(employeeZone));
+        CommuteHistory newWork = new CommuteHistory(null, employee.getEmployeeId(), now, null, 0, employeeZone);
         commuteHistoryRepository.save(newWork);
     }
 
     @Transactional
-    public void registerWorkEndTime(Long employeeId, ZonedDateTime workEndTime) {
+    public void registerWorkEndTime(Long employeeId) {
         Employee employee = getEmployee(employeeId);
         CommuteHistory lastCommute = findFirstByEmployeeId(employee.getEmployeeId());
-        CommuteHistory commuteHistory = lastCommute.endWork(workEndTime);
+        ZoneId workZone = lastCommute.getWorkZoneId();
+        ZonedDateTime now = ZonedDateTime.now(clock.withZone(workZone));
+        CommuteHistory commuteHistory = lastCommute.endWork(now);
         commuteHistoryRepository.save(commuteHistory);
     }
 

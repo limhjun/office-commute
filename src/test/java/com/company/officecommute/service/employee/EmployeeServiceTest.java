@@ -74,7 +74,8 @@ class EmployeeServiceTest {
                 "EMP001",
                 "hyungjunn@company.com",
                 "password123",
-                teamId
+                teamId,
+                null
         );
     }
 

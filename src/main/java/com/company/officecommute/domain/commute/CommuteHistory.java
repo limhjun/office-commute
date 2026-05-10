@@ -12,6 +12,7 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.Objects;
 
 @Entity
 @Table(uniqueConstraints = {
@@ -37,6 +38,9 @@ public class CommuteHistory {
     @Column(name = "work_date", nullable = false)
     private LocalDate workDate;
 
+    @Column(name = "work_zone", nullable = false)
+    private String workZone;
+
     private static final int ANNUAL_LEAVE_TIME = 0;
 
     private static final boolean IS_ANNUAL_LEAVE = true;
@@ -46,7 +50,7 @@ public class CommuteHistory {
 
     // 연차일 때, 근무 이력을 나타내는 생성자
     public CommuteHistory(Long employeeId) {
-        this(null, employeeId, ZonedDateTime.now(), ZonedDateTime.now(), ANNUAL_LEAVE_TIME, IS_ANNUAL_LEAVE);
+        this(null, employeeId, ZonedDateTime.now(), ZonedDateTime.now(), ANNUAL_LEAVE_TIME, IS_ANNUAL_LEAVE, DEFAULT_ZONE);
     }
 
     public CommuteHistory(
@@ -56,12 +60,27 @@ public class CommuteHistory {
             ZonedDateTime workEndTime,
             long workingMinutes
     ) {
-        this(commuteHistoryId, employeeId, workStartTime, workEndTime, workingMinutes, false);
+        this(commuteHistoryId, employeeId, workStartTime, workEndTime, workingMinutes, false, DEFAULT_ZONE);
+    }
+
+    public CommuteHistory(
+            Long commuteHistoryId,
+            Long employeeId,
+            ZonedDateTime workStartTime,
+            ZonedDateTime workEndTime,
+            long workingMinutes,
+            ZoneId workZone
+    ) {
+        this(commuteHistoryId, employeeId, workStartTime, workEndTime, workingMinutes, false, workZone);
     }
 
     // 연차용 생성자
     public CommuteHistory(Long employeeId, LocalDate annualLeaveDate) {
-        this(null, employeeId, annualLeaveDate.atStartOfDay(DEFAULT_ZONE), annualLeaveDate.atStartOfDay(DEFAULT_ZONE), 0, true);
+        this(employeeId, annualLeaveDate, DEFAULT_ZONE);
+    }
+
+    public CommuteHistory(Long employeeId, LocalDate annualLeaveDate, ZoneId workZone) {
+        this(null, employeeId, annualLeaveDate.atStartOfDay(workZone), annualLeaveDate.atStartOfDay(workZone), 0, true, workZone);
         this.workDate = annualLeaveDate;
     }
 
@@ -73,15 +92,29 @@ public class CommuteHistory {
             long workingMinutes,
             boolean usingDayOff
     ) {
+        this(commuteHistoryId, employeeId, workStartTime, workEndTime, workingMinutes, usingDayOff, DEFAULT_ZONE);
+    }
+
+    public CommuteHistory(
+            Long commuteHistoryId,
+            Long employeeId,
+            ZonedDateTime workStartTime,
+            ZonedDateTime workEndTime,
+            long workingMinutes,
+            boolean usingDayOff,
+            ZoneId workZone
+    ) {
+        Objects.requireNonNull(workZone, "workZone은 null일 수 없습니다");
         this.commuteHistoryId = commuteHistoryId;
         this.employeeId = employeeId;
         this.workStartTime = workStartTime;
         this.workEndTime = workEndTime;
         this.workingMinutes = workingMinutes;
         this.usingDayOff = usingDayOff;
+        this.workZone = workZone.getId();
         this.workDate = (workStartTime != null)
-                ? workStartTime.toLocalDate()
-                : LocalDate.now();
+                ? workStartTime.withZoneSameInstant(workZone).toLocalDate()
+                : LocalDate.now(workZone);
     }
 
     public CommuteHistory endWork(ZonedDateTime workEndTime) {
@@ -127,5 +160,13 @@ public class CommuteHistory {
 
     public long getWorkingMinutes() {
         return workingMinutes;
+    }
+
+    public String getWorkZone() {
+        return workZone;
+    }
+
+    public ZoneId getWorkZoneId() {
+        return ZoneId.of(workZone);
     }
 }

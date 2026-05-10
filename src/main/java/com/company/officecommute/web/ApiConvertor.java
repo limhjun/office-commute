@@ -3,6 +3,7 @@ package com.company.officecommute.web;
 import com.company.officecommute.domain.overtime.Holiday;
 import com.company.officecommute.domain.overtime.HolidayResponse;
 import com.company.officecommute.domain.overtime.HolidaySyncStatus;
+import com.company.officecommute.global.exception.HolidayDataUnavailableException;
 import com.company.officecommute.repository.overtime.HolidayRepository;
 import com.company.officecommute.repository.overtime.HolidaySyncStatusRepository;
 import com.company.officecommute.service.overtime.HolidayCacheStatusService;
@@ -139,7 +140,7 @@ public class ApiConvertor {
 
         HolidayResponse holidayResponse = restTemplate.getForObject(uri, HolidayResponse.class);
         if (holidayResponse == null || holidayResponse.getBody() == null) {
-            throw new IllegalStateException("공휴일 API 응답이 비정상입니다. yearMonth=" + yearMonth);
+            throw new HolidayDataUnavailableException("공휴일 API 응답이 비정상입니다. yearMonth=" + yearMonth);
         }
         return holidayResponse.getBody().getItems();
     }

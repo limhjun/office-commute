@@ -51,18 +51,34 @@ base_url="http://localhost:8080"
 # 세션을 유지하기 위한 httpie의 세션 파일 이름
 SESSION="api-test-session"
 
+# 모든 http 호출에 공통 플래그를 강제하기 위해 셸 함수로 감싼다.
+#   --ignore-stdin : 비대화형 셸(CI, 파이프)에서 httpie가 stdin을 본문으로 오인해 죽는 것을 방지
+#   --check-status : 4xx/5xx 응답을 exit 비0으로 처리 → do_test_step이 실제 실패를 잡을 수 있도록
+http() {
+  command http --ignore-stdin --check-status "$@"
+}
+
 # === API 함수 정의 ===
 # API 호출 시 verbose(-v) 옵션은 디버깅 시 유용하지만, 테스트 결과만 깔끔하게 보려면 제거하는 것이 좋습니다.
 # 여기서는 그대로 유지합니다.
 login_admin() {
-  http -v --session="$SESSION" POST "$base_url/login" \
-      employeeCode="ADMIN001" \
-      password="admin123!"
+  http -v --session="$SESSION" POST "$base_url/api/auth/login" \
+      email="admin@company.com" \
+      password="admin1234"
 }
+
+# 생성 응답의 ID를 다음 단계로 넘기기 위한 전역 변수.
+# do_test_step 래퍼가 종료 코드만 보므로, 함수 외부에서 캡처해야 한다.
+LAST_TEAM_ID=""
+LAST_EMPLOYEE_ID=""
 
 create_team() {
   team_name=$1
-  http -v --session="$SESSION" POST "$base_url/team" teamName="$team_name"
+  # --print=b : 응답 본문만 stdout → jq로 깔끔히 파싱 가능
+  local response
+  response=$(http --print=b --session="$SESSION" POST "$base_url/team" teamName="$team_name") || return 1
+  echo "$response"
+  LAST_TEAM_ID=$(echo "$response" | jq -r '.teamId')
 }
 
 create_employee() {
@@ -71,27 +87,32 @@ create_employee() {
   birthday=$3
   work_start_date=$4
   employee_code=$5
-  password=$6
-  http -v --session="$SESSION" POST "$base_url/employee" \
+  email=$6
+  password=$7
+  local response
+  response=$(http --print=b --session="$SESSION" POST "$base_url/employee" \
     name="$name" \
     role="$role" \
     birthday="$birthday" \
     workStartDate="$work_start_date" \
     employeeCode="$employee_code" \
-    password="$password"
+    email="$email" \
+    password="$password") || return 1
+  echo "$response"
+  LAST_EMPLOYEE_ID=$(echo "$response" | jq -r '.employeeId')
 }
 
 assign_employee_to_team() {
   employee_id=$1
-  team_name=$2
-  http -v --session="$SESSION" PUT "$base_url/employee" employeeId:="$employee_id" teamName="$team_name"
+  team_id=$2
+  http -v --session="$SESSION" PUT "$base_url/employee/$employee_id/team" teamId:="$team_id"
 }
 
 login_employee() {
-  employee_code=$1
+  email=$1
   password=$2
-  http -v --session="$SESSION" POST "$base_url/login" \
-      employeeCode="$employee_code" \
+  http -v --session="$SESSION" POST "$base_url/api/auth/login" \
+      email="$email" \
       password="$password"
 }
 
@@ -122,15 +143,20 @@ get_work_duration_per_date() {
 do_test_step "관리자 로그인" login_admin
 
 do_test_step "팀 생성 (백엔드)" create_team "백엔드"
+backend_team_id="$LAST_TEAM_ID"
 
-do_test_step "임형준 사원 생성" create_employee "임형준" "MANAGER" "1995-05-15" "$today" "EMP001" "password123!"
-do_test_step "고슬링 사원 생성" create_employee "고슬링" "MEMBER" "1950-05-15" "$today" "EMP002" "password123!"
-do_test_step "존카맥 사원 생성" create_employee "존카맥" "MEMBER" "1960-05-15" "$today" "EMP003" "password123!"
+do_test_step "임형준 사원 생성" create_employee "임형준" "MANAGER" "1995-05-15" "$today" "EMP001" "emp001@company.com" "password123!"
+hyungjun_employee_id="$LAST_EMPLOYEE_ID"
+do_test_step "고슬링 사원 생성" create_employee "고슬링" "MEMBER" "1950-05-15" "$today" "EMP002" "emp002@company.com" "password123!"
+gosling_employee_id="$LAST_EMPLOYEE_ID"
+do_test_step "존카맥 사원 생성" create_employee "존카맥" "MEMBER" "1960-05-15" "$today" "EMP003" "emp003@company.com" "password123!"
 
-# ID가 2번인 '고슬링' 사원을 '백엔드' 팀에 배정 (ID가 순차적으로 생성된다고 가정)
-do_test_step "팀 배정 (고슬링 to 백엔드)" assign_employee_to_team 2 "백엔드"
+# 두 사원을 백엔드 팀에 배정. 임형준이 본인 자격으로 출퇴근/연차를 신청하므로
+# 임형준에게도 팀이 있어야 EMPLOYEE_WITHOUT_TEAM 위반이 발생하지 않는다.
+do_test_step "팀 배정 (임형준 to 백엔드)" assign_employee_to_team "$hyungjun_employee_id" "$backend_team_id"
+do_test_step "팀 배정 (고슬링 to 백엔드)" assign_employee_to_team "$gosling_employee_id" "$backend_team_id"
 
-do_test_step "사원 로그인 (임형준)" login_employee "EMP001" "password123!"
+do_test_step "사원 로그인 (임형준)" login_employee "emp001@company.com" "password123!"
 
 do_test_step "출근 등록" register_work_start_time
 # 실제 테스트 시나리오를 위해 출퇴근 사이에 약간의 시간 간격을 둡니다.

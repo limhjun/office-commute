@@ -57,3 +57,9 @@ src/test/resources/*.yml
 
 # Log files
 logs/
+
+# Personal Claude Code memory (per-developer secrets, local URLs, API keys)
+CLAUDE.local.md
+
+# Claude Code worktrees (transient agent workspaces)
+.claude/worktrees/

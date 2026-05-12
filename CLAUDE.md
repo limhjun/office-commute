@@ -1,37 +1,43 @@
 # CLAUDE.md
 
-## Stack
-- DB: H2 (`dev`), MySQL 8.0 (`mysql`, `prod`).
-- Tests: `MockMvcTester` (not legacy MockMvc), `@MockitoBean` (not the old `@MockBean`).
+## Build / Test
+- Run app (dev, H2 TCP): `./gradlew bootRun --args='--spring.profiles.active=dev'`
+- Run app (mysql): `./gradlew bootRun --args='--spring.profiles.active=mysql'`
+- Tests: `./gradlew test`
+- Full check (tests + `openApiValidate`): `./gradlew check`
+- Build jar: `./gradlew build`
+
+## Project Structure
+- `src/main/java/com/company/officecommute/` — layered: `controller / service / domain / repository / dto / web / auth / global / config / scheduler`
+- `src/main/resources/db/migration/V*__*.sql` — Flyway (MySQL/prod schema, canonical)
+- `src/main/resources/data.sql` — H2 dev seed
+- `src/main/resources/application*.yml` — profile configs (`dev`, `mysql`, `prod`)
+- `src/test/java/...` — mirrors main package layout
+- `openapi.yml` (root) — wire-format source of truth
+- `WORKS.md` / `PLAN.md` — feature list & current plan
+- `scripts/api_test.sh` — manual API smoke test
 
 ## Profiles
-- `dev`: H2 TCP `jdbc:h2:tcp://localhost/~/test`, `ddl-auto: create-drop`, `data.sql`, Flyway off.
-- `mysql` / `prod`: Flyway on, `ddl-auto: validate`. `DB_URL` / `DB_USERNAME` / `DB_PASSWORD` overrides.
-- Flyway scripts at `src/main/resources/db/migration/V*__*.sql`. **Never edit an applied V file** (checksum). Schema changes always go in a new V file.
-- Holiday API needs `PUBLIC_API_SERVICE_KEY`.
-
-## Workflow (per README "주요 기능" item)
-- `WORKS.md` lists items; tick `[x]` on completion.
-- Per item: read current state → diagnostic with numbered gaps (G1..Gn) → user approval → write `PLAN.md` + `tasks.md` → implement in groups (A, B…) → commit per green group → final commit ticking `WORKS.md`.
-- Decisions go into `PLAN.md` as user-confirmed entries. No broad changes without approval.
-
-## Sources of Truth (drift kills these)
-- **`openapi.yml`** — wire format for every controller/DTO. Update it whenever a controller or DTO changes. `openApiValidate` checks the yml only, not code-spec alignment. Spec-first: **no `@Operation` / `@ApiResponse` annotations on controllers**.
-- **Flyway V files** — canonical MySQL/prod schema.
-- **`data.sql`** — H2 dev seed. Update on column changes or `dev` boot fails.
+- `dev`: H2 TCP `jdbc:h2:tcp://localhost/~/test`, `ddl-auto: create-drop`, `data.sql` on, Flyway off.
+- `mysql` / `prod`: Flyway on, `ddl-auto: validate`. Overrides via `DB_URL` / `DB_USERNAME` / `DB_PASSWORD`.
+- Holiday API requires `PUBLIC_API_SERVICE_KEY`.
+- **Do not commit secret values or per-developer settings here.** Put them in `CLAUDE.local.md` (gitignored) — e.g. your local MySQL URL, your `PUBLIC_API_SERVICE_KEY`, sandbox credentials. Only the *names* of required env vars belong in this file.
 
 ## Coding Conventions
-- **Static factories**: registration flows use `Entity.register(...)`. Validation/normalization (blank → null, etc.) lives there or in the canonical 9-arg constructor.
-- **Domain exceptions**: one class per business meaning (`TeamAlreadyExistsException`, `EmployeeNotFoundException`, …). Never reuse `IllegalArgumentException` for business errors. Throw, don't catch — `@RestControllerAdvice` converts.
-- **Single error envelope**: every domain exception gets a `@ExceptionHandler` in `GlobalExceptionHandler`. Responses are `ErrorResult { code, message }` or `ValidationErrorResult { code, message, fieldErrorResults }`.
-- **Error codes**: `*_ALREADY_EXISTS`, `*_NOT_FOUND`, `VALIDATION_ERROR`, `INVALID_JSON`. Follows standard HTTP semantics.
-- **Race safety net**: catch `DataIntegrityViolationException` after the pre-check and re-throw as the matching `*_ALREADY_EXISTS`. The point is meaning conversion, not silencing.
-- **ID-based API**: registration responses carry the new ID (`{ employeeId }`). Mutation endpoints put the ID in the path (`PUT /employee/{employeeId}/team`). Name-based contracts are deprecated.
-- **No stored counters/summaries** when derivable. `Team.memberCount` → `COUNT(*) GROUP BY team_id`. Removing the sync burden beats locking it correctly.
-- **Date/time types**: avoid `LocalDateTime` (timezone-ambiguous). Never downgrade dates to `String`.
-- **Three-layer validation**: domain constructor/factory + JPA `@Column(nullable=false, unique=…)` + Flyway DDL must agree.
+- Java 21, Spring Boot 3.5. 4-space indentation, no tabs.
+- Date/time: avoid `LocalDateTime` (timezone-ambiguous). Use `ZonedDateTime` for timestamps (already standard in commute/overtime), `LocalDate` / `YearMonth` for calendar dates. Inject `Clock` for "now" so tests can control time. Never downgrade dates to `String`.
+- Naming: controllers `*Controller`, services `*Service`, repos `*Repository`, DTOs `*Request` / `*Response`, exceptions `*Exception`.
+- Domain exceptions: one class per business meaning (e.g. `TeamAlreadyExistsException`). Never reuse `IllegalArgumentException` for business errors.
+- Error envelope: `ErrorResult { code, message }` or `ValidationErrorResult { code, message, fieldErrorResults }`. Codes follow `*_ALREADY_EXISTS`, `*_NOT_FOUND`, `VALIDATION_ERROR`, `INVALID_JSON`.
+- Static factories for registration: `Entity.register(...)`; validation/normalization lives there or in the canonical full-arg constructor.
+- Three-layer validation: domain constructor/factory + JPA `@Column(nullable=false, unique=…)` + Flyway DDL must agree.
+- ID-based API: registration returns `{ entityId }`; mutation endpoints carry the ID in the path (`PUT /employee/{employeeId}/team`). Don't introduce name-based contracts.
 
-## Auth
-- Session-based (`JSESSIONID`). Login invalidates any existing session, then stores `currentEmployeeId` and `currentRole` on the new one (session-fixation defense).
-- `@ManagerOnly` admits only `currentRole == MANAGER`.
-- Current user in controllers: `@RequestAttribute("currentEmployeeId") Long employeeId`.
+## Always
+- **Spec-first**: update `openapi.yml` whenever a controller or DTO changes. No `@Operation` / `@ApiResponse` annotations on controllers — the yml is the spec.
+- **Never edit an applied Flyway `V*__*.sql` file** (checksum). Schema changes go in a new `V` file.
+- When a column changes, update `data.sql` too — otherwise `dev` boot fails.
+- Throw domain exceptions, don't catch — `GlobalExceptionHandler` (`@RestControllerAdvice`) converts them. After a uniqueness pre-check, catch `DataIntegrityViolationException` and re-throw the matching `*_ALREADY_EXISTS` (race safety net).
+- Default: derive aggregates instead of storing them (e.g. `Team.memberCount` → `COUNT(*) GROUP BY team_id`) — removes sync-bug surface. Escape hatch: if a query is measurably slow under realistic load (not hypothetically), introduce a stored counter / cache with the invariant documented and the update path covered by tests. Don't add one preemptively.
+
+> Scoped rules: test conventions live in `.claude/rules/testing.md`, auth rules for controllers in `.claude/rules/auth.md` (auto-loaded by path).

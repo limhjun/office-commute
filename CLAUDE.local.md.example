@@ -1,0 +1,20 @@
+# CLAUDE.local.md (template)
+
+Copy this file to `CLAUDE.local.md` (already gitignored) and adapt to your setup.
+This file is loaded into Claude's context every session, so **do NOT paste real
+secret values here**. Keep secrets in `.env` (read by Spring at runtime) and only
+reference them by name below.
+
+## Local environment
+- Active profile: `dev` (or `mysql` if running the container)
+- DB (mysql profile): `jdbc:mysql://localhost:3306/officecommute`
+- Secrets live in `.env`: `DB_USERNAME`, `DB_PASSWORD`, `PUBLIC_API_SERVICE_KEY`
+
+## How I run the app locally
+- MySQL container: `docker compose up -d`
+- App: `./gradlew bootRun --args='--spring.profiles.active=mysql'`
+- API smoke test: `./scripts/api_test.sh`
+
+## Personal habits (anything you'd otherwise re-type to Claude)
+- e.g. "I prefer to keep Flyway migrations in batches of one per PR"
+- e.g. "When adding a new endpoint, update openapi.yml first, then controller"

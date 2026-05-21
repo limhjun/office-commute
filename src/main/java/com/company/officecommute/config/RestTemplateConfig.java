@@ -13,6 +13,7 @@ import java.util.List;
 @Configuration
 public class RestTemplateConfig {
 
+    // TODO: 운영에서는 외부 API 타임아웃 값을 application-*.yml 설정으로 분리해 배포 없이 조정할 수 있게 한다.
     private static final int CONNECT_TIMEOUT_MS = 3000;
     private static final int READ_TIMEOUT_MS = 5000;
 

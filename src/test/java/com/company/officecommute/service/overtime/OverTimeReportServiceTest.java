@@ -2,7 +2,6 @@ package com.company.officecommute.service.overtime;
 
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
 import com.company.officecommute.dto.overtime.response.OverTimeReportData;
-import com.company.officecommute.web.ApiConvertor;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,7 +30,6 @@ class OverTimeReportServiceTest {
 
     @Mock private OverTimeService overTimeService;
     @Mock private OverTimeExcelWriter overTimeExcelWriter;
-    @Mock private ApiConvertor apiConvertor;
 
     @Captor private ArgumentCaptor<List<OverTimeReportData>> reportDataCaptor;
 
@@ -82,7 +80,6 @@ class OverTimeReportServiceTest {
         overTimeReportService.generateExcelReport(yearMonth, OutputStream.nullOutputStream());
 
         then(overTimeExcelWriter).should().write(eq(yearMonth), any(), any(OutputStream.class));
-        then(apiConvertor).should().prefetchNextMonthHolidays(yearMonth);
     }
 
     @Test

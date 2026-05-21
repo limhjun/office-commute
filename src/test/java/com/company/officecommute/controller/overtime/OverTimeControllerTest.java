@@ -155,7 +155,7 @@ class OverTimeControllerTest {
                             2,
                             false,
                             "STALE_CACHE",
-                            "공휴일 캐시가 최신 상태가 아니어서 초과근무를 계산할 수 없습니다: 2026-03 (월말 기준 최종 검증 필요)",
+                            "공휴일 캐시가 최신 상태가 아닙니다: 2026-03",
                             java.time.LocalDateTime.of(2026, 3, 20, 9, 0)
                     ));
 

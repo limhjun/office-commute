@@ -91,17 +91,11 @@ public class HolidayCacheStatusService {
     }
 
     private String buildMissingSyncStatusReason(YearMonth yearMonth) {
-        return "공휴일 캐시의 최신성을 확인할 수 없어 초과근무를 계산할 수 없습니다: " + yearMonth;
+        return "공휴일 캐시 정보를 찾을 수 없습니다: " + yearMonth;
     }
 
     private String buildStaleCacheReason(YearMonth yearMonth) {
-        YearMonth currentMonth = YearMonth.from(LocalDate.now(clock));
-        if (yearMonth.isBefore(currentMonth)) {
-            return "공휴일 캐시가 최신 상태가 아니어서 초과근무를 계산할 수 없습니다: " + yearMonth
-                    + " (월말 기준 최종 검증 필요)";
-        }
-        return "공휴일 캐시가 최신 상태가 아니어서 초과근무를 계산할 수 없습니다: " + yearMonth
-                + " (최근 7일 내 재검증 필요)";
+        return "공휴일 캐시가 최신 상태가 아닙니다: " + yearMonth;
     }
 
     private boolean isReliableCache(YearMonth yearMonth, HolidaySyncStatus syncStatus) {

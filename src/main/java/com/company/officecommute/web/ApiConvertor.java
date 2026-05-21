@@ -66,18 +66,8 @@ public class ApiConvertor {
     }
 
     /**
-     * 다음 달 공휴일을 미리 DB에 저장합니다.
-     * 월말에 초과근무 계산 후 호출하여 다음 달 API 실패에 대비합니다.
-     */
-    @Transactional
-    public void prefetchNextMonthHolidays(YearMonth currentMonth) {
-        YearMonth nextMonth = currentMonth.plusMonths(1);
-        refreshHolidays(nextMonth);
-    }
-
-    /**
      * 공휴일 데이터를 API에서 가져와 DB에 저장합니다.
-     * 스케줄러에서 주기적으로 호출하여 캐시를 갱신합니다.
+     * 관리자 수동 동기화 API에서 호출하여 캐시를 갱신합니다.
      */
     @Transactional
     public void refreshHolidays(YearMonth yearMonth) {

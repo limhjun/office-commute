@@ -2,7 +2,6 @@ package com.company.officecommute.service.overtime;
 
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
 import com.company.officecommute.dto.overtime.response.OverTimeReportData;
-import com.company.officecommute.web.ApiConvertor;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -17,22 +16,18 @@ public class OverTimeReportService {
 
     private final OverTimeService overTimeService;
     private final OverTimeExcelWriter overTimeExcelWriter;
-    private final ApiConvertor apiConvertor;
 
     public OverTimeReportService(
             OverTimeService overTimeService,
-            OverTimeExcelWriter overTimeExcelWriter,
-            ApiConvertor apiConvertor
+            OverTimeExcelWriter overTimeExcelWriter
     ) {
         this.overTimeService = overTimeService;
         this.overTimeExcelWriter = overTimeExcelWriter;
-        this.apiConvertor = apiConvertor;
     }
 
     public void generateExcelReport(YearMonth yearMonth, OutputStream outputStream) throws IOException {
         List<OverTimeReportData> reportData = generateOverTimeReportData(yearMonth);
         overTimeExcelWriter.write(yearMonth, reportData, outputStream);
-        apiConvertor.prefetchNextMonthHolidays(yearMonth);
     }
 
     private List<OverTimeReportData> generateOverTimeReportData(YearMonth yearMonth) {

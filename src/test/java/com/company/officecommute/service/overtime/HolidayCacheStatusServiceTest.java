@@ -101,7 +101,6 @@ class HolidayCacheStatusServiceTest {
 
         assertThat(status.cacheUsable()).isFalse();
         assertThat(status.status()).isEqualTo("STALE_CACHE");
-        assertThat(status.reason()).contains("월말 기준 최종 검증 필요");
     }
 
     @Test
@@ -114,7 +113,7 @@ class HolidayCacheStatusServiceTest {
 
         assertThatThrownBy(() -> holidayCacheStatusService.getUsableCachedHolidaysOrThrow(YearMonth.of(2026, 4)))
                 .isInstanceOf(HolidayDataUnavailableException.class)
-                .hasMessageContaining("공휴일 캐시의 최신성을 확인할 수 없어");
+                .hasMessageContaining("공휴일 캐시 정보를 찾을 수 없습니다");
     }
 
     private void mockCurrentTime(LocalDateTime now) {

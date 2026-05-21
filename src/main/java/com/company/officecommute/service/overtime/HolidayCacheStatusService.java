@@ -2,7 +2,6 @@ package com.company.officecommute.service.overtime;
 
 import com.company.officecommute.domain.overtime.HolidaySyncStatus;
 import com.company.officecommute.dto.overtime.response.HolidayCacheStatusResponse;
-import com.company.officecommute.global.exception.HolidayDataUnavailableException;
 import com.company.officecommute.repository.overtime.HolidayRepository;
 import com.company.officecommute.repository.overtime.HolidaySyncStatusRepository;
 import org.springframework.stereotype.Service;
@@ -12,7 +11,6 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
-import java.util.Set;
 
 @Service
 @Transactional(readOnly = true)
@@ -71,16 +69,6 @@ public class HolidayCacheStatusService {
                 "초과근무 계산에 사용할 수 있는 공휴일 캐시입니다.",
                 syncStatus.getLastSuccessfulSyncedAt()
         );
-    }
-
-    public Set<LocalDate> getUsableCachedHolidaysOrThrow(YearMonth yearMonth) {
-        HolidayCacheStatusResponse status = getStatus(yearMonth);
-
-        if (!status.cacheUsable()) {
-            throw new HolidayDataUnavailableException(status.reason());
-        }
-
-        return Set.copyOf(findCachedHolidays(yearMonth));
     }
 
     private List<LocalDate> findCachedHolidays(YearMonth yearMonth) {

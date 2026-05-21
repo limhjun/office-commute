@@ -3,6 +3,7 @@ package com.company.officecommute.controller.overtime;
 import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.dto.overtime.response.HolidayCacheStatusResponse;
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
+import com.company.officecommute.dto.overtime.response.OverTimeReportData;
 import com.company.officecommute.global.exception.HolidayDataUnavailableException;
 import com.company.officecommute.service.overtime.HolidayCacheStatusService;
 import com.company.officecommute.service.overtime.HolidaySyncService;
@@ -31,7 +32,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.willDoNothing;
 import static org.mockito.BDDMockito.willThrow;
 
 @SpringBootTest
@@ -129,7 +129,7 @@ class OverTimeControllerTest {
         @DisplayName("신뢰할 수 있는 공휴일 데이터가 없으면 초과근무 계산을 중단한다")
         void calculateOverTime_holidayDataUnavailable() {
             given(overTimeService.calculateOverTime(YearMonth.of(2024, 8)))
-                    .willThrow(new HolidayDataUnavailableException("공휴일 데이터를 확인할 수 없어 초과근무를 계산할 수 없습니다: 2024-08"));
+                    .willThrow(new HolidayDataUnavailableException("공휴일 정보를 확인할 수 없어 초과근무 리포트를 생성할 수 없습니다. 잠시 후 다시 시도해 주세요."));
 
             assertThat(mockMvcTester
                     .get()
@@ -236,8 +236,8 @@ class OverTimeControllerTest {
         void downloadOverTimeReport_authorized() throws Exception {
             YearMonth yearMonth = YearMonth.of(2024, 8);
 
-            willDoNothing().given(overTimeReportService)
-                    .generateExcelReport(eq(yearMonth), any(OutputStream.class));
+            given(overTimeReportService.generateOverTimeReportData(yearMonth))
+                    .willReturn(List.of(new OverTimeReportData("임형준", "팀A", 300L, 75000L)));
 
             assertThat(mockMvcTester
                     .get()
@@ -281,12 +281,30 @@ class OverTimeControllerTest {
         }
 
         @Test
+        @DisplayName("공휴일 정보를 확인할 수 없으면 엑셀 다운로드를 중단한다")
+        void downloadOverTimeReport_holidayDataUnavailable() {
+            YearMonth yearMonth = YearMonth.of(2024, 8);
+            given(overTimeReportService.generateOverTimeReportData(yearMonth))
+                    .willThrow(new HolidayDataUnavailableException("공휴일 정보를 확인할 수 없어 초과근무 리포트를 생성할 수 없습니다. 잠시 후 다시 시도해 주세요."));
+
+            assertThat(mockMvcTester
+                    .get()
+                    .uri("/overtime/report/excel?yearMonth=2024-08")
+                    .session(managerSession()))
+                    .hasStatus(HttpStatus.SERVICE_UNAVAILABLE)
+                    .bodyJson()
+                    .extractingPath("$.code").isEqualTo("HOLIDAY_DATA_UNAVAILABLE");
+        }
+
+        @Test
         @DisplayName("엑셀 생성 중 IOException 발생 시 예외가 전파된다")
         void downloadOverTimeReport_ioException() throws Exception {
             YearMonth yearMonth = YearMonth.of(2024, 8);
 
+            given(overTimeReportService.generateOverTimeReportData(yearMonth))
+                    .willReturn(List.of(new OverTimeReportData("임형준", "팀A", 300L, 75000L)));
             willThrow(new RuntimeException("엑셀 생성 실패")).given(overTimeReportService)
-                    .generateExcelReport(eq(yearMonth), any(OutputStream.class));
+                    .writeExcelReport(eq(yearMonth), any(), any(OutputStream.class));
 
             assertThat(mockMvcTester
                     .get()

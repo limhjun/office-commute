@@ -3,6 +3,7 @@ package com.company.officecommute.controller.overtime;
 import com.company.officecommute.auth.ManagerOnly;
 import com.company.officecommute.dto.overtime.response.HolidayCacheStatusResponse;
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
+import com.company.officecommute.dto.overtime.response.OverTimeReportData;
 import com.company.officecommute.service.overtime.HolidayCacheStatusService;
 import com.company.officecommute.service.overtime.HolidaySyncService;
 import com.company.officecommute.service.overtime.OverTimeReportService;
@@ -63,8 +64,9 @@ public class OverTimeController {
     @ManagerOnly
     @GetMapping("/overtime/report/excel")
     public ResponseEntity<StreamingResponseBody> downloadOverTimeReport(@RequestParam YearMonth yearMonth) {
+        List<OverTimeReportData> reportData = overTimeReportService.generateOverTimeReportData(yearMonth);
         StreamingResponseBody body = outputStream ->
-                overTimeReportService.generateExcelReport(yearMonth, outputStream);
+                overTimeReportService.writeExcelReport(yearMonth, reportData, outputStream);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));

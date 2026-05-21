@@ -2,7 +2,6 @@ package com.company.officecommute.service.overtime;
 
 import com.company.officecommute.domain.overtime.HolidaySyncStatus;
 import com.company.officecommute.dto.overtime.response.HolidayCacheStatusResponse;
-import com.company.officecommute.global.exception.HolidayDataUnavailableException;
 import com.company.officecommute.repository.overtime.HolidayRepository;
 import com.company.officecommute.repository.overtime.HolidaySyncStatusRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -21,8 +20,6 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.BDDMockito.given;
 
 @ExtendWith(MockitoExtension.class)
@@ -101,19 +98,6 @@ class HolidayCacheStatusServiceTest {
 
         assertThat(status.cacheUsable()).isFalse();
         assertThat(status.status()).isEqualTo("STALE_CACHE");
-    }
-
-    @Test
-    @DisplayName("사용할 수 없는 캐시를 계산에 쓰려고 하면 예외를 던진다")
-    void getUsableCachedHolidaysOrThrow_unavailable() {
-        given(holidayRepository.findHolidayDatesByYearAndMonth(anyInt(), anyInt()))
-                .willReturn(List.of());
-        given(holidaySyncStatusRepository.findByYearAndMonth(anyInt(), anyInt()))
-                .willReturn(Optional.empty());
-
-        assertThatThrownBy(() -> holidayCacheStatusService.getUsableCachedHolidaysOrThrow(YearMonth.of(2026, 4)))
-                .isInstanceOf(HolidayDataUnavailableException.class)
-                .hasMessageContaining("공휴일 캐시 정보를 찾을 수 없습니다");
     }
 
     private void mockCurrentTime(LocalDateTime now) {

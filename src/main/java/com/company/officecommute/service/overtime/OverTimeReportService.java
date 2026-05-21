@@ -27,10 +27,14 @@ public class OverTimeReportService {
 
     public void generateExcelReport(YearMonth yearMonth, OutputStream outputStream) throws IOException {
         List<OverTimeReportData> reportData = generateOverTimeReportData(yearMonth);
+        writeExcelReport(yearMonth, reportData, outputStream);
+    }
+
+    public void writeExcelReport(YearMonth yearMonth, List<OverTimeReportData> reportData, OutputStream outputStream) throws IOException {
         overTimeExcelWriter.write(yearMonth, reportData, outputStream);
     }
 
-    private List<OverTimeReportData> generateOverTimeReportData(YearMonth yearMonth) {
+    public List<OverTimeReportData> generateOverTimeReportData(YearMonth yearMonth) {
         List<OverTimeCalculateResponse> overTimeData = overTimeService.calculateOverTime(yearMonth);
 
         return overTimeData.stream()

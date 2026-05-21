@@ -6,7 +6,6 @@ import com.company.officecommute.domain.overtime.HolidaySyncStatus;
 import com.company.officecommute.global.exception.HolidayDataUnavailableException;
 import com.company.officecommute.repository.overtime.HolidayRepository;
 import com.company.officecommute.repository.overtime.HolidaySyncStatusRepository;
-import com.company.officecommute.service.overtime.HolidayCacheStatusService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -30,28 +29,27 @@ public class ApiConvertor {
 
     private static final Logger log = LoggerFactory.getLogger(ApiConvertor.class);
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
+    private static final String HOLIDAY_DATA_UNAVAILABLE_MESSAGE =
+            "공휴일 정보를 확인할 수 없어 초과근무 리포트를 생성할 수 없습니다. 잠시 후 다시 시도해 주세요.";
 
     private final RestTemplate restTemplate;
     private final ApiProperties apiProperties;
     private final HolidayRepository holidayRepository;
     private final HolidaySyncStatusRepository holidaySyncStatusRepository;
     private final Clock clock;
-    private final HolidayCacheStatusService holidayCacheStatusService;
 
     public ApiConvertor(
             RestTemplate restTemplate,
             ApiProperties apiProperties,
             HolidayRepository holidayRepository,
             HolidaySyncStatusRepository holidaySyncStatusRepository,
-            Clock clock,
-            HolidayCacheStatusService holidayCacheStatusService
+            Clock clock
     ) {
         this.restTemplate = restTemplate;
         this.apiProperties = apiProperties;
         this.holidayRepository = holidayRepository;
         this.holidaySyncStatusRepository = holidaySyncStatusRepository;
         this.clock = clock;
-        this.holidayCacheStatusService = holidayCacheStatusService;
     }
 
     @Transactional
@@ -90,14 +88,10 @@ public class ApiConvertor {
             log.info("공휴일 API 호출 성공: {}-{}", yearMonth.getYear(), yearMonth.getMonthValue());
             return holidays;
         } catch (Exception e) {
-            log.error("공휴일 API 호출 실패. DB 캐시 사용: {}-{}, 오류: {}",
-                    yearMonth.getYear(), yearMonth.getMonthValue(), e.getMessage());
-            return fetchCachedHolidaysOrThrow(yearMonth);
+            log.warn("공휴일 API 호출 실패. 리포트 생성을 중단합니다. yearMonth={}, error={}",
+                    yearMonth, e.getMessage(), e);
+            throw new HolidayDataUnavailableException(HOLIDAY_DATA_UNAVAILABLE_MESSAGE);
         }
-    }
-
-    private Set<LocalDate> fetchCachedHolidaysOrThrow(YearMonth yearMonth) {
-        return holidayCacheStatusService.getUsableCachedHolidaysOrThrow(yearMonth);
     }
 
     private void saveHolidaysToDatabase(YearMonth yearMonth, Set<LocalDate> holidays) {

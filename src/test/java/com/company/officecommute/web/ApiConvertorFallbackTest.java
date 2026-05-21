@@ -61,8 +61,8 @@ class ApiConvertorFallbackTest {
     }
 
     @Test
-    @DisplayName("API 호출 실패 시 DB 캐시 데이터로 계산한다")
-    void countStandardWorkingDays_usesDatabaseCache_whenApiFails() {
+    @DisplayName("API 호출 실패 시 DB 캐시가 있어도 계산을 중단한다")
+    void countStandardWorkingDays_throwsException_whenApiFailsEvenWithDatabaseCache() {
         mockCurrentTime(LocalDateTime.of(2026, 1, 5, 9, 0));
         YearMonth yearMonth = YearMonth.of(2025, 12);
 
@@ -75,15 +75,13 @@ class ApiConvertorFallbackTest {
         // API 호출 실패 시뮬레이션 (403 Forbidden)
         mockFailedApiResponse();
 
-        // 예외 없이 계산 성공 (DB 캐시 사용)
-        long workingDays = apiConvertor.countNumberOfStandardWorkingDays(yearMonth);
-
-        // 2025년 12월: 31일 - 8일(주말) - 2일(공휴일) = 21일
-        assertThat(workingDays).isEqualTo(21);
+        assertThatThrownBy(() -> apiConvertor.countNumberOfStandardWorkingDays(yearMonth))
+                .isInstanceOf(HolidayDataUnavailableException.class)
+                .hasMessageContaining("공휴일 정보를 확인할 수 없어 초과근무 리포트를 생성할 수 없습니다");
     }
 
     @Test
-    @DisplayName("API 호출 실패하고 DB에도 데이터가 없으면 계산을 중단한다")
+    @DisplayName("API 호출 실패 시 DB에 데이터가 없어도 동일한 안내 메시지로 계산을 중단한다")
     void countStandardWorkingDays_throwsException_whenApiFailsAndNoDatabaseData() {
         mockCurrentTime(LocalDateTime.of(2026, 1, 5, 9, 0));
         YearMonth yearMonth = YearMonth.of(2026, 1);
@@ -93,11 +91,11 @@ class ApiConvertorFallbackTest {
 
         assertThatThrownBy(() -> apiConvertor.countNumberOfStandardWorkingDays(yearMonth))
                 .isInstanceOf(HolidayDataUnavailableException.class)
-                .hasMessageContaining("공휴일 캐시 정보를 찾을 수 없습니다");
+                .hasMessageContaining("공휴일 정보를 확인할 수 없어 초과근무 리포트를 생성할 수 없습니다");
     }
 
     @Test
-    @DisplayName("API 호출 실패 시 캐시가 있어도 최신성이 검증되지 않으면 계산을 중단한다")
+    @DisplayName("API 호출 실패 시 오래된 캐시가 있어도 동일한 안내 메시지로 계산을 중단한다")
     void countStandardWorkingDays_throwsException_whenCacheIsStale() {
         mockCurrentTime(LocalDateTime.of(2026, 1, 5, 9, 0));
         YearMonth yearMonth = YearMonth.of(2025, 12);
@@ -112,7 +110,7 @@ class ApiConvertorFallbackTest {
 
         assertThatThrownBy(() -> apiConvertor.countNumberOfStandardWorkingDays(yearMonth))
                 .isInstanceOf(HolidayDataUnavailableException.class)
-                .hasMessageContaining("공휴일 캐시가 최신 상태가 아닙니다");
+                .hasMessageContaining("공휴일 정보를 확인할 수 없어 초과근무 리포트를 생성할 수 없습니다");
     }
 
     @Test

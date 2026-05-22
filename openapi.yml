@@ -319,36 +319,6 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResult' }
 
-  /overtime/holiday-status:
-    get:
-      tags: [OverTime]
-      summary: 공휴일 캐시 상태 조회 (Manager Only)
-      parameters:
-        - $ref: '#/components/parameters/YearMonthQuery'
-      responses:
-        '200':
-          description: 캐시 상태
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/HolidayCacheStatusResponse' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-
-  /overtime/holiday-sync:
-    post:
-      tags: [OverTime]
-      summary: 공휴일 캐시 강제 동기화 (Manager Only)
-      parameters:
-        - $ref: '#/components/parameters/YearMonthQuery'
-      responses:
-        '200':
-          description: 동기화 후 캐시 상태
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/HolidayCacheStatusResponse' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-
   /overtime/report/excel:
     get:
       tags: [OverTime]
@@ -365,6 +335,11 @@ paths:
               schema: { type: string, format: binary }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '503':
+          description: 공휴일 데이터 미가용 (HOLIDAY_DATA_UNAVAILABLE)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResult' }
 
 components:
   securitySchemes:
@@ -605,18 +580,3 @@ components:
         name: { type: string }
         teamName: { type: string, nullable: true }
         overTimeMinutes: { type: integer, format: int64 }
-    HolidayCacheStatusResponse:
-      type: object
-      required: [yearMonth, cachedHolidayCount, cacheUsable, status]
-      properties:
-        yearMonth: { type: string, example: "2024-08" }
-        cachedHolidayCount: { type: integer }
-        cacheUsable: { type: boolean }
-        status:
-          type: string
-          description: 캐시 상태 코드 (READY / EMPTY / STALE / SYNC_FAILED 등)
-        reason: { type: string, nullable: true }
-        lastSuccessfulSyncedAt:
-          type: string
-          format: date-time
-          nullable: true

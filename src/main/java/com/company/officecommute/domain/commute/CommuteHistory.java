@@ -149,6 +149,10 @@ public class CommuteHistory {
         return workStartTime.toLocalDate();
     }
 
+    public LocalDate getWorkDate() {
+        return workDate;
+    }
+
     public boolean endTimeIsNull() {
         return this.workEndTime == null;
     }

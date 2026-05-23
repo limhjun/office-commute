@@ -191,6 +191,64 @@ class CommuteHistoryServiceTest {
     }
 
     @Test
+    @DisplayName("registerWorkStartTime — race로 existsBy 직후 같은 날 open commute가 생겼다면 Duplicate로 던진다")
+    void registerWorkStartTime_translatesSameDayOpenCommuteRaceToDuplicate() {
+        // given — existsBy=false 통과 후 다른 thread가 막 commit한 상황을 시뮬레이션.
+        // fixed clock(2024-01-01 18:00 KST)과 같은 날짜로 open commute를 만든다.
+        ZoneId zone = ZoneId.of("Asia/Seoul");
+        CommuteHistory openTodayCommute = new CommuteHistory(
+                null,
+                1L,
+                ZonedDateTime.of(2024, 1, 1, 8, 0, 0, 0, zone),
+                null,
+                0,
+                zone
+        );
+        BDDMockito.given(employeeRepository.findById(1L))
+                .willReturn(Optional.of(employee));
+        BDDMockito.given(commuteHistoryRepository.existsByEmployeeIdAndWorkDate(eq(1L), any(LocalDate.class)))
+                .willReturn(false);
+        BDDMockito.given(commuteHistoryRepository
+                        .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(1L))
+                .willReturn(Optional.of(openTodayCommute));
+
+        // when / then
+        assertThatThrownBy(() -> commuteHistoryService.registerWorkStartTime(1L))
+                .isInstanceOf(DuplicateWorkOnDateException.class)
+                .hasMessageContaining("이미 출근 기록이 존재");
+
+        then(commuteHistoryRepository).should(never()).saveAndFlush(any(CommuteHistory.class));
+    }
+
+    @Test
+    @DisplayName("registerWorkStartTime — 다른 날 open commute가 있으면 PreviousCommuteNotEndedException")
+    void registerWorkStartTime_throwsPreviousCommuteNotEnded_whenOpenCommuteOnDifferentDate() {
+        // given — fixed clock(2024-01-01) 기준 어제 미완료 근무가 남아있는 상태
+        ZoneId zone = ZoneId.of("Asia/Seoul");
+        CommuteHistory openYesterdayCommute = new CommuteHistory(
+                null,
+                1L,
+                ZonedDateTime.of(2023, 12, 31, 9, 0, 0, 0, zone),
+                null,
+                0,
+                zone
+        );
+        BDDMockito.given(employeeRepository.findById(1L))
+                .willReturn(Optional.of(employee));
+        BDDMockito.given(commuteHistoryRepository.existsByEmployeeIdAndWorkDate(eq(1L), any(LocalDate.class)))
+                .willReturn(false);
+        BDDMockito.given(commuteHistoryRepository
+                        .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(1L))
+                .willReturn(Optional.of(openYesterdayCommute));
+
+        // when / then
+        assertThatThrownBy(() -> commuteHistoryService.registerWorkStartTime(1L))
+                .isInstanceOf(com.company.officecommute.domain.commute.PreviousCommuteNotEndedException.class);
+
+        then(commuteHistoryRepository).should(never()).saveAndFlush(any(CommuteHistory.class));
+    }
+
+    @Test
     @DisplayName("registerWorkStartTime — 중복이 아닌 DataIntegrityViolation은 Duplicate로 오분류하지 않는다")
     void registerWorkStartTime_doesNotTranslateNonDuplicateDataIntegrityViolation() {
         // given

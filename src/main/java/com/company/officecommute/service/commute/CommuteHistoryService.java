@@ -49,7 +49,7 @@ public class CommuteHistoryService {
         if (commuteHistoryRepository.existsByEmployeeIdAndWorkDate(employee.getEmployeeId(), workDate)) {
             throw new DuplicateWorkOnDateException(workDate);
         }
-        validatePreviousWorkCompleted(employee.getEmployeeId());
+        validateNoOpenCommute(employee.getEmployeeId(), workDate);
 
         CommuteHistory newWork = new CommuteHistory(null, employee.getEmployeeId(), now, null, 0, employeeZone);
         try {
@@ -98,10 +98,14 @@ public class CommuteHistoryService {
                 .orElseThrow(() -> new EmployeeNotFoundException(employeeId));
     }
 
-    private void validatePreviousWorkCompleted(Long employeeId) {
+    private void validateNoOpenCommute(Long employeeId, LocalDate currentWorkDate) {
         commuteHistoryRepository
                 .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(employeeId)
-                .ifPresent(commuteHistory -> {
+                .ifPresent(openCommute -> {
+                    // race net: existsBy 통과 후 다른 thread가 같은 날 commit한 경우, open commute의 workDate가 오늘과 일치한다.
+                    if (currentWorkDate.equals(openCommute.getWorkDate())) {
+                        throw new DuplicateWorkOnDateException(currentWorkDate);
+                    }
                     throw new PreviousCommuteNotEndedException();
                 });
     }

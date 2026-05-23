@@ -136,17 +136,13 @@ public class CommuteHistory {
 
     public Detail toDetail() {
         if (isAnnualLeaveDate()) {
-            return new Detail(this.workStartTimeToLocalDate(), ANNUAL_LEAVE_TIME, this.usingDayOff);
+            return new Detail(this.workDate, ANNUAL_LEAVE_TIME, this.usingDayOff);
         }
-        return new Detail(this.workStartTimeToLocalDate(), this.workingMinutes, this.usingDayOff);
+        return new Detail(this.workDate, this.workingMinutes, this.usingDayOff);
     }
 
     private boolean isAnnualLeaveDate() {
         return this.usingDayOff;
-    }
-
-    public LocalDate workStartTimeToLocalDate() {
-        return workStartTime.toLocalDate();
     }
 
     public LocalDate getWorkDate() {

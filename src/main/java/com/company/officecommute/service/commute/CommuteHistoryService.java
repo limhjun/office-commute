@@ -117,11 +117,9 @@ public class CommuteHistoryService {
     }
 
     private List<CommuteHistory> findCommuteHistoriesByEmployeeIdAndMonth(Long employeeId, YearMonth yearMonth) {
-        ZonedDateTime startOfMonth = yearMonth.atDay(1).atStartOfDay(ZonedDateTime.now().getZone());
-        ZonedDateTime endOfMonth = yearMonth.atEndOfMonth()
-                .atTime(23, 59, 59)
-                .atZone(ZonedDateTime.now().getZone());
-        return commuteHistoryRepository.findAllByEmployeeIdAndWorkStartTimeBetween(
-                employeeId, startOfMonth, endOfMonth);
+        LocalDate startDate = yearMonth.atDay(1);
+        LocalDate endDate = yearMonth.atEndOfMonth();
+        return commuteHistoryRepository.findAllByEmployeeIdAndWorkDateBetween(
+                employeeId, startDate, endDate);
     }
 }

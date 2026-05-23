@@ -31,11 +31,11 @@ class CommuteHistoryRepositoryTest {
 
     @Test
     @DisplayName("월별 근무 시간 조회 시 팀 미배정 직원은 '미배정'으로 반환된다")
-    void findWithEmployeeIdByDateRange_includesUnassignedTeamWithDefaultName() {
+    void findTotalWorkingMinutesByWorkDateBetween_includesUnassignedTeamWithDefaultName() {
         // given
         ZoneId zoneId = ZoneId.of("Asia/Seoul");
-        ZonedDateTime startOfMonth = ZonedDateTime.of(2024, 8, 1, 0, 0, 0, 0, zoneId);
-        ZonedDateTime endOfMonth = ZonedDateTime.of(2024, 8, 31, 23, 59, 59, 0, zoneId);
+        LocalDate startDate = LocalDate.of(2024, 8, 1);
+        LocalDate endDate = LocalDate.of(2024, 8, 31);
 
         Team backendTeam = teamRepository.save(new Team("백엔드팀"));
 
@@ -90,7 +90,7 @@ class CommuteHistoryRepositoryTest {
         commuteHistoryRepository.saveAll(List.of(assignedDay1, assignedDay2, unassignedDay));
 
         // when
-        List<TotalWorkingMinutes> result = commuteHistoryRepository.findWithEmployeeIdByDateRange(startOfMonth, endOfMonth);
+        List<TotalWorkingMinutes> result = commuteHistoryRepository.findTotalWorkingMinutesByWorkDateBetween(startDate, endDate);
 
         // then
         assertThat(result).hasSize(2);
@@ -108,6 +108,63 @@ class CommuteHistoryRepositoryTest {
                 assertThat(total.calculateOverTime(0)).isEqualTo(600);
             }
         });
+    }
+
+    @Test
+    @DisplayName("findAllByEmployeeIdAndWorkDateBetween — 1일과 말일은 포함, 전월 말일과 다음월 1일은 제외")
+    void findAllByEmployeeIdAndWorkDateBetween_respectsMonthBoundaries() {
+        // given
+        ZoneId zone = ZoneId.of("Asia/Seoul");
+        Long employeeId = 42L;
+        // 7/31(전월 말일), 8/1(당월 1일), 8/31(당월 말일), 9/1(다음월 1일)
+        commuteHistoryRepository.saveAll(List.of(
+                new CommuteHistory(null, employeeId,
+                        ZonedDateTime.of(2024, 7, 31, 9, 0, 0, 0, zone),
+                        ZonedDateTime.of(2024, 7, 31, 18, 0, 0, 0, zone), 540, zone),
+                new CommuteHistory(null, employeeId,
+                        ZonedDateTime.of(2024, 8, 1, 9, 0, 0, 0, zone),
+                        ZonedDateTime.of(2024, 8, 1, 18, 0, 0, 0, zone), 540, zone),
+                new CommuteHistory(null, employeeId,
+                        ZonedDateTime.of(2024, 8, 31, 9, 0, 0, 0, zone),
+                        ZonedDateTime.of(2024, 8, 31, 18, 0, 0, 0, zone), 540, zone),
+                new CommuteHistory(null, employeeId,
+                        ZonedDateTime.of(2024, 9, 1, 9, 0, 0, 0, zone),
+                        ZonedDateTime.of(2024, 9, 1, 18, 0, 0, 0, zone), 540, zone)
+        ));
+
+        // when
+        List<CommuteHistory> august = commuteHistoryRepository.findAllByEmployeeIdAndWorkDateBetween(
+                employeeId, LocalDate.of(2024, 8, 1), LocalDate.of(2024, 8, 31));
+
+        // then
+        assertThat(august)
+                .extracting(CommuteHistory::getWorkDate)
+                .containsExactlyInAnyOrder(LocalDate.of(2024, 8, 1), LocalDate.of(2024, 8, 31));
+    }
+
+    @Test
+    @DisplayName("findTotalWorkingMinutesByWorkDateBetween — 연차 레코드는 annualLeaveDate가 속한 월에 집계된다")
+    void findTotalWorkingMinutesByWorkDateBetween_aggregatesAnnualLeaveByWorkDate() {
+        // given — 연차만(8/1). 연차의 등록 시각(workStartTime=now)은 8월이 아니지만 work_date 기준으로 8월에 잡혀야 한다.
+        ZoneId zone = ZoneId.of("Asia/Seoul");
+        Team team = teamRepository.save(new Team("백엔드팀"));
+        Employee employee = new Employee(
+                null, team, "연차직원", Role.MEMBER,
+                LocalDate.of(1990, 1, 1), LocalDate.of(2020, 1, 1),
+                "EMP100", "leave@company.com", "password123"
+        );
+        employeeRepository.save(employee);
+        CommuteHistory annualLeave = new CommuteHistory(employee.getEmployeeId(), LocalDate.of(2024, 8, 1), zone);
+        commuteHistoryRepository.save(annualLeave);
+
+        // when
+        List<TotalWorkingMinutes> result = commuteHistoryRepository.findTotalWorkingMinutesByWorkDateBetween(
+                LocalDate.of(2024, 8, 1), LocalDate.of(2024, 8, 31));
+
+        // then — 연차가 8월 집계에 포함되어 직원이 결과에 나타난다(근무분은 0)
+        assertThat(result).hasSize(1);
+        assertThat(result.getFirst().getEmployeeId()).isEqualTo(employee.getEmployeeId());
+        assertThat(result.getFirst().calculateOverTime(0)).isEqualTo(0);
     }
 
     @Test

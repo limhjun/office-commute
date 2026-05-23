@@ -116,7 +116,7 @@ class CommuteHistoryServiceTest {
         ArgumentCaptor<CommuteHistory> captor = ArgumentCaptor.forClass(CommuteHistory.class);
         verify(commuteHistoryRepository).saveAndFlush(captor.capture());
         CommuteHistory saved = captor.getValue();
-        assertThat(saved.workStartTimeToLocalDate()).isEqualTo(LocalDate.of(2026, 1, 15));
+        assertThat(saved.getWorkDate()).isEqualTo(LocalDate.of(2026, 1, 15));
         assertThat(saved.getWorkZone()).isEqualTo("Asia/Seoul");
     }
 
@@ -143,7 +143,7 @@ class CommuteHistoryServiceTest {
         verify(commuteHistoryRepository).saveAndFlush(captor.capture());
         CommuteHistory saved = captor.getValue();
         // LA 시각으로는 2026-01-14
-        assertThat(saved.workStartTimeToLocalDate()).isEqualTo(LocalDate.of(2026, 1, 14));
+        assertThat(saved.getWorkDate()).isEqualTo(LocalDate.of(2026, 1, 14));
         assertThat(saved.getWorkZone()).isEqualTo("America/Los_Angeles");
     }
 

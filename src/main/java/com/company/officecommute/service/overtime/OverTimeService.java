@@ -6,8 +6,8 @@ import com.company.officecommute.repository.employee.EmployeeRepository;
 import com.company.officecommute.web.ApiConvertor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.YearMonth;
-import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -33,10 +33,10 @@ public class OverTimeService {
     }
 
     public List<OverTimeCalculateResponse> calculateOverTime(YearMonth yearMonth) {
-        ZonedDateTime startOfMonth = yearMonth.atDay(1).atStartOfDay(ZonedDateTime.now().getZone());
-        ZonedDateTime endOfMonth = yearMonth.atEndOfMonth().atTime(23, 59, 59).atZone(ZonedDateTime.now().getZone());
+        LocalDate startDate = yearMonth.atDay(1);
+        LocalDate endDate = yearMonth.atEndOfMonth();
 
-        List<TotalWorkingMinutes> totalWorkingMinutes = commuteHistoryRepository.findWithEmployeeIdByDateRange(startOfMonth, endOfMonth);
+        List<TotalWorkingMinutes> totalWorkingMinutes = commuteHistoryRepository.findTotalWorkingMinutesByWorkDateBetween(startDate, endDate);
         Map<Long, TotalWorkingMinutes> totalWorkingMinutesByEmployeeId = totalWorkingMinutes.stream()
                 .collect(Collectors.toMap(TotalWorkingMinutes::getEmployeeId, Function.identity(), (left, right) -> left));
 

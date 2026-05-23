@@ -2,6 +2,7 @@ package com.company.officecommute.domain.commute;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
@@ -84,6 +85,22 @@ public class CommuteHistoryTest {
         assertThat(detail.getDate()).isEqualTo(workStartTime.toLocalDate());
         assertThat(detail.getWorkingMinutes()).isEqualTo(10L * 60);
         assertThat(detail.isUsingDayOff()).isFalse();
+    }
+
+    @Test
+    void toDetail_usesWorkDateCalculatedByWorkZone() {
+        ZoneId utc = ZoneId.of("UTC");
+        ZoneId korea = ZoneId.of(KOREA);
+        ZonedDateTime workStartTime = ZonedDateTime.of(2024, 7, 31, 15, 30, 0, 0, utc);
+        ZonedDateTime workEndTime = ZonedDateTime.of(2024, 8, 1, 1, 0, 0, 0, korea);
+        CommuteHistory commuteHistory = new CommuteHistory(
+                1L, 1L, workStartTime, workEndTime, 570, korea);
+
+        Detail detail = commuteHistory.toDetail();
+
+        assertThat(commuteHistory.getWorkDate()).isEqualTo(LocalDate.of(2024, 8, 1));
+        assertThat(workStartTime.toLocalDate()).isEqualTo(LocalDate.of(2024, 7, 31));
+        assertThat(detail.getDate()).isEqualTo(LocalDate.of(2024, 8, 1));
     }
 
     @Test

@@ -16,7 +16,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
-import java.time.ZonedDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -48,7 +47,7 @@ class OverTimeServiceTest {
         Employee recordedEmployee = employee(1L, "임형준", backend, "EMP001", "hyungjun@company.com");
         Employee noHistoryEmployee = employee(2L, "김개발", backend, "EMP002", "dev@company.com");
         given(employeeRepository.findAllWithTeam()).willReturn(List.of(recordedEmployee, noHistoryEmployee));
-        given(commuteHistoryRepository.findWithEmployeeIdByDateRange(any(ZonedDateTime.class), any(ZonedDateTime.class)))
+        given(commuteHistoryRepository.findTotalWorkingMinutesByWorkDateBetween(any(LocalDate.class), any(LocalDate.class)))
                 .willReturn(List.of(new TotalWorkingMinutes(1L, "임형준", "백엔드팀", 9_700L)));
         givenStandardWorkingMinutes(9_600L);
 
@@ -73,7 +72,7 @@ class OverTimeServiceTest {
         Team backend = new Team(1L, "백엔드팀", "팀장");
         Employee employee = employee(1L, "임형준", backend, "EMP001", "hyungjun@company.com");
         given(employeeRepository.findAllWithTeam()).willReturn(List.of(employee));
-        given(commuteHistoryRepository.findWithEmployeeIdByDateRange(any(ZonedDateTime.class), any(ZonedDateTime.class)))
+        given(commuteHistoryRepository.findTotalWorkingMinutesByWorkDateBetween(any(LocalDate.class), any(LocalDate.class)))
                 .willReturn(List.of(new TotalWorkingMinutes(1L, "임형준", "백엔드팀", 10_000L)));
         givenStandardWorkingMinutes(9_600L);
 
@@ -88,7 +87,7 @@ class OverTimeServiceTest {
     void calculateOverTime_usesUnassignedTeamNameForEmployeeWithoutTeam() {
         Employee employee = employee(1L, "임형준", null, "EMP001", "hyungjun@company.com");
         given(employeeRepository.findAllWithTeam()).willReturn(List.of(employee));
-        given(commuteHistoryRepository.findWithEmployeeIdByDateRange(any(ZonedDateTime.class), any(ZonedDateTime.class)))
+        given(commuteHistoryRepository.findTotalWorkingMinutesByWorkDateBetween(any(LocalDate.class), any(LocalDate.class)))
                 .willReturn(List.of());
         givenStandardWorkingMinutes(9_600L);
 

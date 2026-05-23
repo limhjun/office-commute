@@ -16,7 +16,7 @@ import java.util.Objects;
 
 @Entity
 @Table(uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"employee_id", "work_date"})
+        @UniqueConstraint(name = "uk_commute_history_employee_date", columnNames = {"employee_id", "work_date"})
 })
 public class CommuteHistory {
     private static final ZoneId DEFAULT_ZONE = ZoneId.of("Asia/Seoul");

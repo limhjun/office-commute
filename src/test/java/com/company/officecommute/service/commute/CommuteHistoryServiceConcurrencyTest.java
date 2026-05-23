@@ -102,9 +102,15 @@ public class CommuteHistoryServiceConcurrencyTest {
         assertThat(histories).hasSize(1);
         assertThat(successCount.get()).isEqualTo(1);
         assertThat(failCount.get()).isEqualTo(threadCount - 1);
+        // READ_COMMITTED race: thread가 existsBy=false로 통과한 직후 다른 thread가 commit하면,
+        // 이 thread는 validatePreviousWorkCompleted에서 open commute를 발견해 PreviousCommuteNotEnded로 떨어진다.
+        // 두 경우 모두 의미상 409이며, 원시 DataIntegrityViolationException 누출이 없는지가 핵심 회귀 가드.
         assertThat(failures)
                 .hasSize(threadCount - 1)
-                .allSatisfy(failure -> assertThat(failure).isInstanceOf(DuplicateWorkOnDateException.class));
+                .allSatisfy(failure -> assertThat(failure).isInstanceOfAny(
+                        DuplicateWorkOnDateException.class,
+                        PreviousCommuteNotEndedException.class
+                ));
     }
 
     @Test

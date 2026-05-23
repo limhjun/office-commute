@@ -6,13 +6,18 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.YearMonth;
 import java.util.List;
 
 @Service
 public class OverTimeReportService {
 
-    private static final long HOURLY_OVERTIME_PAY = 15000; // 시간당 초과근무 수당 (임시)
+    // TODO: 통상시급은 본래 직원별 속성. 현재 전 직원 동일값으로 단순화.
+    // (가산 전 값. 연장근로 가산 1.5×는 OVERTIME_MULTIPLIER 로 별도 적용)
+    private static final long HOURLY_ORDINARY_WAGE = 15000;
+    private static final BigDecimal OVERTIME_MULTIPLIER = new BigDecimal("1.5"); // 근로기준법 연장근로 가산
 
     private final OverTimeService overTimeService;
     private final OverTimeExcelWriter overTimeExcelWriter;
@@ -43,8 +48,11 @@ public class OverTimeReportService {
     }
 
     private OverTimeReportData convertToReportData(OverTimeCalculateResponse response) {
-        long overTimeHours = response.overTimeMinutes() / 60;
-        long overTimePay = overTimeHours * HOURLY_OVERTIME_PAY;
+        long overTimePay = BigDecimal.valueOf(response.overTimeMinutes())
+                .multiply(BigDecimal.valueOf(HOURLY_ORDINARY_WAGE))
+                .multiply(OVERTIME_MULTIPLIER)
+                .divide(BigDecimal.valueOf(60), 0, RoundingMode.HALF_UP)
+                .longValueExact();
 
         return new OverTimeReportData(
                 response.name(),

@@ -1,6 +1,7 @@
 package com.company.officecommute.service.commute;
 
 import com.company.officecommute.domain.commute.CommuteHistory;
+import com.company.officecommute.domain.commute.DuplicateWorkOnDateException;
 import com.company.officecommute.domain.commute.PreviousCommuteNotEndedException;
 import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.domain.employee.Role;
@@ -14,11 +15,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.dao.DataIntegrityViolationException;
 
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -78,13 +80,15 @@ public class CommuteHistoryServiceConcurrencyTest {
 
         AtomicInteger successCount = new AtomicInteger(0);
         AtomicInteger failCount = new AtomicInteger(0);
+        Queue<Throwable> failures = new ConcurrentLinkedQueue<>();
 
         for (int i = 0; i < threadCount; i++) {
             executor.execute(() -> {
                 try {
                     commuteHistoryService.registerWorkStartTime(employeeId);
                     successCount.incrementAndGet();
-                } catch (Exception ignored) {
+                } catch (Exception e) {
+                    failures.add(e);
                     failCount.incrementAndGet();
                 } finally {
                     latch.countDown();
@@ -98,12 +102,35 @@ public class CommuteHistoryServiceConcurrencyTest {
         assertThat(histories).hasSize(1);
         assertThat(successCount.get()).isEqualTo(1);
         assertThat(failCount.get()).isEqualTo(threadCount - 1);
+        assertThat(failures)
+                .hasSize(threadCount - 1)
+                .allSatisfy(failure -> assertThat(failure).isInstanceOf(DuplicateWorkOnDateException.class));
     }
 
     @Test
-    @DisplayName("이전 출근 미완료시 비즈니스 검증 실패")
-    void testBusinessValidationFailure() {
+    @DisplayName("같은 날 미완료 근무 중 재출근시 DuplicateWorkOnDateException (광클 방어)")
+    void sameDayDoubleStartWhilePreviousOpenThrowsDuplicateWorkOnDate() {
         commuteHistoryService.registerWorkStartTime(testEmployeeId);
+
+        assertThatThrownBy(() -> commuteHistoryService.registerWorkStartTime(testEmployeeId))
+                .isInstanceOf(DuplicateWorkOnDateException.class)
+                .hasMessageContaining("이미 출근 기록이 존재");
+    }
+
+    @Test
+    @DisplayName("어제 미완료 근무 + 오늘 첫 출근시 PreviousCommuteNotEndedException")
+    void crossDayPreviousOpenStillTriggersPreviousCommuteNotEnded() {
+        ZonedDateTime yesterdayStart = ZonedDateTime.now()
+                .minusDays(1)
+                .withHour(9).withMinute(0).withSecond(0).withNano(0);
+        commuteHistoryRepository.save(new CommuteHistory(
+                null,
+                testEmployeeId,
+                yesterdayStart,
+                null,
+                0,
+                yesterdayStart.getZone()
+        ));
 
         assertThatThrownBy(() -> commuteHistoryService.registerWorkStartTime(testEmployeeId))
                 .isInstanceOf(PreviousCommuteNotEndedException.class)
@@ -135,12 +162,13 @@ public class CommuteHistoryServiceConcurrencyTest {
     }
 
     @Test
-    @DisplayName("퇴근 후 같은 날 재출근시 DB 제약조건 위반")
-    void testDatabaseConstraintViolation() {
+    @DisplayName("퇴근 후 같은 날 재출근시 DuplicateWorkOnDateException")
+    void sameDaySecondStartThrowsDuplicateWorkOnDate() {
         commuteHistoryService.registerWorkStartTime(testEmployeeId);
         commuteHistoryService.registerWorkEndTime(testEmployeeId);
 
         assertThatThrownBy(() -> commuteHistoryService.registerWorkStartTime(testEmployeeId))
-                .isInstanceOf(DataIntegrityViolationException.class);
+                .isInstanceOf(DuplicateWorkOnDateException.class)
+                .hasMessageContaining("이미 출근 기록이 존재");
     }
 }

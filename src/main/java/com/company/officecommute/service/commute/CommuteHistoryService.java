@@ -66,8 +66,9 @@ public class CommuteHistoryService {
         Throwable current = e;
         while (current != null) {
             if (current instanceof ConstraintViolationException constraintViolationException) {
-                return UK_COMMUTE_HISTORY_EMPLOYEE_DATE.equalsIgnoreCase(
-                        constraintViolationException.getConstraintName());
+                String constraintName = constraintViolationException.getConstraintName();
+                return constraintName != null
+                        && constraintName.toLowerCase().contains(UK_COMMUTE_HISTORY_EMPLOYEE_DATE);
             }
             current = current.getCause();
         }

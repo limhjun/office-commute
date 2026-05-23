@@ -2,16 +2,20 @@ package com.company.officecommute.service.commute;
 
 import com.company.officecommute.domain.commute.CommuteHistory;
 import com.company.officecommute.domain.commute.CommuteNotStartedException;
+import com.company.officecommute.domain.commute.DuplicateWorkOnDateException;
 import com.company.officecommute.domain.commute.PreviousCommuteNotEndedException;
 import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.domain.employee.EmployeeNotFoundException;
 import com.company.officecommute.dto.commute.response.WorkDurationPerDateResponse;
 import com.company.officecommute.repository.commute.CommuteHistoryRepository;
 import com.company.officecommute.repository.employee.EmployeeRepository;
+import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -19,6 +23,8 @@ import java.util.List;
 
 @Service
 public class CommuteHistoryService {
+
+    private static final String UK_COMMUTE_HISTORY_EMPLOYEE_DATE = "uk_commute_history_employee_date";
 
     private final CommuteHistoryRepository commuteHistoryRepository;
     private final EmployeeRepository employeeRepository;
@@ -37,11 +43,35 @@ public class CommuteHistoryService {
     @Transactional
     public void registerWorkStartTime(Long employeeId) {
         Employee employee = getEmployee(employeeId);
-        validatePreviousWorkCompleted(employee.getEmployeeId());
         ZoneId employeeZone = employee.getZoneId();
         ZonedDateTime now = ZonedDateTime.now(clock.withZone(employeeZone));
+        LocalDate workDate = now.toLocalDate();
+        if (commuteHistoryRepository.existsByEmployeeIdAndWorkDate(employee.getEmployeeId(), workDate)) {
+            throw new DuplicateWorkOnDateException(workDate);
+        }
+        validatePreviousWorkCompleted(employee.getEmployeeId());
+
         CommuteHistory newWork = new CommuteHistory(null, employee.getEmployeeId(), now, null, 0, employeeZone);
-        commuteHistoryRepository.save(newWork);
+        try {
+            commuteHistoryRepository.saveAndFlush(newWork);
+        } catch (DataIntegrityViolationException e) {
+            if (isDuplicateWorkConstraint(e)) {
+                throw new DuplicateWorkOnDateException(workDate, e);
+            }
+            throw e;
+        }
+    }
+
+    private boolean isDuplicateWorkConstraint(Throwable e) {
+        Throwable current = e;
+        while (current != null) {
+            if (current instanceof ConstraintViolationException constraintViolationException) {
+                return UK_COMMUTE_HISTORY_EMPLOYEE_DATE.equalsIgnoreCase(
+                        constraintViolationException.getConstraintName());
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     @Transactional

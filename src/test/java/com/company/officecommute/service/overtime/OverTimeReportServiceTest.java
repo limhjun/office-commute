@@ -56,13 +56,13 @@ class OverTimeReportServiceTest {
         assertThat(reportData1.employeeName()).isEqualTo("임형준");
         assertThat(reportData1.teamName()).isEqualTo("백엔드팀");
         assertThat(reportData1.overTimeMinutes()).isEqualTo(300L);
-        assertThat(reportData1.overTimePay()).isEqualTo(75000L); // 5시간(300L분) * 15000원
+        assertThat(reportData1.overTimePay()).isEqualTo(112500L); // 300분 × 15000원 × 1.5 / 60
 
         OverTimeReportData reportData2 = result.get(1);
         assertThat(reportData2.employeeName()).isEqualTo("김개발");
         assertThat(reportData2.teamName()).isEqualTo("프론트엔드팀");
         assertThat(reportData2.overTimeMinutes()).isEqualTo(120L);
-        assertThat(reportData2.overTimePay()).isEqualTo(30000L); // 2시간(120L분) * 15000원
+        assertThat(reportData2.overTimePay()).isEqualTo(45000L); // 120분 × 15000원 × 1.5 / 60
     }
 
     @Test
@@ -102,11 +102,30 @@ class OverTimeReportServiceTest {
     }
 
     @Test
-    @DisplayName("59분 초과근무는 0시간으로 계산되어 수당이 0원이다")
-    void generateExcelReport_lessThanOneHour() throws IOException {
+    @DisplayName("시간 단위 절삭 없이 분 단위로 비례 계산한다 (90분 = 33,750원)")
+    void generateExcelReport_minutesProRatedNotTruncatedToHours() throws IOException {
         YearMonth yearMonth = YearMonth.of(2024, 8);
         List<OverTimeCalculateResponse> mockOverTimeData = List.of(
-                new OverTimeCalculateResponse(1L, "임형준", "백엔드팀", 59L) // 59분
+                new OverTimeCalculateResponse(1L, "임형준", "백엔드팀", 90L) // 90분 (1.5시간)
+        );
+
+        BDDMockito.given(overTimeService.calculateOverTime(yearMonth))
+                .willReturn(mockOverTimeData);
+
+        overTimeReportService.generateExcelReport(yearMonth, OutputStream.nullOutputStream());
+
+        then(overTimeExcelWriter).should().write(eq(yearMonth), reportDataCaptor.capture(), any(OutputStream.class));
+        OverTimeReportData reportData = reportDataCaptor.getValue().getFirst();
+        assertThat(reportData.overTimeMinutes()).isEqualTo(90L);
+        assertThat(reportData.overTimePay()).isEqualTo(33750L); // 90분 × 15000원 × 1.5 / 60
+    }
+
+    @Test
+    @DisplayName("1시간 미만 초과근무도 분 단위로 비례 지급된다 (59분 = 22,125원)")
+    void generateExcelReport_subHourMinutesNotTruncated() throws IOException {
+        YearMonth yearMonth = YearMonth.of(2024, 8);
+        List<OverTimeCalculateResponse> mockOverTimeData = List.of(
+                new OverTimeCalculateResponse(1L, "임형준", "백엔드팀", 59L) // 59분 (1시간 미만)
         );
 
         BDDMockito.given(overTimeService.calculateOverTime(yearMonth))
@@ -117,6 +136,6 @@ class OverTimeReportServiceTest {
         then(overTimeExcelWriter).should().write(eq(yearMonth), reportDataCaptor.capture(), any(OutputStream.class));
         OverTimeReportData reportData = reportDataCaptor.getValue().getFirst();
         assertThat(reportData.overTimeMinutes()).isEqualTo(59L);
-        assertThat(reportData.overTimePay()).isEqualTo(0L);
+        assertThat(reportData.overTimePay()).isEqualTo(22125L); // 59분 × 15000원 × 1.5 / 60
     }
 }

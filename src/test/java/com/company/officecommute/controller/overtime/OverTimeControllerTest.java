@@ -1,12 +1,9 @@
 package com.company.officecommute.controller.overtime;
 
 import com.company.officecommute.domain.employee.Role;
-import com.company.officecommute.dto.overtime.response.HolidayCacheStatusResponse;
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
 import com.company.officecommute.dto.overtime.response.OverTimeReportData;
 import com.company.officecommute.global.exception.HolidayDataUnavailableException;
-import com.company.officecommute.service.overtime.HolidayCacheStatusService;
-import com.company.officecommute.service.overtime.HolidaySyncService;
 import com.company.officecommute.service.overtime.OverTimeReportService;
 import com.company.officecommute.service.overtime.OverTimeService;
 import org.junit.jupiter.api.DisplayName;
@@ -46,12 +43,6 @@ class OverTimeControllerTest {
 
     @MockitoBean
     private OverTimeReportService overTimeReportService;
-
-    @MockitoBean
-    private HolidayCacheStatusService holidayCacheStatusService;
-
-    @MockitoBean
-    private HolidaySyncService holidaySyncService;
 
     @Nested
     @DisplayName("초과근무 조회 API 테스트")
@@ -138,82 +129,6 @@ class OverTimeControllerTest {
                     .hasStatus(HttpStatus.SERVICE_UNAVAILABLE)
                     .bodyJson()
                     .extractingPath("$.code").isEqualTo("HOLIDAY_DATA_UNAVAILABLE");
-        }
-    }
-
-    @Nested
-    @DisplayName("공휴일 캐시 상태 조회 API 테스트")
-    class HolidayStatusTests {
-
-        @Test
-        @DisplayName("MANAGER 권한이 있으면 공휴일 캐시 상태를 조회할 수 있다")
-        void getHolidayStatus_authorized() {
-            YearMonth yearMonth = YearMonth.of(2026, 3);
-            given(holidayCacheStatusService.getStatus(yearMonth))
-                    .willReturn(new HolidayCacheStatusResponse(
-                            "2026-03",
-                            2,
-                            false,
-                            "STALE_CACHE",
-                            "공휴일 캐시가 최신 상태가 아닙니다: 2026-03",
-                            java.time.LocalDateTime.of(2026, 3, 20, 9, 0)
-                    ));
-
-            assertThat(mockMvcTester
-                    .get()
-                    .uri("/overtime/holiday-status?yearMonth=2026-03")
-                    .session(managerSession()))
-                    .hasStatus(HttpStatus.OK)
-                    .bodyJson()
-                    .extractingPath("$.status").isEqualTo("STALE_CACHE");
-        }
-
-        @Test
-        @DisplayName("MANAGER 권한이 없으면 공휴일 캐시 상태 조회를 거부한다")
-        void getHolidayStatus_unauthorized() {
-            assertThat(mockMvcTester
-                    .get()
-                    .uri("/overtime/holiday-status?yearMonth=2026-03")
-                    .session(memberSession()))
-                    .hasStatus(HttpStatus.FORBIDDEN);
-        }
-    }
-
-    @Nested
-    @DisplayName("공휴일 재동기화 API 테스트")
-    class HolidaySyncTests {
-
-        @Test
-        @DisplayName("MANAGER 권한이 있으면 특정 월 공휴일을 재동기화할 수 있다")
-        void syncHoliday_authorized() {
-            YearMonth yearMonth = YearMonth.of(2026, 3);
-            given(holidaySyncService.refreshAndGetStatus(yearMonth))
-                    .willReturn(new HolidayCacheStatusResponse(
-                            "2026-03",
-                            2,
-                            true,
-                            "READY",
-                            "초과근무 계산에 사용할 수 있는 공휴일 캐시입니다.",
-                            java.time.LocalDateTime.of(2026, 4, 4, 9, 0)
-                    ));
-
-            assertThat(mockMvcTester
-                    .post()
-                    .uri("/overtime/holiday-sync?yearMonth=2026-03")
-                    .session(managerSession()))
-                    .hasStatus(HttpStatus.OK)
-                    .bodyJson()
-                    .extractingPath("$.status").isEqualTo("READY");
-        }
-
-        @Test
-        @DisplayName("MANAGER 권한이 없으면 공휴일 재동기화를 거부한다")
-        void syncHoliday_unauthorized() {
-            assertThat(mockMvcTester
-                    .post()
-                    .uri("/overtime/holiday-sync?yearMonth=2026-03")
-                    .session(memberSession()))
-                    .hasStatus(HttpStatus.FORBIDDEN);
         }
     }
 

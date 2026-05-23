@@ -5,6 +5,7 @@ import com.company.officecommute.service.overtime.TotalWorkingMinutes;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -16,6 +17,8 @@ public interface CommuteHistoryRepository extends JpaRepository<CommuteHistory, 
     Optional<CommuteHistory> findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(
             Long employeeId
     );
+
+    boolean existsByEmployeeIdAndWorkDate(Long employeeId, LocalDate workDate);
 
     List<CommuteHistory> findAllByEmployeeIdAndWorkStartTimeBetween(Long id, ZonedDateTime startOfMonth, ZonedDateTime endOfMonth);
 

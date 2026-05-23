@@ -8,6 +8,7 @@ import com.company.officecommute.domain.annual_leave.AnnualLeavePastDateExceptio
 import com.company.officecommute.domain.annual_leave.EmployeeWithoutTeamException;
 import com.company.officecommute.domain.commute.CommuteAlreadyEndedException;
 import com.company.officecommute.domain.commute.CommuteNotStartedException;
+import com.company.officecommute.domain.commute.DuplicateWorkOnDateException;
 import com.company.officecommute.domain.commute.InvalidCommuteRangeException;
 import com.company.officecommute.domain.commute.PreviousCommuteNotEndedException;
 import com.company.officecommute.domain.employee.EmployeeAlreadyExistsException;
@@ -27,7 +28,6 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.List;
-import java.util.Objects;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -174,17 +174,19 @@ public class GlobalExceptionHandler {
         return new ErrorResult("HOLIDAY_DATA_UNAVAILABLE", e.getMessage());
     }
 
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    @ExceptionHandler(DuplicateWorkOnDateException.class)
+    public ErrorResult handleDuplicateWorkOnDate(DuplicateWorkOnDateException e) {
+        log.warn("Duplicate work on date: {}", e.getMessage());
+        return new ErrorResult("DUPLICATE_WORK", e.getMessage());
+    }
+
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ErrorResult handleDataIntegrity(DataIntegrityViolationException e) {
-        log.warn("Data constraint violation: {}", e.getMessage());
-
-        // Unique Constraint 위반 메시지 확인
-        String message = Objects.requireNonNull(e.getRootCause()).getMessage().toLowerCase();
-        if (message.contains("employee_id") && message.contains("work_date")) {
-            return new ErrorResult("DUPLICATE_WORK", "이미 오늘 출근 등록을 했습니다");
-        }
-
+        Throwable rootCause = e.getRootCause();
+        String detail = (rootCause != null) ? rootCause.getMessage() : e.getMessage();
+        log.error("Unhandled data constraint violation — likely missing domain pre-check: {}", detail, e);
         return new ErrorResult("DATA_INTEGRITY_ERROR", "데이터 제약조건을 위반했습니다");
     }
 

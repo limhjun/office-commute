@@ -1,11 +1,8 @@
 package com.company.officecommute.controller.overtime;
 
 import com.company.officecommute.auth.ManagerOnly;
-import com.company.officecommute.dto.overtime.response.HolidayCacheStatusResponse;
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
 import com.company.officecommute.dto.overtime.response.OverTimeReportData;
-import com.company.officecommute.service.overtime.HolidayCacheStatusService;
-import com.company.officecommute.service.overtime.HolidaySyncService;
 import com.company.officecommute.service.overtime.OverTimeReportService;
 import com.company.officecommute.service.overtime.OverTimeService;
 import org.springframework.http.ContentDisposition;
@@ -13,7 +10,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
@@ -28,37 +24,19 @@ public class OverTimeController {
 
     private final OverTimeService overTimeService;
     private final OverTimeReportService overTimeReportService;
-    private final HolidayCacheStatusService holidayCacheStatusService;
-    private final HolidaySyncService holidaySyncService;
 
     public OverTimeController(
             OverTimeService overTimeService,
-            OverTimeReportService overTimeReportService,
-            HolidayCacheStatusService holidayCacheStatusService,
-            HolidaySyncService holidaySyncService
+            OverTimeReportService overTimeReportService
     ) {
         this.overTimeService = overTimeService;
         this.overTimeReportService = overTimeReportService;
-        this.holidayCacheStatusService = holidayCacheStatusService;
-        this.holidaySyncService = holidaySyncService;
     }
 
     @ManagerOnly
     @GetMapping("/overtime")
     public List<OverTimeCalculateResponse> calculateOverTime(@RequestParam YearMonth yearMonth) {
         return overTimeService.calculateOverTime(yearMonth);
-    }
-
-    @ManagerOnly
-    @GetMapping("/overtime/holiday-status")
-    public HolidayCacheStatusResponse getHolidayStatus(@RequestParam YearMonth yearMonth) {
-        return holidayCacheStatusService.getStatus(yearMonth);
-    }
-
-    @ManagerOnly
-    @PostMapping("/overtime/holiday-sync")
-    public HolidayCacheStatusResponse syncHoliday(@RequestParam YearMonth yearMonth) {
-        return holidaySyncService.refreshAndGetStatus(yearMonth);
     }
 
     @ManagerOnly

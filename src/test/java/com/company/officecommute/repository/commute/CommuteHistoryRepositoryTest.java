@@ -109,4 +109,34 @@ class CommuteHistoryRepositoryTest {
             }
         });
     }
+
+    @Test
+    @DisplayName("existsByEmployeeIdAndWorkDate — 동일 일자 기록이 있으면 true")
+    void existsByEmployeeIdAndWorkDate_returnsTrue_whenRecordExists() {
+        // given
+        Long employeeId = 1L;
+        ZonedDateTime start = ZonedDateTime.of(2026, 5, 23, 9, 0, 0, 0, ZoneId.of("Asia/Seoul"));
+        commuteHistoryRepository.save(new CommuteHistory(null, employeeId, start, null, 0, ZoneId.of("Asia/Seoul")));
+
+        // when
+        boolean exists = commuteHistoryRepository.existsByEmployeeIdAndWorkDate(employeeId, LocalDate.of(2026, 5, 23));
+
+        // then
+        assertThat(exists).isTrue();
+    }
+
+    @Test
+    @DisplayName("existsByEmployeeIdAndWorkDate — 다른 일자만 있으면 false")
+    void existsByEmployeeIdAndWorkDate_returnsFalse_whenNoRecordOnThatDate() {
+        // given
+        Long employeeId = 1L;
+        ZonedDateTime start = ZonedDateTime.of(2026, 5, 22, 9, 0, 0, 0, ZoneId.of("Asia/Seoul"));
+        commuteHistoryRepository.save(new CommuteHistory(null, employeeId, start, null, 0, ZoneId.of("Asia/Seoul")));
+
+        // when
+        boolean exists = commuteHistoryRepository.existsByEmployeeIdAndWorkDate(employeeId, LocalDate.of(2026, 5, 23));
+
+        // then
+        assertThat(exists).isFalse();
+    }
 }

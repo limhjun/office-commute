@@ -81,8 +81,8 @@ class AnnualLeaveServiceTest {
                 .willReturn(savedLeaves);
         BDDMockito.given(commuteHistoryRepository.saveAll(any()))
                 .willReturn(List.of(
-                        new CommuteHistory(employeeId),
-                        new CommuteHistory(employeeId)
+                        new CommuteHistory(employeeId, wantedDates.get(0)),
+                        new CommuteHistory(employeeId, wantedDates.get(1))
                 ));
 
         List<AnnualLeaveEnrollmentResponse> responses = annualLeaveService.enrollAnnualLeave(employeeId, wantedDates);

@@ -48,11 +48,6 @@ public class CommuteHistory {
     protected CommuteHistory() {
     }
 
-    // 연차일 때, 근무 이력을 나타내는 생성자
-    public CommuteHistory(Long employeeId) {
-        this(null, employeeId, ZonedDateTime.now(), ZonedDateTime.now(), ANNUAL_LEAVE_TIME, IS_ANNUAL_LEAVE, DEFAULT_ZONE);
-    }
-
     public CommuteHistory(
             Long commuteHistoryId,
             Long employeeId,

@@ -52,7 +52,7 @@ public class AnnualLeaveService {
         commuteHistoryRepository.saveAll(commuteHistories);
 
         log.info("연차 신청 완료 - employeeId: {}, 신청한 연차 수: {}", employeeId, savedLeaves.size());
-        return new AnnualLeaves(savedLeaves).toAnnualLeaveEnrollmentResponse();
+        return AnnualLeaveEnrollmentResponse.listFrom(savedLeaves);
     }
 
     @Transactional(readOnly = true)

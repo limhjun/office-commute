@@ -8,6 +8,10 @@ get_date() {
     python3 -c "from datetime import date, timedelta; print(date.today() + timedelta(days=${offset}))"
 }
 
+get_year_month() {
+    python3 -c "from datetime import date; print(date.today().strftime('%Y-%m'))"
+}
+
 # ▒▒▒ 실패 추적 및 테스트 래퍼 ▒▒▒
 errors=()
 passed_count=0
@@ -33,7 +37,15 @@ do_test_step() {
 
 # ▒▒▒ 날짜 변수 설정 ▒▒▒
 today=$(get_date "0")
-year_month=$(date +%Y-%m) # 이 형식은 macOS와 Linux에서 동일하게 작동합니다.
+year_month=$(get_year_month)
+run_id=$(python3 -c "import uuid; print(uuid.uuid4().hex[:8].upper())")
+team_name="백엔드-$run_id"
+employee_code_1="A$run_id"
+employee_code_2="B$run_id"
+employee_code_3="C$run_id"
+employee_email_1="api-test+$run_id-1@company.com"
+employee_email_2="api-test+$run_id-2@company.com"
+employee_email_3="api-test+$run_id-3@company.com"
 
 # 미래 연차 날짜 (today 기준 +5일, +6일, +7일)
 future_date1=$(get_date "+5")
@@ -41,15 +53,20 @@ future_date2=$(get_date "+6")
 future_date3=$(get_date "+7")
 
 echo "✅ Today's Date: $today"
+echo "✅ Test Run ID: $run_id"
 echo "✅ Future leave dates: $future_date1, $future_date2, $future_date3"
-echo "✅ Past leave dates: $past_date1, $past_date2"
 echo "✅ Current Year-Month: $year_month"
 echo
 
 # ▒▒▒ 서버 및 세션 정보 ▒▒▒
-base_url="http://localhost:8080"
+base_url="${BASE_URL:-http://localhost:8080}"
+run_overtime_tests="${RUN_OVERTIME_TESTS:-true}"
 # 세션을 유지하기 위한 httpie의 세션 파일 이름
-SESSION="api-test-session"
+SESSION="api-test-session-$run_id"
+
+echo "✅ Base URL: $base_url"
+echo "✅ Run overtime tests: $run_overtime_tests"
+echo
 
 # 모든 http 호출에 공통 플래그를 강제하기 위해 셸 함수로 감싼다.
 #   --ignore-stdin : 비대화형 셸(CI, 파이프)에서 httpie가 stdin을 본문으로 오인해 죽는 것을 방지
@@ -79,6 +96,7 @@ create_team() {
   response=$(http --print=b --session="$SESSION" POST "$base_url/team" teamName="$team_name") || return 1
   echo "$response"
   LAST_TEAM_ID=$(echo "$response" | jq -r '.teamId')
+  [ "$LAST_TEAM_ID" != "null" ] && [ -n "$LAST_TEAM_ID" ]
 }
 
 create_employee() {
@@ -100,12 +118,33 @@ create_employee() {
     password="$password") || return 1
   echo "$response"
   LAST_EMPLOYEE_ID=$(echo "$response" | jq -r '.employeeId')
+  [ "$LAST_EMPLOYEE_ID" != "null" ] && [ -n "$LAST_EMPLOYEE_ID" ]
 }
 
 assign_employee_to_team() {
   employee_id=$1
   team_id=$2
   http -v --session="$SESSION" PUT "$base_url/employee/$employee_id/team" teamId:="$team_id"
+}
+
+get_teams() {
+  local response
+  response=$(http --print=b --session="$SESSION" GET "$base_url/team") || return 1
+  echo "$response"
+  echo "$response" | jq -e --argjson teamId "$backend_team_id" --arg teamName "$team_name" \
+    'any(.[]; .teamId == $teamId and .name == $teamName)' > /dev/null
+}
+
+get_employees() {
+  local response
+  response=$(http --print=b --session="$SESSION" GET "$base_url/employee") || return 1
+  echo "$response"
+  echo "$response" | jq -e \
+    --argjson employeeId1 "$hyungjun_employee_id" \
+    --argjson employeeId2 "$gosling_employee_id" \
+    --argjson teamId "$backend_team_id" \
+    'any(.[]; .employeeId == $employeeId1 and .teamId == $teamId)
+     and any(.[]; .employeeId == $employeeId2 and .teamId == $teamId)' > /dev/null
 }
 
 login_employee() {
@@ -139,24 +178,53 @@ get_work_duration_per_date() {
   http -v --session="$SESSION" GET "$base_url/commute?yearMonth=$year_month"
 }
 
+get_overtime() {
+  year_month=$1
+  local response
+  response=$(http --print=b --session="$SESSION" GET "$base_url/overtime?yearMonth=$year_month") || return 1
+  echo "$response"
+  echo "$response" | jq -e --argjson employeeId "$hyungjun_employee_id" \
+    'any(.[]; .id == $employeeId)' > /dev/null
+}
+
+download_overtime_report() {
+  year_month=$1
+  http --print=h --session="$SESSION" GET "$base_url/overtime/report/excel?yearMonth=$year_month"
+}
+
+logout() {
+  http -v --session="$SESSION" POST "$base_url/api/auth/logout"
+}
+
 # === API 테스트 실행 ===
 do_test_step "관리자 로그인" login_admin
 
-do_test_step "팀 생성 (백엔드)" create_team "백엔드"
+do_test_step "팀 생성 ($team_name)" create_team "$team_name"
 backend_team_id="$LAST_TEAM_ID"
 
-do_test_step "임형준 사원 생성" create_employee "임형준" "MANAGER" "1995-05-15" "$today" "EMP001" "emp001@company.com" "password123!"
+do_test_step "임형준 사원 생성" create_employee "임형준" "MANAGER" "1995-05-15" "$today" "$employee_code_1" "$employee_email_1" "password123!"
 hyungjun_employee_id="$LAST_EMPLOYEE_ID"
-do_test_step "고슬링 사원 생성" create_employee "고슬링" "MEMBER" "1950-05-15" "$today" "EMP002" "emp002@company.com" "password123!"
+do_test_step "고슬링 사원 생성" create_employee "고슬링" "MEMBER" "1950-05-15" "$today" "$employee_code_2" "$employee_email_2" "password123!"
 gosling_employee_id="$LAST_EMPLOYEE_ID"
-do_test_step "존카맥 사원 생성" create_employee "존카맥" "MEMBER" "1960-05-15" "$today" "EMP003" "emp003@company.com" "password123!"
+do_test_step "존카맥 사원 생성" create_employee "존카맥" "MEMBER" "1960-05-15" "$today" "$employee_code_3" "$employee_email_3" "password123!"
 
 # 두 사원을 백엔드 팀에 배정. 임형준이 본인 자격으로 출퇴근/연차를 신청하므로
 # 임형준에게도 팀이 있어야 EMPLOYEE_WITHOUT_TEAM 위반이 발생하지 않는다.
 do_test_step "팀 배정 (임형준 to 백엔드)" assign_employee_to_team "$hyungjun_employee_id" "$backend_team_id"
 do_test_step "팀 배정 (고슬링 to 백엔드)" assign_employee_to_team "$gosling_employee_id" "$backend_team_id"
 
-do_test_step "사원 로그인 (임형준)" login_employee "emp001@company.com" "password123!"
+do_test_step "팀 전체 조회" get_teams
+do_test_step "직원 전체 조회" get_employees
+
+if [ "$run_overtime_tests" != "false" ]; then
+  do_test_step "초과근무 조회" get_overtime "$year_month"
+  do_test_step "초과근무 엑셀 리포트 다운로드" download_overtime_report "$year_month"
+else
+  echo "ℹ️  Skipping overtime tests because RUN_OVERTIME_TESTS=false"
+  echo
+fi
+
+do_test_step "사원 로그인 (임형준)" login_employee "$employee_email_1" "password123!"
 
 do_test_step "출근 등록" register_work_start_time
 # 실제 테스트 시나리오를 위해 출퇴근 사이에 약간의 시간 간격을 둡니다.
@@ -168,6 +236,7 @@ do_test_step "미래 연차 신청" request_annual_leave "[\"$future_date1\", \"
 
 do_test_step "남은 연차 조회" get_remaining_annual_leave
 do_test_step "월별 근무 시간 조회" get_work_duration_per_date "$year_month"
+do_test_step "로그아웃" logout
 
 
 # === 테스트 결과 리포트 ===

@@ -1,5 +1,6 @@
 package com.company.officecommute.service.commute;
 
+import com.company.officecommute.domain.annual_leave.AnnualLeave;
 import com.company.officecommute.domain.commute.CommuteHistory;
 import com.company.officecommute.domain.commute.CommuteNotStartedException;
 import com.company.officecommute.domain.commute.DuplicateWorkOnDateException;
@@ -91,6 +92,13 @@ public class CommuteHistoryService {
         List<CommuteHistory> histories = findCommuteHistoriesByEmployeeIdAndMonth(
                 employee.getEmployeeId(), yearMonth);
         return new CommuteHistories(histories).toWorkDurationPerDateResponse();
+    }
+
+    public void registerDayOffs(Long employeeId, List<AnnualLeave> savedLeaves, ZoneId zoneId) {
+        List<CommuteHistory> commuteHistories = savedLeaves.stream()
+                .map(annualLeave -> new CommuteHistory(employeeId, annualLeave.getWantedDate(), zoneId))
+                .toList();
+        commuteHistoryRepository.saveAll(commuteHistories);
     }
 
     private Employee getEmployee(Long employeeId) {

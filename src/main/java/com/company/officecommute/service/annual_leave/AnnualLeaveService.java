@@ -1,15 +1,13 @@
 package com.company.officecommute.service.annual_leave;
 
 import com.company.officecommute.domain.annual_leave.AnnualLeave;
-import com.company.officecommute.domain.annual_leave.AnnualLeaves;
-import com.company.officecommute.domain.commute.CommuteHistory;
 import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.domain.employee.EmployeeNotFoundException;
 import com.company.officecommute.dto.annual_leave.response.AnnualLeaveEnrollmentResponse;
 import com.company.officecommute.dto.annual_leave.response.AnnualLeaveGetRemainingResponse;
 import com.company.officecommute.repository.annual_leave.AnnualLeaveRepository;
-import com.company.officecommute.repository.commute.CommuteHistoryRepository;
 import com.company.officecommute.repository.employee.EmployeeRepository;
+import com.company.officecommute.service.commute.CommuteHistoryService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -25,15 +23,15 @@ public class AnnualLeaveService {
 
     private final EmployeeRepository employeeRepository;
     private final AnnualLeaveRepository annualLeaveRepository;
-    private final CommuteHistoryRepository commuteHistoryRepository;
+    private final CommuteHistoryService commuteHistoryService;
 
     public AnnualLeaveService(
             EmployeeRepository employeeRepository,
             AnnualLeaveRepository annualLeaveRepository,
-            CommuteHistoryRepository commuteHistoryRepository) {
+            CommuteHistoryService commuteHistoryService) {
         this.employeeRepository = employeeRepository;
         this.annualLeaveRepository = annualLeaveRepository;
-        this.commuteHistoryRepository = commuteHistoryRepository;
+        this.commuteHistoryService = commuteHistoryService;
     }
 
     @Transactional
@@ -43,13 +41,9 @@ public class AnnualLeaveService {
                 .orElseThrow(() -> new EmployeeNotFoundException(employeeId));
         List<AnnualLeave> existingAnnualLeaves = annualLeaveRepository.findByEmployeeId(employeeId);
         List<AnnualLeave> enrolledLeaves = employee.enrollAnnualLeave(wantedDates, existingAnnualLeaves);
-
         List<AnnualLeave> savedLeaves = annualLeaveRepository.saveAll(enrolledLeaves);
 
-        List<CommuteHistory> commuteHistories = savedLeaves.stream()
-                .map(annualLeave -> new CommuteHistory(employeeId, annualLeave.getWantedDate(), employee.getZoneId()))
-                .toList();
-        commuteHistoryRepository.saveAll(commuteHistories);
+        commuteHistoryService.registerDayOffs(employeeId, savedLeaves, employee.getZoneId());
 
         log.info("연차 신청 완료 - employeeId: {}, 신청한 연차 수: {}", employeeId, savedLeaves.size());
         return AnnualLeaveEnrollmentResponse.listFrom(savedLeaves);

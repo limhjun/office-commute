@@ -1,14 +1,13 @@
 package com.company.officecommute.service.annual_leave;
 
 import com.company.officecommute.domain.annual_leave.AnnualLeave;
-import com.company.officecommute.domain.commute.CommuteHistory;
 import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.domain.team.Team;
 import com.company.officecommute.dto.annual_leave.response.AnnualLeaveEnrollmentResponse;
 import com.company.officecommute.dto.annual_leave.response.AnnualLeaveGetRemainingResponse;
 import com.company.officecommute.repository.annual_leave.AnnualLeaveRepository;
-import com.company.officecommute.repository.commute.CommuteHistoryRepository;
 import com.company.officecommute.repository.employee.EmployeeRepository;
+import com.company.officecommute.service.commute.CommuteHistoryService;
 import com.company.officecommute.service.employee.EmployeeBuilder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -26,6 +25,7 @@ import java.util.Optional;
 import static com.company.officecommute.domain.employee.Role.MEMBER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -39,7 +39,7 @@ class AnnualLeaveServiceTest {
     @Mock
     private AnnualLeaveRepository annualLeaveRepository;
     @Mock
-    private CommuteHistoryRepository commuteHistoryRepository;
+    private CommuteHistoryService commuteHistoryService;
 
     private Long employeeId;
     private Employee employee;
@@ -79,18 +79,14 @@ class AnnualLeaveServiceTest {
         );
         BDDMockito.given(annualLeaveRepository.saveAll(any()))
                 .willReturn(savedLeaves);
-        BDDMockito.given(commuteHistoryRepository.saveAll(any()))
-                .willReturn(List.of(
-                        new CommuteHistory(employeeId, wantedDates.get(0)),
-                        new CommuteHistory(employeeId, wantedDates.get(1))
-                ));
 
         List<AnnualLeaveEnrollmentResponse> responses = annualLeaveService.enrollAnnualLeave(employeeId, wantedDates);
 
         assertThat(responses).hasSize(2);
         assertThat(responses.get(0).annualLeaveId()).isEqualTo(1L);
         assertThat(responses.get(0).enrolledDate()).isEqualTo(wantedDates.get(0));
-        verify(commuteHistoryRepository, times(1)).saveAll(any());
+        verify(commuteHistoryService, times(1))
+                .registerDayOffs(eq(employeeId), eq(savedLeaves), eq(employee.getZoneId()));
     }
 
     @Test

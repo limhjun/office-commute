@@ -38,12 +38,16 @@ public class ApiConvertor {
 
     public long countNumberOfStandardWorkingDays(YearMonth yearMonth) {
         Set<LocalDate> holidays = getHolidays(yearMonth);
-        int lengthOfMonth = yearMonth.lengthOfMonth();
-        long numberOfWeekends = WeekendCalculator.countNumberOfWeekends(yearMonth);
-        long numberOfWeekDays = lengthOfMonth - numberOfWeekends;
+        long numberOfWeekDays = getNumberOfWeekDays(yearMonth);
         long numberOfHolidays = countWeekdayHolidays(holidays);
 
         return numberOfWeekDays - numberOfHolidays;
+    }
+
+    private static long getNumberOfWeekDays(YearMonth yearMonth) {
+        int lengthOfMonth = yearMonth.lengthOfMonth();
+        long numberOfWeekends = WeekendCalculator.countNumberOfWeekends(yearMonth);
+        return lengthOfMonth - numberOfWeekends;
     }
 
     private Set<LocalDate> getHolidays(YearMonth yearMonth) {

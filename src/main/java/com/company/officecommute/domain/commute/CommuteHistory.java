@@ -48,6 +48,10 @@ public class CommuteHistory {
     protected CommuteHistory() {
     }
 
+    public static CommuteHistory registerWorkStart(Long employeeId, ZonedDateTime workStartTime, ZoneId workZone) {
+        return new CommuteHistory(null, employeeId, workStartTime, null, 0, workZone);
+    }
+
     public CommuteHistory(
             Long commuteHistoryId,
             Long employeeId,

@@ -46,19 +46,43 @@ public class CommuteHistoryService {
     public void registerWorkStartTime(Long employeeId) {
         Employee employee = getEmployee(employeeId);
         ZoneId employeeZone = employee.getZoneId();
-        ZonedDateTime now = ZonedDateTime.now(clock.withZone(employeeZone));
-        LocalDate workDate = now.toLocalDate();
-        if (commuteHistoryRepository.existsByEmployeeIdAndWorkDate(employee.getEmployeeId(), workDate)) {
+        ZonedDateTime workStartTime = ZonedDateTime.now(clock.withZone(employeeZone));
+        CommuteHistory newCommute = CommuteHistory.registerWorkStart(
+                employee.getEmployeeId(), workStartTime, employeeZone);
+
+        validateCanRegisterWorkStart(employee.getEmployeeId(), newCommute.getWorkDate());
+        saveCommuteHistory(newCommute);
+    }
+
+    private void validateCanRegisterWorkStart(Long employeeId, LocalDate workDate) {
+        validateNoWorkOnDate(employeeId, workDate);
+        validateNoOpenCommute(employeeId, workDate);
+    }
+
+    private void validateNoWorkOnDate(Long employeeId, LocalDate workDate) {
+        if (commuteHistoryRepository.existsByEmployeeIdAndWorkDate(employeeId, workDate)) {
             throw new DuplicateWorkOnDateException(workDate);
         }
-        validateNoOpenCommute(employee.getEmployeeId(), workDate);
+    }
 
-        CommuteHistory newWork = new CommuteHistory(null, employee.getEmployeeId(), now, null, 0, employeeZone);
+    private void validateNoOpenCommute(Long employeeId, LocalDate currentWorkDate) {
+        commuteHistoryRepository
+                .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(employeeId)
+                .ifPresent(openCommute -> {
+                    // race net: existsBy 통과 후 다른 thread가 같은 날 commit한 경우, open commute의 workDate가 오늘과 일치한다.
+                    if (currentWorkDate.equals(openCommute.getWorkDate())) {
+                        throw new DuplicateWorkOnDateException(currentWorkDate);
+                    }
+                    throw new PreviousCommuteNotEndedException();
+                });
+    }
+
+    private void saveCommuteHistory(CommuteHistory commuteHistory) {
         try {
-            commuteHistoryRepository.saveAndFlush(newWork);
+            commuteHistoryRepository.saveAndFlush(commuteHistory);
         } catch (DataIntegrityViolationException e) {
             if (isDuplicateWorkConstraint(e)) {
-                throw new DuplicateWorkOnDateException(workDate, e);
+                throw new DuplicateWorkOnDateException(commuteHistory.getWorkDate(), e);
             }
             throw e;
         }
@@ -79,12 +103,25 @@ public class CommuteHistoryService {
         }
     }
 
+    private CommuteHistory findFirstByEmployeeId(Long employeeId) {
+        return commuteHistoryRepository
+                .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(employeeId)
+                .orElseThrow(CommuteNotStartedException::new);
+    }
+
     @Transactional(readOnly = true)
     public WorkDurationPerDateResponse getWorkDurationPerDate(Long employeeId, YearMonth yearMonth) {
         Employee employee = getEmployee(employeeId);
         List<CommuteHistory> histories = findCommuteHistoriesByEmployeeIdAndMonth(
                 employee.getEmployeeId(), yearMonth);
         return new CommuteHistories(histories).toWorkDurationPerDateResponse();
+    }
+
+    private List<CommuteHistory> findCommuteHistoriesByEmployeeIdAndMonth(Long employeeId, YearMonth yearMonth) {
+        LocalDate startDate = yearMonth.atDay(1);
+        LocalDate endDate = yearMonth.atEndOfMonth();
+        return commuteHistoryRepository.findAllByEmployeeIdAndWorkDateBetween(
+                employeeId, startDate, endDate);
     }
 
     public void registerDayOffs(Long employeeId, List<AnnualLeave> savedLeaves, ZoneId zoneId) {
@@ -114,30 +151,5 @@ public class CommuteHistoryService {
     private Employee getEmployee(Long employeeId) {
         return employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new EmployeeNotFoundException(employeeId));
-    }
-
-    private CommuteHistory findFirstByEmployeeId(Long employeeId) {
-        return commuteHistoryRepository
-                .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(employeeId)
-                .orElseThrow(CommuteNotStartedException::new);
-    }
-
-    private void validateNoOpenCommute(Long employeeId, LocalDate currentWorkDate) {
-        commuteHistoryRepository
-                .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(employeeId)
-                .ifPresent(openCommute -> {
-                    // race net: existsBy 통과 후 다른 thread가 같은 날 commit한 경우, open commute의 workDate가 오늘과 일치한다.
-                    if (currentWorkDate.equals(openCommute.getWorkDate())) {
-                        throw new DuplicateWorkOnDateException(currentWorkDate);
-                    }
-                    throw new PreviousCommuteNotEndedException();
-                });
-    }
-
-    private List<CommuteHistory> findCommuteHistoriesByEmployeeIdAndMonth(Long employeeId, YearMonth yearMonth) {
-        LocalDate startDate = yearMonth.atDay(1);
-        LocalDate endDate = yearMonth.atEndOfMonth();
-        return commuteHistoryRepository.findAllByEmployeeIdAndWorkDateBetween(
-                employeeId, startDate, endDate);
     }
 }

@@ -1,5 +1,6 @@
 package com.company.officecommute.service.commute;
 
+import com.company.officecommute.domain.commute.CommuteAlreadyEndedException;
 import com.company.officecommute.domain.commute.CommuteHistory;
 import com.company.officecommute.domain.commute.DuplicateWorkOnDateException;
 import com.company.officecommute.domain.employee.Employee;
@@ -71,6 +72,7 @@ class CommuteHistoryServiceTest {
     }
 
     @Test
+    @DisplayName("registerWorkEndTime — 조건부 update(workEndTime IS NULL)로 퇴근 시각과 근무 분을 기록한다")
     void testRegisterWorkEndTime() {
         // given
         BDDMockito.given(employeeRepository.findById(1L))
@@ -78,20 +80,35 @@ class CommuteHistoryServiceTest {
         BDDMockito.given(commuteHistoryRepository
                         .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(1L))
                 .willReturn(Optional.of(new CommuteHistory(1L, 1L, workStartTime, null, 0)));
-
-        CommuteHistory expectedCommuteHistory = new CommuteHistory(1L, 1L, workStartTime, workEndTime, 10L * 60);
-        BDDMockito.given(commuteHistoryRepository.save(any(CommuteHistory.class)))
-                .willReturn(expectedCommuteHistory);
+        BDDMockito.given(commuteHistoryRepository.updateWorkEndTimeIfOpen(eq(1L), any(ZonedDateTime.class), eq(10L * 60)))
+                .willReturn(1);
 
         // when
         commuteHistoryService.registerWorkEndTime(1L);
 
         // then
-        ArgumentCaptor<CommuteHistory> commuteHistoryCaptor = ArgumentCaptor.forClass(CommuteHistory.class);
-        verify(commuteHistoryRepository).save(commuteHistoryCaptor.capture());
-        CommuteHistory savedCommuteHistory = commuteHistoryCaptor.getValue();
+        ArgumentCaptor<ZonedDateTime> endTimeCaptor = ArgumentCaptor.forClass(ZonedDateTime.class);
+        verify(commuteHistoryRepository).updateWorkEndTimeIfOpen(eq(1L), endTimeCaptor.capture(), eq(10L * 60));
+        assertThat(endTimeCaptor.getValue().toInstant()).isEqualTo(workEndTime.toInstant());
+        then(commuteHistoryRepository).should(never()).save(any(CommuteHistory.class));
+    }
 
-        assertThat(savedCommuteHistory.getWorkEndTime().toInstant()).isEqualTo(expectedCommuteHistory.getWorkEndTime().toInstant());
+    @Test
+    @DisplayName("registerWorkEndTime — 조회 후 다른 요청이 먼저 퇴근 처리해 update가 0건이면 CommuteAlreadyEndedException")
+    void registerWorkEndTime_throwsAlreadyEnded_whenConditionalUpdateMatchesNoRow() {
+        // given
+        BDDMockito.given(employeeRepository.findById(1L))
+                .willReturn(Optional.of(employee));
+        BDDMockito.given(commuteHistoryRepository
+                        .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(1L))
+                .willReturn(Optional.of(new CommuteHistory(1L, 1L, workStartTime, null, 0)));
+        BDDMockito.given(commuteHistoryRepository.updateWorkEndTimeIfOpen(eq(1L), any(ZonedDateTime.class), eq(10L * 60)))
+                .willReturn(0);
+
+        // when / then
+        assertThatThrownBy(() -> commuteHistoryService.registerWorkEndTime(1L))
+                .isInstanceOf(CommuteAlreadyEndedException.class)
+                .hasMessage("이미 퇴근 처리된 근무입니다.");
     }
 
     @Test

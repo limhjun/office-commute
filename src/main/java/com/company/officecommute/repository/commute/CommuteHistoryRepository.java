@@ -3,9 +3,11 @@ package com.company.officecommute.repository.commute;
 import com.company.officecommute.domain.commute.CommuteHistory;
 import com.company.officecommute.service.overtime.TotalWorkingMinutes;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 import java.time.LocalDate;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,6 +22,19 @@ public interface CommuteHistoryRepository extends JpaRepository<CommuteHistory, 
     boolean existsByEmployeeIdAndWorkDate(Long employeeId, LocalDate workDate);
 
     List<CommuteHistory> findAllByEmployeeIdAndWorkDateBetween(Long employeeId, LocalDate startDate, LocalDate endDate);
+
+    /**
+     * 퇴근 처리. {@code workEndTime IS NULL} 조건으로 상태 확인과 변경을 단일 UPDATE로 묶어,
+     * 동시 퇴근 요청 중 정확히 한 건만 성공한다(나머지는 0 반환).
+     */
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            UPDATE CommuteHistory ch
+            SET ch.workEndTime = :workEndTime, ch.workingMinutes = :workingMinutes
+            WHERE ch.commuteHistoryId = :commuteHistoryId
+                AND ch.workEndTime IS NULL
+            """)
+    int updateWorkEndTimeIfOpen(Long commuteHistoryId, ZonedDateTime workEndTime, long workingMinutes);
 
     /**
      * Aggregates total working minutes per employee within the given work_date range.

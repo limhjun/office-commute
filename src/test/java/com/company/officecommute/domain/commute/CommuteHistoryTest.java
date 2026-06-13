@@ -46,6 +46,31 @@ public class CommuteHistoryTest {
     }
 
     @Test
+    void calculateWorkingMinutes_computesWithoutMutatingState() {
+        ZonedDateTime workStartTime = ZonedDateTime.of(2024, 1, 1, 8, 0, 0, 0, ZoneId.of(KOREA));
+        ZonedDateTime workEndTime = ZonedDateTime.of(2024, 1, 1, 18, 0, 0, 0, ZoneId.of(KOREA));
+        CommuteHistory commuteHistory = new CommuteHistory(1L, 1L, workStartTime, null, 0);
+
+        long workingMinutes = commuteHistory.calculateWorkingMinutes(workEndTime);
+
+        assertThat(workingMinutes).isEqualTo(10L * 60);
+        // 조건부 update가 유일한 쓰기 경로가 되도록 엔티티 상태는 그대로여야 한다
+        assertThat(commuteHistory.endTimeIsNull()).isTrue();
+        assertThat(commuteHistory.getWorkingMinutes()).isZero();
+    }
+
+    @Test
+    void calculateWorkingMinutes_throwsWhenAlreadyEnded() {
+        ZonedDateTime workStartTime = ZonedDateTime.of(2024, 1, 1, 8, 0, 0, 0, ZoneId.of(KOREA));
+        ZonedDateTime workEndTime = ZonedDateTime.of(2024, 1, 1, 18, 0, 0, 0, ZoneId.of(KOREA));
+        CommuteHistory commuteHistory = new CommuteHistory(1L, 1L, workStartTime, workEndTime, 10L * 60);
+
+        assertThatThrownBy(() -> commuteHistory.calculateWorkingMinutes(workEndTime))
+                .isInstanceOf(CommuteAlreadyEndedException.class)
+                .hasMessage("이미 퇴근 처리된 근무입니다.");
+    }
+
+    @Test
     void testEndTimeIsNull() {
         CommuteHistory commuteHistory = new CommuteHistory(1L, 1L, ZonedDateTime.now(),null, 0);
 

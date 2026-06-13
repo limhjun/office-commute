@@ -1,6 +1,7 @@
 package com.company.officecommute.service.commute;
 
 import com.company.officecommute.domain.annual_leave.AnnualLeave;
+import com.company.officecommute.domain.commute.CommuteAlreadyEndedException;
 import com.company.officecommute.domain.commute.CommuteHistory;
 import com.company.officecommute.domain.commute.CommuteNotStartedException;
 import com.company.officecommute.domain.commute.DuplicateWorkOnDateException;
@@ -63,27 +64,19 @@ public class CommuteHistoryService {
         }
     }
 
-    private boolean isDuplicateWorkConstraint(Throwable e) {
-        Throwable current = e;
-        while (current != null) {
-            if (current instanceof ConstraintViolationException constraintViolationException) {
-                String constraintName = constraintViolationException.getConstraintName();
-                return constraintName != null
-                        && constraintName.toLowerCase().contains(UK_COMMUTE_HISTORY_EMPLOYEE_DATE);
-            }
-            current = current.getCause();
-        }
-        return false;
-    }
-
     @Transactional
     public void registerWorkEndTime(Long employeeId) {
         Employee employee = getEmployee(employeeId);
         CommuteHistory lastCommute = findFirstByEmployeeId(employee.getEmployeeId());
         ZoneId workZone = lastCommute.getWorkZoneId();
         ZonedDateTime now = ZonedDateTime.now(clock.withZone(workZone));
-        CommuteHistory commuteHistory = lastCommute.endWork(now);
-        commuteHistoryRepository.save(commuteHistory);
+        long workingMinutes = lastCommute.calculateWorkingMinutes(now);
+        int updated = commuteHistoryRepository.updateWorkEndTimeIfOpen(
+                lastCommute.getCommuteHistoryId(), now, workingMinutes);
+        if (updated == 0) {
+            // race net: 조회 후 다른 요청이 먼저 퇴근 처리하면 조건부 update가 0건이 된다.
+            throw new CommuteAlreadyEndedException();
+        }
     }
 
     @Transactional(readOnly = true)
@@ -101,9 +94,32 @@ public class CommuteHistoryService {
         commuteHistoryRepository.saveAll(commuteHistories);
     }
 
+    private boolean isDuplicateWorkConstraint(Throwable e) {
+        Throwable current = e;
+        while (current != null) {
+            if (current instanceof ConstraintViolationException constraintViolationException) {
+                return isCommuteHistoryEmployeeDateConstraint(
+                        constraintViolationException.getConstraintName());
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private boolean isCommuteHistoryEmployeeDateConstraint(String constraintName) {
+        return constraintName != null
+                && constraintName.equalsIgnoreCase(UK_COMMUTE_HISTORY_EMPLOYEE_DATE);
+    }
+
     private Employee getEmployee(Long employeeId) {
         return employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new EmployeeNotFoundException(employeeId));
+    }
+
+    private CommuteHistory findFirstByEmployeeId(Long employeeId) {
+        return commuteHistoryRepository
+                .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(employeeId)
+                .orElseThrow(CommuteNotStartedException::new);
     }
 
     private void validateNoOpenCommute(Long employeeId, LocalDate currentWorkDate) {
@@ -116,12 +132,6 @@ public class CommuteHistoryService {
                     }
                     throw new PreviousCommuteNotEndedException();
                 });
-    }
-
-    private CommuteHistory findFirstByEmployeeId(Long employeeId) {
-        return commuteHistoryRepository
-                .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(employeeId)
-                .orElseThrow(CommuteNotStartedException::new);
     }
 
     private List<CommuteHistory> findCommuteHistoriesByEmployeeIdAndMonth(Long employeeId, YearMonth yearMonth) {

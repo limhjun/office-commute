@@ -183,6 +183,47 @@ class CommuteHistoryRepositoryTest {
     }
 
     @Test
+    @DisplayName("updateWorkEndTimeIfOpen — 미종료 근무면 1건 update되고 퇴근 시각과 근무 분이 반영된다")
+    void updateWorkEndTimeIfOpen_updatesOpenCommute() {
+        // given
+        ZoneId zone = ZoneId.of("Asia/Seoul");
+        ZonedDateTime start = ZonedDateTime.of(2026, 6, 1, 9, 0, 0, 0, zone);
+        CommuteHistory open = commuteHistoryRepository.save(
+                new CommuteHistory(null, 1L, start, null, 0, zone));
+
+        // when
+        int updated = commuteHistoryRepository.updateWorkEndTimeIfOpen(
+                open.getCommuteHistoryId(), start.plusHours(9), 540);
+
+        // then
+        assertThat(updated).isEqualTo(1);
+        CommuteHistory found = commuteHistoryRepository.findById(open.getCommuteHistoryId()).orElseThrow();
+        assertThat(found.getWorkEndTime().toInstant()).isEqualTo(start.plusHours(9).toInstant());
+        assertThat(found.getWorkingMinutes()).isEqualTo(540);
+    }
+
+    @Test
+    @DisplayName("updateWorkEndTimeIfOpen — 이미 종료된 근무면 0건이고 기존 값이 유지된다")
+    void updateWorkEndTimeIfOpen_returnsZero_whenAlreadyEnded() {
+        // given
+        ZoneId zone = ZoneId.of("Asia/Seoul");
+        ZonedDateTime start = ZonedDateTime.of(2026, 6, 1, 9, 0, 0, 0, zone);
+        ZonedDateTime firstEnd = start.plusHours(9);
+        CommuteHistory ended = commuteHistoryRepository.save(
+                new CommuteHistory(null, 1L, start, firstEnd, 540, zone));
+
+        // when
+        int updated = commuteHistoryRepository.updateWorkEndTimeIfOpen(
+                ended.getCommuteHistoryId(), start.plusHours(10), 600);
+
+        // then
+        assertThat(updated).isZero();
+        CommuteHistory found = commuteHistoryRepository.findById(ended.getCommuteHistoryId()).orElseThrow();
+        assertThat(found.getWorkEndTime().toInstant()).isEqualTo(firstEnd.toInstant());
+        assertThat(found.getWorkingMinutes()).isEqualTo(540);
+    }
+
+    @Test
     @DisplayName("existsByEmployeeIdAndWorkDate — 다른 일자만 있으면 false")
     void existsByEmployeeIdAndWorkDate_returnsFalse_whenNoRecordOnThatDate() {
         // given

@@ -113,6 +113,14 @@ public class CommuteHistory {
     }
 
     public CommuteHistory endWork(ZonedDateTime workEndTime) {
+        this.workingMinutes = calculateWorkingMinutes(workEndTime);
+        this.workEndTime = workEndTime;
+        return this;
+    }
+
+    // 상태를 변경하지 않는다 — managed 엔티티에서 호출해도 dirty checking flush가 발생하지 않아야
+    // 조건부 update(workEndTime IS NULL)가 유일한 쓰기 경로로 유지된다.
+    public long calculateWorkingMinutes(ZonedDateTime workEndTime) {
         if (this.workStartTime == null) {
             throw new CommuteNotStartedException();
         }
@@ -124,9 +132,7 @@ public class CommuteHistory {
         }
         long workingMinutes = Duration.between(this.workStartTime, workEndTime).toMinutes();
         WorkingMinutes validatedWorkingMinutes = new WorkingMinutes(workingMinutes);
-        this.workingMinutes = validatedWorkingMinutes.getWorkingMinutes();
-        this.workEndTime = workEndTime;
-        return this;
+        return validatedWorkingMinutes.getWorkingMinutes();
     }
 
     public Detail toDetail() {
@@ -138,6 +144,10 @@ public class CommuteHistory {
 
     private boolean isAnnualLeaveDate() {
         return this.usingDayOff;
+    }
+
+    public Long getCommuteHistoryId() {
+        return commuteHistoryId;
     }
 
     public LocalDate getWorkDate() {

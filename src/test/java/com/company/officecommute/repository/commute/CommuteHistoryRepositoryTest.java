@@ -38,7 +38,7 @@ class CommuteHistoryRepositoryTest {
         LocalDate startDate = LocalDate.of(2024, 8, 1);
         LocalDate endDate = LocalDate.of(2024, 8, 31);
 
-        Team backendTeam = teamRepository.save(new Team("백엔드팀"));
+        Team backendTeam = teamRepository.save(Team.register("백엔드팀", null, 0));
 
         Employee assignedEmployee = employee("배정된직원", backendTeam, "EMP001", "assigned@company.com");
 
@@ -128,7 +128,7 @@ class CommuteHistoryRepositoryTest {
     void findTotalWorkingMinutesByWorkDateBetween_aggregatesAnnualLeaveByWorkDate() {
         // given — 연차만(8/1). 연차의 등록 시각(workStartTime=now)은 8월이 아니지만 work_date 기준으로 8월에 잡혀야 한다.
         ZoneId zone = ZoneId.of("Asia/Seoul");
-        Team team = teamRepository.save(new Team("백엔드팀"));
+        Team team = teamRepository.save(Team.register("백엔드팀", null, 0));
         Employee employee = employee("연차직원", team, "EMP100", "leave@company.com");
         employeeRepository.save(employee);
         CommuteHistory annualLeave = new CommuteHistory(employee.getEmployeeId(), LocalDate.of(2024, 8, 1), zone);

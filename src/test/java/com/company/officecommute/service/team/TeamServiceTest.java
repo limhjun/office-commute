@@ -96,8 +96,8 @@ class TeamServiceTest {
 
     @Test
     void testFindTeamMembersWithMissingTeamsCountedAsZero() {
-        Team teamWithMembers = new Team(1L, "ATeam", null);
-        Team emptyTeam = new Team(2L, "BTeam", null);
+        Team teamWithMembers = new Team(1L, "ATeam", null, 0);
+        Team emptyTeam = new Team(2L, "BTeam", null, 0);
         BDDMockito.given(teamRepository.findAll())
                 .willReturn(List.of(teamWithMembers, emptyTeam));
         BDDMockito.given(employeeRepository.countMembersByTeamIdsRaw(List.of(1L, 2L)))
@@ -118,7 +118,7 @@ class TeamServiceTest {
         TeamRegisterRequest request = new TeamRegisterRequest(teamName, null, null);
 
         BDDMockito.given(teamRepository.findByName(teamName))
-                .willReturn(Optional.of(new Team(teamName)));
+                .willReturn(Optional.of(Team.register(teamName, null, 0)));
 
         Assertions.assertThatThrownBy(() -> teamService.registerTeam(request))
                 .isInstanceOf(TeamAlreadyExistsException.class)

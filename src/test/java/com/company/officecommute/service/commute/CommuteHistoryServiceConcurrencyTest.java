@@ -48,7 +48,7 @@ public class CommuteHistoryServiceConcurrencyTest {
         employeeRepository.deleteAll();
         teamRepository.deleteAll();
 
-        Team team = new Team("테스트팀");
+        Team team = Team.register("테스트팀", null, 0);
         teamRepository.save(team);
 
         Employee employee = new EmployeeBuilder()

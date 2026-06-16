@@ -37,7 +37,7 @@ class EmployeeTest {
                 .withPassword("password123")
                 .build();
 
-        employee.changeTeam(new Team("A"));
+        employee.changeTeam(Team.register("A", null, 0));
         assertThat(employee.getTeamName()).isEqualTo("A");
     }
 

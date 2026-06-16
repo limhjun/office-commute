@@ -44,7 +44,7 @@ class OverTimeServiceTest {
     @Test
     @DisplayName("근무 기록 없는 직원도 초과근무 0분으로 포함한다")
     void calculateOverTime_includesEmployeeWithoutCommuteHistory() {
-        Team backend = new Team(1L, "백엔드팀", "팀장");
+        Team backend = new Team(1L, "백엔드팀", "팀장", 0);
         Employee recordedEmployee = employee(1L, "임형준", backend, "EMP001", "hyungjun@company.com");
         Employee noHistoryEmployee = employee(2L, "김개발", backend, "EMP002", "dev@company.com");
         given(employeeRepository.findAllWithTeam()).willReturn(List.of(recordedEmployee, noHistoryEmployee));
@@ -70,7 +70,7 @@ class OverTimeServiceTest {
     @Test
     @DisplayName("근무 기록 있는 직원의 기존 초과근무 계산을 유지한다")
     void calculateOverTime_keepsExistingCalculationForEmployeeWithCommuteHistory() {
-        Team backend = new Team(1L, "백엔드팀", "팀장");
+        Team backend = new Team(1L, "백엔드팀", "팀장", 0);
         Employee employee = employee(1L, "임형준", backend, "EMP001", "hyungjun@company.com");
         given(employeeRepository.findAllWithTeam()).willReturn(List.of(employee));
         given(commuteHistoryRepository.findTotalWorkingMinutesByWorkDateBetween(any(LocalDate.class), any(LocalDate.class)))

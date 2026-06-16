@@ -27,18 +27,6 @@ public class Team {
     protected Team() {
     }
 
-    public Team(String name) {
-        this(null, name, null, 0);
-    }
-
-    public Team(String name, String managerName) {
-        this(null, name, managerName, 0);
-    }
-
-    public Team(Long teamId, String name, String managerName) {
-        this(teamId, name, managerName, 0);
-    }
-
     public Team(Long teamId, String name, String managerName, int annualLeaveCriteria) {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException(String.format("(%s)는 공백입니다. 팀명을 정확하게 입력해주세요.", name));

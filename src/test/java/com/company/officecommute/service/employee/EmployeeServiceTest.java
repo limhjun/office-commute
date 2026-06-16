@@ -52,7 +52,7 @@ class EmployeeServiceTest {
     @BeforeEach
     void setUp() {
         employeeService = new EmployeeService(employeeRepository, teamRepository, passwordEncoder);
-        team = new Team(1L, "백엔드팀", "이매니저");
+        team = new Team(1L, "백엔드팀", "이매니저", 0);
         employee = new EmployeeBuilder()
                 .withId(1L)
                 .withTeam(team)
@@ -196,7 +196,7 @@ class EmployeeServiceTest {
         @Test
         @DisplayName("teamId가 있으면 직원의 팀이 해당 팀으로 변경된다")
         void changeToTeam() {
-            Team newTeam = new Team(2L, "프론트팀", null);
+            Team newTeam = new Team(2L, "프론트팀", null, 0);
             BDDMockito.given(employeeRepository.findById(1L)).willReturn(Optional.of(employee));
             BDDMockito.given(teamRepository.findById(2L)).willReturn(Optional.of(newTeam));
 

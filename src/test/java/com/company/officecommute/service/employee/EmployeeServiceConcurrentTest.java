@@ -51,7 +51,7 @@ class EmployeeServiceConcurrentTest {
         employeeRepository.deleteAll();
         teamRepository.deleteAll();
 
-        Team team = new Team("teamName", "managerName");
+        Team team = Team.register("teamName", "managerName", 0);
         Team savedTeam = teamRepository.save(team);
         Employee employee = new EmployeeBuilder()
                 .withName("testUser")

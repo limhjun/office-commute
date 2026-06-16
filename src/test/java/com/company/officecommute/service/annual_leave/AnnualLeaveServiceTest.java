@@ -47,7 +47,7 @@ class AnnualLeaveServiceTest {
     @BeforeEach
     void setUp() {
         employeeId = 1L;
-        Team team = new Team("백엔드팀");
+        Team team = Team.register("백엔드팀", null, 0);
         employee = new EmployeeBuilder()
                 .withId(employeeId)
                 .withTeam(team)

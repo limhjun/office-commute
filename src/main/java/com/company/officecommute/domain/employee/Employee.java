@@ -26,6 +26,8 @@ import java.util.regex.Pattern;
 @Entity
 public class Employee {
 
+    static final String DEFAULT_TIMEZONE = "Asia/Seoul";
+
     private static final Pattern EMAIL_PATTERN =
             Pattern.compile("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
 
@@ -76,36 +78,21 @@ public class Employee {
             String timezone,
             Team team
     ) {
-        return new Employee(null, team, name, role, birthday, workStartDate, employeeCode, email, encodedPassword, timezone);
+        return new Employee(
+                null,
+                team,
+                name,
+                role,
+                birthday,
+                workStartDate,
+                employeeCode,
+                email,
+                encodedPassword,
+                defaultTimezoneIfBlank(timezone)
+        );
     }
 
-    public Employee(
-            String name,
-            Role role,
-            LocalDate birthday,
-            LocalDate workStartDate,
-            String employeeCode,
-            String email,
-            String password
-    ) {
-        this(null, null, name, role, birthday, workStartDate, employeeCode, email, password, "Asia/Seoul");
-    }
-
-    public Employee(
-            Long employeeId,
-            Team team,
-            String name,
-            Role role,
-            LocalDate birthday,
-            LocalDate workStartDate,
-            String employeeCode,
-            String email,
-            String password
-    ) {
-        this(employeeId, team, name, role, birthday, workStartDate, employeeCode, email, password, "Asia/Seoul");
-    }
-
-    public Employee(
+    Employee(
             Long employeeId,
             Team team,
             String name,
@@ -127,6 +114,13 @@ public class Employee {
         this.email = validateEmail(email);
         this.password = validatePassword(password);
         this.timezone = validateTimezone(timezone);
+    }
+
+    private static String defaultTimezoneIfBlank(String timezone) {
+        if (timezone == null || timezone.isBlank()) {
+            return DEFAULT_TIMEZONE;
+        }
+        return timezone;
     }
 
     private String validateEmployeeCode(String employeeCode) {

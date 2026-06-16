@@ -3,7 +3,7 @@ package com.company.officecommute.controller.auth;
 import com.company.officecommute.auth.AuthenticationFailedException;
 import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.domain.employee.Role;
-import com.company.officecommute.service.employee.EmployeeBuilder;
+import com.company.officecommute.domain.employee.EmployeeBuilder;
 import com.company.officecommute.service.employee.EmployeeService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

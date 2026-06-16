@@ -1,6 +1,7 @@
 package com.company.officecommute.service.employee;
 
 import com.company.officecommute.domain.employee.Employee;
+import com.company.officecommute.domain.employee.EmployeeBuilder;
 
 import java.time.LocalDate;
 

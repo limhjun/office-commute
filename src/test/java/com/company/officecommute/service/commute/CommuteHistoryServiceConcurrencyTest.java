@@ -6,6 +6,7 @@ import com.company.officecommute.domain.commute.CommuteNotStartedException;
 import com.company.officecommute.domain.commute.DuplicateWorkOnDateException;
 import com.company.officecommute.domain.commute.PreviousCommuteNotEndedException;
 import com.company.officecommute.domain.employee.Employee;
+import com.company.officecommute.domain.employee.EmployeeBuilder;
 import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.domain.team.Team;
 import com.company.officecommute.repository.commute.CommuteHistoryRepository;
@@ -50,17 +51,16 @@ public class CommuteHistoryServiceConcurrencyTest {
         Team team = new Team("테스트팀");
         teamRepository.save(team);
 
-        Employee employee = new Employee(
-                null,
-                team,
-                "테스트직원",
-                Role.MEMBER,
-                LocalDate.of(1990, 1, 1),
-                LocalDate.of(2024, 1, 1),
-                "TEST001",
-                "test@company.com",
-                "password123"
-        );
+        Employee employee = new EmployeeBuilder()
+                .withTeam(team)
+                .withName("테스트직원")
+                .withRole(Role.MEMBER)
+                .withBirthday(LocalDate.of(1990, 1, 1))
+                .withStartDate(LocalDate.of(2024, 1, 1))
+                .withEmployeeCode("TEST001")
+                .withEmail("test@company.com")
+                .withPassword("password123")
+                .build();
         Employee savedEmployee = employeeRepository.save(employee);
         testEmployeeId = savedEmployee.getEmployeeId();
     }

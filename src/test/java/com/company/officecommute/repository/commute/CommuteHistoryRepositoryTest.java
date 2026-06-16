@@ -2,6 +2,7 @@ package com.company.officecommute.repository.commute;
 
 import com.company.officecommute.domain.commute.CommuteHistory;
 import com.company.officecommute.domain.employee.Employee;
+import com.company.officecommute.domain.employee.EmployeeBuilder;
 import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.domain.team.Team;
 import com.company.officecommute.repository.employee.EmployeeRepository;
@@ -39,29 +40,9 @@ class CommuteHistoryRepositoryTest {
 
         Team backendTeam = teamRepository.save(new Team("백엔드팀"));
 
-        Employee assignedEmployee = new Employee(
-                null,
-                backendTeam,
-                "배정된직원",
-                Role.MEMBER,
-                LocalDate.of(1990, 1, 1),
-                LocalDate.of(2020, 1, 1),
-                "EMP001",
-                "assigned@company.com",
-                "password123"
-        );
+        Employee assignedEmployee = employee("배정된직원", backendTeam, "EMP001", "assigned@company.com");
 
-        Employee unassignedEmployee = new Employee(
-                null,
-                null,
-                "미배정직원",
-                Role.MEMBER,
-                LocalDate.of(1991, 2, 2),
-                LocalDate.of(2021, 2, 2),
-                "EMP002",
-                "unassigned@company.com",
-                "password123"
-        );
+        Employee unassignedEmployee = employee("미배정직원", null, "EMP002", "unassigned@company.com");
 
         employeeRepository.saveAll(List.of(assignedEmployee, unassignedEmployee));
 
@@ -148,11 +129,7 @@ class CommuteHistoryRepositoryTest {
         // given — 연차만(8/1). 연차의 등록 시각(workStartTime=now)은 8월이 아니지만 work_date 기준으로 8월에 잡혀야 한다.
         ZoneId zone = ZoneId.of("Asia/Seoul");
         Team team = teamRepository.save(new Team("백엔드팀"));
-        Employee employee = new Employee(
-                null, team, "연차직원", Role.MEMBER,
-                LocalDate.of(1990, 1, 1), LocalDate.of(2020, 1, 1),
-                "EMP100", "leave@company.com", "password123"
-        );
+        Employee employee = employee("연차직원", team, "EMP100", "leave@company.com");
         employeeRepository.save(employee);
         CommuteHistory annualLeave = new CommuteHistory(employee.getEmployeeId(), LocalDate.of(2024, 8, 1), zone);
         commuteHistoryRepository.save(annualLeave);
@@ -165,6 +142,19 @@ class CommuteHistoryRepositoryTest {
         assertThat(result).hasSize(1);
         assertThat(result.getFirst().getEmployeeId()).isEqualTo(employee.getEmployeeId());
         assertThat(result.getFirst().calculateOverTime(0)).isEqualTo(0);
+    }
+
+    private Employee employee(String name, Team team, String employeeCode, String email) {
+        return new EmployeeBuilder()
+                .withTeam(team)
+                .withName(name)
+                .withRole(Role.MEMBER)
+                .withBirthday(LocalDate.of(1990, 1, 1))
+                .withStartDate(LocalDate.of(2020, 1, 1))
+                .withEmployeeCode(employeeCode)
+                .withEmail(email)
+                .withPassword("password123")
+                .build();
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.company.officecommute.service.overtime;
 
 import com.company.officecommute.domain.employee.Employee;
+import com.company.officecommute.domain.employee.EmployeeBuilder;
 import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.domain.team.Team;
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
@@ -104,16 +105,16 @@ class OverTimeServiceTest {
     }
 
     private Employee employee(Long id, String name, Team team, String employeeCode, String email) {
-        return new Employee(
-                id,
-                team,
-                name,
-                Role.MEMBER,
-                LocalDate.of(1998, 8, 18),
-                LocalDate.of(2024, 1, 1),
-                employeeCode,
-                email,
-                "password123"
-        );
+        return new EmployeeBuilder()
+                .withId(id)
+                .withTeam(team)
+                .withName(name)
+                .withRole(Role.MEMBER)
+                .withBirthday(LocalDate.of(1998, 8, 18))
+                .withStartDate(LocalDate.of(2024, 1, 1))
+                .withEmployeeCode(employeeCode)
+                .withEmail(email)
+                .withPassword("password123")
+                .build();
     }
 }

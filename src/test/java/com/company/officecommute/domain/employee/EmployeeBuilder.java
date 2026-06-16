@@ -1,7 +1,5 @@
-package com.company.officecommute.service.employee;
+package com.company.officecommute.domain.employee;
 
-import com.company.officecommute.domain.employee.Employee;
-import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.domain.team.Team;
 
 import java.time.LocalDate;
@@ -16,7 +14,7 @@ public class EmployeeBuilder {
     private String employeeCode;
     private String email;
     private String password;
-    private String timezone = "Asia/Seoul";
+    private String timezone = Employee.DEFAULT_TIMEZONE;
 
     public EmployeeBuilder withId(Long id) {
         this.id = id;

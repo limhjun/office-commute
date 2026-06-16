@@ -2,6 +2,7 @@ package com.company.officecommute.service.employee;
 
 import com.company.officecommute.domain.annual_leave.AnnualLeave;
 import com.company.officecommute.domain.employee.Employee;
+import com.company.officecommute.domain.employee.EmployeeBuilder;
 import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.domain.team.Team;
 import com.company.officecommute.repository.annual_leave.AnnualLeaveRepository;
@@ -52,15 +53,15 @@ class EmployeeServiceConcurrentTest {
 
         Team team = new Team("teamName", "managerName");
         Team savedTeam = teamRepository.save(team);
-        Employee employee = new Employee(
-                "testUser",
-                Role.MEMBER,
-                LocalDate.of(1990, 1, 1),
-                LocalDate.now(),
-                "EMPCC01",
-                "concurrent@company.com",
-                "password123"
-        );
+        Employee employee = new EmployeeBuilder()
+                .withName("testUser")
+                .withRole(Role.MEMBER)
+                .withBirthday(LocalDate.of(1990, 1, 1))
+                .withStartDate(LocalDate.now())
+                .withEmployeeCode("EMPCC01")
+                .withEmail("concurrent@company.com")
+                .withPassword("password123")
+                .build();
         Employee savedEmployee = employeeRepository.save(employee);
         employeeId = savedEmployee.getEmployeeId();
         employeeService.changeTeam(employeeId, savedTeam.getTeamId());

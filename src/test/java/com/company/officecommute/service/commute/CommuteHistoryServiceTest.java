@@ -208,6 +208,30 @@ class CommuteHistoryServiceTest {
     }
 
     @Test
+    @DisplayName("registerWorkStartTime — H2가 장식한 중복 제약명도 Duplicate로 재던진다")
+    void registerWorkStartTime_translatesDecoratedH2ConstraintName() {
+        // given
+        DataIntegrityViolationException violation = new DataIntegrityViolationException(
+                "unique constraint",
+                new ConstraintViolationException("unique constraint", null, "PUBLIC.UK_COMMUTE_HISTORY_EMPLOYEE_DATE_INDEX_C")
+        );
+        BDDMockito.given(employeeRepository.findById(1L))
+                .willReturn(Optional.of(employee));
+        BDDMockito.given(commuteHistoryRepository
+                        .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(1L))
+                .willReturn(Optional.empty());
+        BDDMockito.given(commuteHistoryRepository.existsByEmployeeIdAndWorkDate(eq(1L), any(LocalDate.class)))
+                .willReturn(false);
+        BDDMockito.given(commuteHistoryRepository.saveAndFlush(any(CommuteHistory.class)))
+                .willThrow(violation);
+
+        // when / then
+        assertThatThrownBy(() -> commuteHistoryService.registerWorkStartTime(1L))
+                .isInstanceOf(DuplicateWorkOnDateException.class)
+                .hasCauseInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
     @DisplayName("registerWorkStartTime — race로 existsBy 직후 같은 날 open commute가 생겼다면 Duplicate로 던진다")
     void registerWorkStartTime_translatesSameDayOpenCommuteRaceToDuplicate() {
         // given — existsBy=false 통과 후 다른 thread가 막 commit한 상황을 시뮬레이션.

@@ -144,8 +144,22 @@ public class CommuteHistoryService {
     }
 
     private boolean isCommuteHistoryEmployeeDateConstraint(String constraintName) {
-        return constraintName != null
-                && constraintName.equalsIgnoreCase(UK_COMMUTE_HISTORY_EMPLOYEE_DATE);
+        return normalizeConstraintName(constraintName).equalsIgnoreCase(UK_COMMUTE_HISTORY_EMPLOYEE_DATE);
+    }
+
+    private String normalizeConstraintName(String constraintName) {
+        if (constraintName == null) {
+            return "";
+        }
+        String normalized = constraintName;
+        int schemaSeparator = normalized.lastIndexOf('.');
+        if (schemaSeparator >= 0) {
+            normalized = normalized.substring(schemaSeparator + 1);
+        }
+        if (normalized.endsWith("_INDEX_C")) {
+            normalized = normalized.substring(0, normalized.length() - "_INDEX_C".length());
+        }
+        return normalized;
     }
 
     private Employee getEmployee(Long employeeId) {

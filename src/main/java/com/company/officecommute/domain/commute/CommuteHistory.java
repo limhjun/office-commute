@@ -19,8 +19,6 @@ import java.util.Objects;
         @UniqueConstraint(name = "uk_commute_history_employee_date", columnNames = {"employee_id", "work_date"})
 })
 public class CommuteHistory {
-    private static final ZoneId DEFAULT_ZONE = ZoneId.of("Asia/Seoul");
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long commuteHistoryId;
@@ -49,52 +47,22 @@ public class CommuteHistory {
     }
 
     public static CommuteHistory registerWorkStart(Long employeeId, ZonedDateTime workStartTime, ZoneId workZone) {
-        return new CommuteHistory(null, employeeId, workStartTime, null, 0, workZone);
+        return new CommuteHistory(null, employeeId, workStartTime, null, 0, false, workZone);
     }
 
-    public CommuteHistory(
-            Long commuteHistoryId,
-            Long employeeId,
-            ZonedDateTime workStartTime,
-            ZonedDateTime workEndTime,
-            long workingMinutes
-    ) {
-        this(commuteHistoryId, employeeId, workStartTime, workEndTime, workingMinutes, false, DEFAULT_ZONE);
+    public static CommuteHistory registerAnnualLeave(Long employeeId, LocalDate annualLeaveDate, ZoneId workZone) {
+        return new CommuteHistory(
+                null,
+                employeeId,
+                annualLeaveDate.atStartOfDay(workZone),
+                annualLeaveDate.atStartOfDay(workZone),
+                ANNUAL_LEAVE_TIME,
+                IS_ANNUAL_LEAVE,
+                workZone
+        );
     }
 
-    public CommuteHistory(
-            Long commuteHistoryId,
-            Long employeeId,
-            ZonedDateTime workStartTime,
-            ZonedDateTime workEndTime,
-            long workingMinutes,
-            ZoneId workZone
-    ) {
-        this(commuteHistoryId, employeeId, workStartTime, workEndTime, workingMinutes, false, workZone);
-    }
-
-    // 연차용 생성자
-    public CommuteHistory(Long employeeId, LocalDate annualLeaveDate) {
-        this(employeeId, annualLeaveDate, DEFAULT_ZONE);
-    }
-
-    public CommuteHistory(Long employeeId, LocalDate annualLeaveDate, ZoneId workZone) {
-        this(null, employeeId, annualLeaveDate.atStartOfDay(workZone), annualLeaveDate.atStartOfDay(workZone), 0, true, workZone);
-        this.workDate = annualLeaveDate;
-    }
-
-    public CommuteHistory(
-            Long commuteHistoryId,
-            Long employeeId,
-            ZonedDateTime workStartTime,
-            ZonedDateTime workEndTime,
-            long workingMinutes,
-            boolean usingDayOff
-    ) {
-        this(commuteHistoryId, employeeId, workStartTime, workEndTime, workingMinutes, usingDayOff, DEFAULT_ZONE);
-    }
-
-    public CommuteHistory(
+    private CommuteHistory(
             Long commuteHistoryId,
             Long employeeId,
             ZonedDateTime workStartTime,

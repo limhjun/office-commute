@@ -126,7 +126,7 @@ public class CommuteHistoryService {
 
     public void registerDayOffs(Long employeeId, List<AnnualLeave> savedLeaves, ZoneId zoneId) {
         List<CommuteHistory> commuteHistories = savedLeaves.stream()
-                .map(annualLeave -> new CommuteHistory(employeeId, annualLeave.getWantedDate(), zoneId))
+                .map(annualLeave -> CommuteHistory.registerAnnualLeave(employeeId, annualLeave.getWantedDate(), zoneId))
                 .toList();
         commuteHistoryRepository.saveAll(commuteHistories);
     }

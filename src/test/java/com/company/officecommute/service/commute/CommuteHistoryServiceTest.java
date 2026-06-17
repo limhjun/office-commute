@@ -2,11 +2,12 @@ package com.company.officecommute.service.commute;
 
 import com.company.officecommute.domain.commute.CommuteAlreadyEndedException;
 import com.company.officecommute.domain.commute.CommuteHistory;
+import com.company.officecommute.domain.commute.CommuteHistoryFixture;
 import com.company.officecommute.domain.commute.DuplicateWorkOnDateException;
 import com.company.officecommute.domain.employee.Employee;
+import com.company.officecommute.domain.employee.EmployeeBuilder;
 import com.company.officecommute.repository.commute.CommuteHistoryRepository;
 import com.company.officecommute.repository.employee.EmployeeRepository;
-import com.company.officecommute.domain.employee.EmployeeBuilder;
 import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -79,7 +80,7 @@ class CommuteHistoryServiceTest {
                 .willReturn(Optional.of(employee));
         BDDMockito.given(commuteHistoryRepository
                         .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(1L))
-                .willReturn(Optional.of(new CommuteHistory(1L, 1L, workStartTime, null, 0)));
+                .willReturn(Optional.of(CommuteHistoryFixture.open(1L, 1L, workStartTime)));
         BDDMockito.given(commuteHistoryRepository.updateWorkEndTimeIfOpen(eq(1L), any(ZonedDateTime.class), eq(10L * 60)))
                 .willReturn(1);
 
@@ -101,7 +102,7 @@ class CommuteHistoryServiceTest {
                 .willReturn(Optional.of(employee));
         BDDMockito.given(commuteHistoryRepository
                         .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(1L))
-                .willReturn(Optional.of(new CommuteHistory(1L, 1L, workStartTime, null, 0)));
+                .willReturn(Optional.of(CommuteHistoryFixture.open(1L, 1L, workStartTime)));
         BDDMockito.given(commuteHistoryRepository.updateWorkEndTimeIfOpen(eq(1L), any(ZonedDateTime.class), eq(10L * 60)))
                 .willReturn(0);
 
@@ -237,12 +238,9 @@ class CommuteHistoryServiceTest {
         // given — existsBy=false 통과 후 다른 thread가 막 commit한 상황을 시뮬레이션.
         // fixed clock(2024-01-01 18:00 KST)과 같은 날짜로 open commute를 만든다.
         ZoneId zone = ZoneId.of("Asia/Seoul");
-        CommuteHistory openTodayCommute = new CommuteHistory(
-                null,
-                1L,
+        CommuteHistory openTodayCommute = CommuteHistoryFixture.open(
+                null, 1L,
                 ZonedDateTime.of(2024, 1, 1, 8, 0, 0, 0, zone),
-                null,
-                0,
                 zone
         );
         BDDMockito.given(employeeRepository.findById(1L))
@@ -266,12 +264,9 @@ class CommuteHistoryServiceTest {
     void registerWorkStartTime_throwsPreviousCommuteNotEnded_whenOpenCommuteOnDifferentDate() {
         // given — fixed clock(2024-01-01) 기준 어제 미완료 근무가 남아있는 상태
         ZoneId zone = ZoneId.of("Asia/Seoul");
-        CommuteHistory openYesterdayCommute = new CommuteHistory(
-                null,
-                1L,
+        CommuteHistory openYesterdayCommute = CommuteHistoryFixture.open(
+                null, 1L,
                 ZonedDateTime.of(2023, 12, 31, 9, 0, 0, 0, zone),
-                null,
-                0,
                 zone
         );
         BDDMockito.given(employeeRepository.findById(1L))

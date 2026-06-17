@@ -1,6 +1,7 @@
 package com.company.officecommute.repository.commute;
 
 import com.company.officecommute.domain.commute.CommuteHistory;
+import com.company.officecommute.domain.commute.CommuteHistoryFixture;
 import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.domain.employee.EmployeeBuilder;
 import com.company.officecommute.domain.employee.Role;
@@ -46,26 +47,23 @@ class CommuteHistoryRepositoryTest {
 
         employeeRepository.saveAll(List.of(assignedEmployee, unassignedEmployee));
 
-        CommuteHistory assignedDay1 = new CommuteHistory(
+        CommuteHistory assignedDay1 = CommuteHistoryFixture.ended(
                 null,
                 assignedEmployee.getEmployeeId(),
                 ZonedDateTime.of(2024, 8, 5, 9, 0, 0, 0, zoneId),
-                ZonedDateTime.of(2024, 8, 5, 18, 0, 0, 0, zoneId),
-                540
+                ZonedDateTime.of(2024, 8, 5, 18, 0, 0, 0, zoneId)
         );
-        CommuteHistory assignedDay2 = new CommuteHistory(
+        CommuteHistory assignedDay2 = CommuteHistoryFixture.ended(
                 null,
                 assignedEmployee.getEmployeeId(),
                 ZonedDateTime.of(2024, 8, 6, 9, 0, 0, 0, zoneId),
-                ZonedDateTime.of(2024, 8, 6, 17, 0, 0, 0, zoneId),
-                480
+                ZonedDateTime.of(2024, 8, 6, 17, 0, 0, 0, zoneId)
         );
-        CommuteHistory unassignedDay = new CommuteHistory(
+        CommuteHistory unassignedDay = CommuteHistoryFixture.ended(
                 null,
                 unassignedEmployee.getEmployeeId(),
                 ZonedDateTime.of(2024, 8, 7, 9, 0, 0, 0, zoneId),
-                ZonedDateTime.of(2024, 8, 7, 19, 0, 0, 0, zoneId),
-                600
+                ZonedDateTime.of(2024, 8, 7, 19, 0, 0, 0, zoneId)
         );
 
         commuteHistoryRepository.saveAll(List.of(assignedDay1, assignedDay2, unassignedDay));
@@ -99,18 +97,18 @@ class CommuteHistoryRepositoryTest {
         Long employeeId = 42L;
         // 7/31(전월 말일), 8/1(당월 1일), 8/31(당월 말일), 9/1(다음월 1일)
         commuteHistoryRepository.saveAll(List.of(
-                new CommuteHistory(null, employeeId,
+                CommuteHistoryFixture.ended(null, employeeId,
                         ZonedDateTime.of(2024, 7, 31, 9, 0, 0, 0, zone),
-                        ZonedDateTime.of(2024, 7, 31, 18, 0, 0, 0, zone), 540, zone),
-                new CommuteHistory(null, employeeId,
+                        ZonedDateTime.of(2024, 7, 31, 18, 0, 0, 0, zone), zone),
+                CommuteHistoryFixture.ended(null, employeeId,
                         ZonedDateTime.of(2024, 8, 1, 9, 0, 0, 0, zone),
-                        ZonedDateTime.of(2024, 8, 1, 18, 0, 0, 0, zone), 540, zone),
-                new CommuteHistory(null, employeeId,
+                        ZonedDateTime.of(2024, 8, 1, 18, 0, 0, 0, zone), zone),
+                CommuteHistoryFixture.ended(null, employeeId,
                         ZonedDateTime.of(2024, 8, 31, 9, 0, 0, 0, zone),
-                        ZonedDateTime.of(2024, 8, 31, 18, 0, 0, 0, zone), 540, zone),
-                new CommuteHistory(null, employeeId,
+                        ZonedDateTime.of(2024, 8, 31, 18, 0, 0, 0, zone), zone),
+                CommuteHistoryFixture.ended(null, employeeId,
                         ZonedDateTime.of(2024, 9, 1, 9, 0, 0, 0, zone),
-                        ZonedDateTime.of(2024, 9, 1, 18, 0, 0, 0, zone), 540, zone)
+                        ZonedDateTime.of(2024, 9, 1, 18, 0, 0, 0, zone), zone)
         ));
 
         // when
@@ -126,12 +124,13 @@ class CommuteHistoryRepositoryTest {
     @Test
     @DisplayName("findTotalWorkingMinutesByWorkDateBetween — 연차 레코드는 annualLeaveDate가 속한 월에 집계된다")
     void findTotalWorkingMinutesByWorkDateBetween_aggregatesAnnualLeaveByWorkDate() {
-        // given — 연차만(8/1). 연차의 등록 시각(workStartTime=now)은 8월이 아니지만 work_date 기준으로 8월에 잡혀야 한다.
+        // given — 연차만(8/1). 연차는 work_date 기준으로 8월에 잡혀야 한다.
         ZoneId zone = ZoneId.of("Asia/Seoul");
         Team team = teamRepository.save(Team.register("백엔드팀", null, 0));
         Employee employee = employee("연차직원", team, "EMP100", "leave@company.com");
         employeeRepository.save(employee);
-        CommuteHistory annualLeave = new CommuteHistory(employee.getEmployeeId(), LocalDate.of(2024, 8, 1), zone);
+        CommuteHistory annualLeave = CommuteHistoryFixture.annualLeave(
+                employee.getEmployeeId(), LocalDate.of(2024, 8, 1), zone);
         commuteHistoryRepository.save(annualLeave);
 
         // when
@@ -163,7 +162,7 @@ class CommuteHistoryRepositoryTest {
         // given
         Long employeeId = 1L;
         ZonedDateTime start = ZonedDateTime.of(2026, 5, 23, 9, 0, 0, 0, ZoneId.of("Asia/Seoul"));
-        commuteHistoryRepository.save(new CommuteHistory(null, employeeId, start, null, 0, ZoneId.of("Asia/Seoul")));
+        commuteHistoryRepository.save(CommuteHistoryFixture.open(null, employeeId, start, ZoneId.of("Asia/Seoul")));
 
         // when
         boolean exists = commuteHistoryRepository.existsByEmployeeIdAndWorkDate(employeeId, LocalDate.of(2026, 5, 23));
@@ -179,7 +178,7 @@ class CommuteHistoryRepositoryTest {
         ZoneId zone = ZoneId.of("Asia/Seoul");
         ZonedDateTime start = ZonedDateTime.of(2026, 6, 1, 9, 0, 0, 0, zone);
         CommuteHistory open = commuteHistoryRepository.save(
-                new CommuteHistory(null, 1L, start, null, 0, zone));
+                CommuteHistoryFixture.open(null, 1L, start, zone));
 
         // when
         int updated = commuteHistoryRepository.updateWorkEndTimeIfOpen(
@@ -200,7 +199,7 @@ class CommuteHistoryRepositoryTest {
         ZonedDateTime start = ZonedDateTime.of(2026, 6, 1, 9, 0, 0, 0, zone);
         ZonedDateTime firstEnd = start.plusHours(9);
         CommuteHistory ended = commuteHistoryRepository.save(
-                new CommuteHistory(null, 1L, start, firstEnd, 540, zone));
+                CommuteHistoryFixture.ended(null, 1L, start, firstEnd, zone));
 
         // when
         int updated = commuteHistoryRepository.updateWorkEndTimeIfOpen(
@@ -219,7 +218,7 @@ class CommuteHistoryRepositoryTest {
         // given
         Long employeeId = 1L;
         ZonedDateTime start = ZonedDateTime.of(2026, 5, 22, 9, 0, 0, 0, ZoneId.of("Asia/Seoul"));
-        commuteHistoryRepository.save(new CommuteHistory(null, employeeId, start, null, 0, ZoneId.of("Asia/Seoul")));
+        commuteHistoryRepository.save(CommuteHistoryFixture.open(null, employeeId, start, ZoneId.of("Asia/Seoul")));
 
         // when
         boolean exists = commuteHistoryRepository.existsByEmployeeIdAndWorkDate(employeeId, LocalDate.of(2026, 5, 23));

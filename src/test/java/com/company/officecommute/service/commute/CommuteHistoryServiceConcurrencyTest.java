@@ -2,6 +2,7 @@ package com.company.officecommute.service.commute;
 
 import com.company.officecommute.domain.commute.CommuteAlreadyEndedException;
 import com.company.officecommute.domain.commute.CommuteHistory;
+import com.company.officecommute.domain.commute.CommuteHistoryFixture;
 import com.company.officecommute.domain.commute.CommuteNotStartedException;
 import com.company.officecommute.domain.commute.DuplicateWorkOnDateException;
 import com.company.officecommute.domain.commute.PreviousCommuteNotEndedException;
@@ -169,14 +170,8 @@ public class CommuteHistoryServiceConcurrencyTest {
         ZonedDateTime yesterdayStart = ZonedDateTime.now()
                 .minusDays(1)
                 .withHour(9).withMinute(0).withSecond(0).withNano(0);
-        commuteHistoryRepository.save(new CommuteHistory(
-                null,
-                testEmployeeId,
-                yesterdayStart,
-                null,
-                0,
-                yesterdayStart.getZone()
-        ));
+        commuteHistoryRepository.save(CommuteHistoryFixture.open(
+                null, testEmployeeId, yesterdayStart, yesterdayStart.getZone()));
 
         assertThatThrownBy(() -> commuteHistoryService.registerWorkStartTime(testEmployeeId))
                 .isInstanceOf(PreviousCommuteNotEndedException.class)
@@ -186,16 +181,10 @@ public class CommuteHistoryServiceConcurrencyTest {
     @Test
     @DisplayName("미래 연차 기록이 있어도 오늘 실제 출근과 퇴근이 가능하다")
     void testFutureAnnualLeaveDoesNotBlockTodayWorkStartAndEnd() {
-        ZonedDateTime futureAnnualLeaveStartTime = LocalDate.now()
-                .plusDays(10)
-                .atStartOfDay(ZonedDateTime.now().getZone());
-        commuteHistoryRepository.save(new CommuteHistory(
-                null,
+        commuteHistoryRepository.save(CommuteHistoryFixture.annualLeave(
                 testEmployeeId,
-                futureAnnualLeaveStartTime,
-                null,
-                0,
-                true
+                LocalDate.now().plusDays(10),
+                ZonedDateTime.now().getZone()
         ));
 
         commuteHistoryService.registerWorkStartTime(testEmployeeId);

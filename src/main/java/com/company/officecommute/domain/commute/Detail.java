@@ -38,7 +38,9 @@ public class Detail {
         if (this == object) return true;
         if (object == null || getClass() != object.getClass()) return false;
         Detail detail = (Detail) object;
-        return workingMinutes == detail.workingMinutes && usingDayOff == detail.usingDayOff && Objects.equals(date, detail.date);
+        return usingDayOff == detail.usingDayOff
+                && Objects.equals(date, detail.date)
+                && Objects.equals(workingMinutes, detail.workingMinutes);
     }
 
     @Override

@@ -3,7 +3,7 @@ package com.company.officecommute.domain.commute;
 import java.time.LocalDate;
 import java.util.Objects;
 
-public class Detail {
+public class DailyWorkDuration {
 
     private final LocalDate date;
 
@@ -11,11 +11,11 @@ public class Detail {
 
     private final boolean usingDayOff;
 
-    public Detail(LocalDate date, long workingMinutes, boolean usingDayOff) {
+    public DailyWorkDuration(LocalDate date, long workingMinutes, boolean usingDayOff) {
         this(date, new WorkingMinutes(workingMinutes), usingDayOff);
     }
 
-    public Detail(LocalDate date, WorkingMinutes workingMinutes, boolean usingDayOff) {
+    public DailyWorkDuration(LocalDate date, WorkingMinutes workingMinutes, boolean usingDayOff) {
         this.date = date;
         this.workingMinutes = workingMinutes;
         this.usingDayOff = usingDayOff;
@@ -37,10 +37,10 @@ public class Detail {
     public boolean equals(Object object) {
         if (this == object) return true;
         if (object == null || getClass() != object.getClass()) return false;
-        Detail detail = (Detail) object;
-        return usingDayOff == detail.usingDayOff
-                && Objects.equals(date, detail.date)
-                && Objects.equals(workingMinutes, detail.workingMinutes);
+        DailyWorkDuration that = (DailyWorkDuration) object;
+        return usingDayOff == that.usingDayOff
+                && Objects.equals(date, that.date)
+                && Objects.equals(workingMinutes, that.workingMinutes);
     }
 
     @Override

@@ -107,11 +107,11 @@ public class CommuteHistory {
         return validatedWorkingMinutes.getWorkingMinutes();
     }
 
-    public Detail toDetail() {
+    public DailyWorkDuration toDailyWorkDuration() {
         if (isAnnualLeaveDate()) {
-            return new Detail(this.workDate, ANNUAL_LEAVE_TIME, this.usingDayOff);
+            return new DailyWorkDuration(this.workDate, ANNUAL_LEAVE_TIME, this.usingDayOff);
         }
-        return new Detail(this.workDate, this.workingMinutes, this.usingDayOff);
+        return new DailyWorkDuration(this.workDate, this.workingMinutes, this.usingDayOff);
     }
 
     private boolean isAnnualLeaveDate() {

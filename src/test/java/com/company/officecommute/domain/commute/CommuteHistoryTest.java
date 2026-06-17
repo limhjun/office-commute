@@ -89,20 +89,20 @@ public class CommuteHistoryTest {
     }
 
     @Test
-    void toDetail_workingDate() {
+    void toDailyWorkDuration_workingDate() {
         ZonedDateTime workStartTime = ZonedDateTime.of(2024, 1, 1, 8, 0, 0, 0, ZoneId.of(KOREA));
         ZonedDateTime workEndTime = ZonedDateTime.of(2024, 1, 1, 18, 0, 0, 0, ZoneId.of(KOREA));
         CommuteHistory commuteHistory = CommuteHistoryFixture.ended(1L, 1L, workStartTime, workEndTime);
 
-        Detail detail = commuteHistory.toDetail();
+        DailyWorkDuration dailyWorkDuration = commuteHistory.toDailyWorkDuration();
 
-        assertThat(detail.getDate()).isEqualTo(workStartTime.toLocalDate());
-        assertThat(detail.getWorkingMinutes()).isEqualTo(10L * 60);
-        assertThat(detail.isUsingDayOff()).isFalse();
+        assertThat(dailyWorkDuration.getDate()).isEqualTo(workStartTime.toLocalDate());
+        assertThat(dailyWorkDuration.getWorkingMinutes()).isEqualTo(10L * 60);
+        assertThat(dailyWorkDuration.isUsingDayOff()).isFalse();
     }
 
     @Test
-    void toDetail_usesWorkDateCalculatedByWorkZone() {
+    void toDailyWorkDuration_usesWorkDateCalculatedByWorkZone() {
         ZoneId utc = ZoneId.of("UTC");
         ZoneId korea = ZoneId.of(KOREA);
         ZonedDateTime workStartTime = ZonedDateTime.of(2024, 7, 31, 15, 30, 0, 0, utc);
@@ -110,22 +110,22 @@ public class CommuteHistoryTest {
         CommuteHistory commuteHistory = CommuteHistoryFixture.ended(
                 1L, 1L, workStartTime, workEndTime, korea);
 
-        Detail detail = commuteHistory.toDetail();
+        DailyWorkDuration dailyWorkDuration = commuteHistory.toDailyWorkDuration();
 
         assertThat(commuteHistory.getWorkDate()).isEqualTo(LocalDate.of(2024, 8, 1));
         assertThat(workStartTime.toLocalDate()).isEqualTo(LocalDate.of(2024, 7, 31));
-        assertThat(detail.getDate()).isEqualTo(LocalDate.of(2024, 8, 1));
+        assertThat(dailyWorkDuration.getDate()).isEqualTo(LocalDate.of(2024, 8, 1));
     }
 
     @Test
-    void toDetail_AnnualLeaveDate() {
+    void toDailyWorkDuration_AnnualLeaveDate() {
         LocalDate annualLeaveDate = LocalDate.of(2024, 1, 1);
         CommuteHistory commuteHistory = CommuteHistoryFixture.annualLeave(1L, annualLeaveDate, ZoneId.of(KOREA));
 
-        Detail detail = commuteHistory.toDetail();
+        DailyWorkDuration dailyWorkDuration = commuteHistory.toDailyWorkDuration();
 
-        assertThat(detail.getDate()).isEqualTo(annualLeaveDate);
-        assertThat(detail.getWorkingMinutes()).isEqualTo(0);
-        assertThat(detail.isUsingDayOff()).isTrue();
+        assertThat(dailyWorkDuration.getDate()).isEqualTo(annualLeaveDate);
+        assertThat(dailyWorkDuration.getWorkingMinutes()).isEqualTo(0);
+        assertThat(dailyWorkDuration.isUsingDayOff()).isTrue();
     }
 }

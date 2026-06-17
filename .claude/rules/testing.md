@@ -14,7 +14,7 @@ paths:
 | Repository (`repository/**`) | `@DataJpaTest` | Slice; real JPA against H2 |
 | Controller (`controller/**`) | `@SpringBootTest` + `@AutoConfigureMockMvc` + `MockMvcTester`, services as `@MockitoBean` | Wire/serialization + filters (auth) |
 
-Use the narrowest slice that covers the behavior. Don't `@SpringBootTest` a service test.
+Use the narrowest slice that covers the behavior. Regular service tests should avoid `@SpringBootTest`; concurrency/integration service tests may use it when DB transactions, constraints, or real Spring wiring are part of the behavior.
 
 ## Naming
 
@@ -31,7 +31,7 @@ Use the narrowest slice that covers the behavior. Don't `@SpringBootTest` a serv
 
 ## Test data
 
-- Reusable entity construction goes in `src/test/java/.../service/<entity>/<Entity>Builder.java` (fluent builder, sensible defaults). Add `withX(...)` setters as fields grow — don't inline 9-arg constructors in tests.
+- Reusable entity construction goes near the entity's test package or the consuming service fixture package. Prefer existing helpers such as `domain/employee/EmployeeBuilder`, `service/employee/Employees`, and `service/team/Teams`.
 - Canned fixtures (a single ready-to-use instance) go in `<Entity>s.java` (e.g. `Employees.employee`).
 - Controller request bodies: inline Java text blocks (`"""..."""`) holding the exact JSON. Keep one canonical `VALID_BODY` per `@Nested` group and mutate via string ops only when a field is the variable under test.
 

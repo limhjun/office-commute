@@ -205,9 +205,9 @@ class EmployeeControllerTest {
         @DisplayName("응답에 employeeId, teamId, teamName, ISO-8601 날짜를 포함")
         void responseShape() {
             BDDMockito.given(employeeService.findAllEmployee()).willReturn(List.of(
-                    new EmployeeFindResponse(1L, 10L, "백엔드팀", "임형준", "MEMBER",
+                    new EmployeeFindResponse(1L, 10L, "백엔드팀", "임형준", "ABC123", "hj@company.com", "MEMBER",
                             LocalDate.of(1998, 8, 18), LocalDate.of(2024, 1, 1), "Asia/Seoul"),
-                    new EmployeeFindResponse(2L, null, null, "미배정직원", "MEMBER",
+                    new EmployeeFindResponse(2L, null, null, "미배정직원", "XYZ789", "unassigned@company.com", "MEMBER",
                             LocalDate.of(1990, 1, 1), LocalDate.of(2024, 3, 1), "America/Los_Angeles")
             ));
 
@@ -218,12 +218,14 @@ class EmployeeControllerTest {
                             [
                                 {
                                     "employeeId": 1, "teamId": 10, "teamName": "백엔드팀",
-                                    "name": "임형준", "role": "MEMBER",
+                                    "name": "임형준", "employeeCode": "ABC123", "email": "hj@company.com",
+                                    "role": "MEMBER",
                                     "birthday": "1998-08-18", "workStartDate": "2024-01-01"
                                 },
                                 {
                                     "employeeId": 2, "teamId": null, "teamName": null,
-                                    "name": "미배정직원", "role": "MEMBER",
+                                    "name": "미배정직원", "employeeCode": "XYZ789", "email": "unassigned@company.com",
+                                    "role": "MEMBER",
                                     "birthday": "1990-01-01", "workStartDate": "2024-03-01"
                                 }
                             ]

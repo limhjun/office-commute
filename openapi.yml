@@ -531,12 +531,14 @@ components:
         employeeId: { type: integer, format: int64 }
     EmployeeFindResponse:
       type: object
-      required: [employeeId, name, role, birthday, workStartDate, timezone]
+      required: [employeeId, name, employeeCode, email, role, birthday, workStartDate, timezone]
       properties:
         employeeId: { type: integer, format: int64 }
         teamId: { type: integer, format: int64, nullable: true }
         teamName: { type: string, nullable: true }
         name: { type: string }
+        employeeCode: { type: string }
+        email: { type: string, format: email }
         role: { $ref: '#/components/schemas/Role' }
         birthday: { type: string, format: date }
         workStartDate: { type: string, format: date }

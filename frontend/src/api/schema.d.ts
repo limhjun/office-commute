@@ -822,6 +822,9 @@ export interface components {
             teamId?: number | null;
             teamName?: string | null;
             name: string;
+            employeeCode: string;
+            /** Format: email */
+            email: string;
             role: components["schemas"]["Role"];
             /** Format: date */
             birthday: string;

@@ -4,6 +4,7 @@ import com.company.officecommute.auth.AuthenticationFailedException;
 import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.domain.employee.EmployeeBuilder;
+import com.company.officecommute.dto.auth.response.CurrentUserResponse;
 import com.company.officecommute.service.employee.EmployeeService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -112,6 +113,36 @@ class AuthControllerTest {
                         }
                         """))
                 .hasStatus(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    @DisplayName("세션이 있으면 /me 는 현재 사용자 정보를 반환한다")
+    void me_withSession() {
+        // given
+        given(employeeService.getCurrentUser(1L))
+                .willReturn(new CurrentUserResponse(1L, "관리자", "admin@company.com", "MANAGER", null, null));
+
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("currentEmployeeId", 1L);
+        session.setAttribute("currentRole", Role.MANAGER);
+
+        // when & then
+        assertThat(mockMvcTester
+                .get()
+                .uri("/api/auth/me")
+                .session(session))
+                .hasStatus(HttpStatus.OK)
+                .bodyJson()
+                .extractingPath("$.role").isEqualTo("MANAGER");
+    }
+
+    @Test
+    @DisplayName("세션이 없으면 /me 는 401 응답")
+    void me_withoutSession() {
+        assertThat(mockMvcTester
+                .get()
+                .uri("/api/auth/me"))
+                .hasStatus(HttpStatus.UNAUTHORIZED);
     }
 
     @Test

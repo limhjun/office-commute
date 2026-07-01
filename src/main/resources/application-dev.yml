@@ -1,10 +1,10 @@
 # 개발 환경 설정
 spring:
-  # H2 메모리 데이터베이스 사용
+  # H2 임베디드(인메모리) 데이터베이스 사용
   datasource:
-    url: jdbc:h2:tcp://localhost/~/test
+    url: jdbc:h2:mem:test;DB_CLOSE_DELAY=-1
     username: sa
-    password: 
+    password:
     driver-class-name: org.h2.Driver
   
   # JPA 개발 설정

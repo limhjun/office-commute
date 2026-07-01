@@ -57,6 +57,21 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResult' }
 
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      summary: 현재 로그인한 사용자 조회
+      description: |
+        세션에 저장된 `currentEmployeeId`로 현재 사용자를 조회한다.
+        SPA 부팅 시 로그인 상태 복원 및 역할 기반 화면 분기에 사용한다.
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CurrentUserResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
   /api/auth/logout:
     post:
       tags: [Auth]
@@ -423,6 +438,17 @@ components:
       properties:
         email: { type: string, format: email }
         password: { type: string }
+
+    CurrentUserResponse:
+      type: object
+      required: [employeeId, name, email, role]
+      properties:
+        employeeId: { type: integer, format: int64 }
+        name: { type: string }
+        email: { type: string, format: email }
+        role: { $ref: '#/components/schemas/Role' }
+        teamId: { type: integer, format: int64, nullable: true }
+        teamName: { type: string, nullable: true }
 
     # ---- Team ----
     TeamRegisterRequest:

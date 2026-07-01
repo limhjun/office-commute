@@ -6,6 +6,7 @@ import com.company.officecommute.domain.employee.EmployeeAlreadyExistsException;
 import com.company.officecommute.domain.employee.EmployeeNotFoundException;
 import com.company.officecommute.domain.team.Team;
 import com.company.officecommute.domain.team.TeamNotFoundException;
+import com.company.officecommute.dto.auth.response.CurrentUserResponse;
 import com.company.officecommute.dto.employee.request.EmployeeSaveRequest;
 import com.company.officecommute.dto.employee.response.EmployeeFindResponse;
 import com.company.officecommute.dto.employee.response.EmployeeRegisterResponse;
@@ -80,6 +81,12 @@ public class EmployeeService {
                 .stream()
                 .map(EmployeeFindResponse::from)
                 .toList();
+    }
+
+    public CurrentUserResponse getCurrentUser(Long employeeId) {
+        Employee employee = employeeRepository.findByEmployeeIdWithTeam(employeeId)
+                .orElseThrow(() -> new EmployeeNotFoundException(employeeId));
+        return CurrentUserResponse.from(employee);
     }
 
     public Employee authenticate(String email, String password) {

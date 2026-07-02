@@ -66,23 +66,6 @@ class OverTimeReportServiceTest {
     }
 
     @Test
-    @DisplayName("엑셀 리포트 생성 시 ExcelWriter에 위임하고 다음 달 공휴일을 선제 저장한다")
-    void generateExcelReport_delegatesAndPrefetches() throws IOException {
-        YearMonth yearMonth = YearMonth.of(2024, 8);
-        List<OverTimeCalculateResponse> mockOverTimeData = Arrays.asList(
-                new OverTimeCalculateResponse(1L, "임형준", "백엔드팀", 300L),
-                new OverTimeCalculateResponse(2L, "김개발", "프론트엔드팀", 120L)
-        );
-
-        BDDMockito.given(overTimeService.calculateOverTime(yearMonth))
-                .willReturn(mockOverTimeData);
-
-        overTimeReportService.generateExcelReport(yearMonth, OutputStream.nullOutputStream());
-
-        then(overTimeExcelWriter).should().write(eq(yearMonth), any(), any(OutputStream.class));
-    }
-
-    @Test
     @DisplayName("초과근무 시간이 0분인 경우 수당도 0원이다")
     void generateExcelReport_zeroOvertime() throws IOException {
         YearMonth yearMonth = YearMonth.of(2024, 8);

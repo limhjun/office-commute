@@ -1,6 +1,5 @@
 package com.company.officecommute.web;
 
-import com.company.officecommute.domain.overtime.HolidayResponse;
 import com.company.officecommute.global.exception.HolidayDataUnavailableException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

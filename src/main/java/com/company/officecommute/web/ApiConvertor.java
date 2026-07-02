@@ -1,6 +1,5 @@
 package com.company.officecommute.web;
 
-import com.company.officecommute.domain.overtime.HolidayResponse;
 import com.company.officecommute.global.exception.HolidayDataUnavailableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

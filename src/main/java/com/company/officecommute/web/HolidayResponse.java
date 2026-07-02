@@ -1,4 +1,4 @@
-package com.company.officecommute.domain.overtime;
+package com.company.officecommute.web;
 
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlElementWrapper;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;

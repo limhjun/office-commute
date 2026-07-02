@@ -1,7 +1,5 @@
 package com.company.officecommute.domain.annual_leave;
 
-import com.company.officecommute.dto.annual_leave.response.AnnualLeaveEnrollmentResponse;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -36,14 +34,7 @@ public class AnnualLeaves {
                         -> annualLeave.isNotEnoughForEnroll(annualLeaveCriteria));
     }
 
-    public List<AnnualLeaveEnrollmentResponse> toAnnualLeaveEnrollmentResponse() {
-        return this.annualLeaves.stream()
-                .map(it -> new AnnualLeaveEnrollmentResponse(it.getId(), it.getDate()))
-                .toList();
-    }
-
     public List<AnnualLeave> getAnnualLeaves() {
         return annualLeaves;
     }
-
 }

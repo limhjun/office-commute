@@ -31,6 +31,7 @@
 - Error envelope: `ErrorResult { code, message }` or `ValidationErrorResult { code, message, fieldErrorResults }`. Codes follow `*_ALREADY_EXISTS`, `*_NOT_FOUND`, `VALIDATION_ERROR`, `INVALID_JSON`.
 - Static factories for registration: `Entity.register(...)`; validation/normalization lives there or in the canonical full-arg constructor.
 - Three-layer validation: domain constructor/factory + JPA `@Column(nullable=false, unique=…)` + Flyway DDL must agree.
+- Boundary-validation contract: every user-input format rule the domain enforces (standard exceptions like `IllegalArgumentException`) must also be covered by Bean Validation on the request DTO (custom constraint if needed, e.g. `@ValidZoneId`). Domain standard exceptions map to 500 `UNEXPECTED_DOMAIN_VIOLATION` on purpose — reaching one from user input means a missing DTO check, not a user error.
 - ID-based API: registration returns `{ entityId }`; mutation endpoints carry the ID in the path (`PUT /employee/{employeeId}/team`). Don't introduce name-based contracts.
 
 ## Always

@@ -1,6 +1,7 @@
 package com.company.officecommute.dto.employee.request;
 
 import com.company.officecommute.domain.employee.Role;
+import com.company.officecommute.global.validation.ValidZoneId;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -46,6 +47,7 @@ public record EmployeeSaveRequest(
 
         Long teamId,
 
+        @ValidZoneId(message = "timezone이 올바른 IANA ZoneId 형식이 아닙니다.")
         String timezone
 ) {
 }

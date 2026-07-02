@@ -124,6 +124,65 @@ class EmployeeControllerTest {
         }
 
         @Test
+        @DisplayName("올바르지 않은 timezone은 400 + VALIDATION_ERROR")
+        void invalidTimezone() {
+            String invalid = """
+                    {
+                        "name": "John",
+                        "role": "MEMBER",
+                        "birthday": "1990-01-01",
+                        "workStartDate": "2020-01-01",
+                        "employeeCode": "E00001",
+                        "email": "john@company.com",
+                        "password": "password123",
+                        "timezone": "Seoul"
+                    }
+                    """;
+
+            assertThat(mockMvcTester.post().uri("/employee")
+                    .session(managerSession())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(invalid))
+                    .hasStatus(HttpStatus.BAD_REQUEST)
+                    .bodyJson()
+                    .isLenientlyEqualTo("""
+                            {
+                                "code": "VALIDATION_ERROR",
+                                "message": "입력값이 올바르지 않습니다",
+                                "fieldErrorResults": [
+                                    { "field": "timezone", "message": "timezone이 올바른 IANA ZoneId 형식이 아닙니다." }
+                                ]
+                            }
+                            """);
+        }
+
+        @Test
+        @DisplayName("timezone이 null이거나 빈 문자열이면 통과 (서버 기본값 적용)")
+        void blankTimezoneAllowed() {
+            BDDMockito.given(employeeService.registerEmployee(any()))
+                    .willReturn(new EmployeeRegisterResponse(42L));
+
+            String body = """
+                    {
+                        "name": "John",
+                        "role": "MEMBER",
+                        "birthday": "1990-01-01",
+                        "workStartDate": "2020-01-01",
+                        "employeeCode": "E00001",
+                        "email": "john@company.com",
+                        "password": "password123",
+                        "timezone": ""
+                    }
+                    """;
+
+            assertThat(mockMvcTester.post().uri("/employee")
+                    .session(managerSession())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(body))
+                    .hasStatus(HttpStatus.CREATED);
+        }
+
+        @Test
         @DisplayName("존재하지 않는 Role 값은 INVALID_JSON")
         void invalidEnum() {
             String invalid = """

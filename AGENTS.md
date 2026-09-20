@@ -7,9 +7,8 @@ Run commands from the repository root unless stated otherwise. Use the current c
 
 ## Instruction Files
 
-- This root-level `AGENTS.md` uses the standard filename for automatic discovery by Codex.
-- Claude Code reads `CLAUDE.md`. To share these instructions with Claude Code, a `CLAUDE.md` file can import this file using `@AGENTS.md` outside a code span or fenced code block.
-- Before working on the frontend, also read `frontend/CLAUDE.md` and follow its rules for that area.
+- This root-level `AGENTS.md` uses the standard filename for automatic discovery by coding agents such as Codex and Claude Code. Do not add a separate `CLAUDE.md` at the root.
+- Before working on the frontend, also read `frontend/AGENTS.md` and follow its rules for that area.
 
 ## Development Environment and Commands
 

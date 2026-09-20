@@ -1,4 +1,4 @@
-# CLAUDE.md — frontend
+# AGENTS.md — frontend
 
 Admin SPA for the office-commute backend. Root-level rules (spec-first, error envelope, secrets policy) still apply here.
 

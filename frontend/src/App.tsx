@@ -12,7 +12,7 @@ import { MyAnnualLeavePage } from '@/pages/MyAnnualLeavePage';
 // 로그인 직후 역할에 맞는 첫 화면으로 보낸다.
 function HomeRedirect() {
   const { isManager } = useAuth();
-  return <Navigate to={isManager ? '/overtime' : '/me/commute'} replace />;
+  return <Navigate to={isManager ? '/employees' : '/me/commute'} replace />;
 }
 
 export default function App() {

@@ -6,9 +6,9 @@
 - [서비스 데모](https://office-commute.com)
 
 ## 핵심 문제 해결
-- 한 사람이 여러 번 출근 버튼을 누를 때 여러 행이 동시에 생성되는 문제를 UNIQUE Constraint로 해결
-- 출근 시점의 직원 시간대를 함께 기록해 서버, 사용자 시간대 변경에도 과거 근무일을 일관되게 유지
-- 달단위 직원 초과 근무 계산을 위한 외부 API 연결 처리를 단순하게 처리하되 변경가능성을 염두해 인터페이스 정의
+- 동시에 도착한 출근 요청에도 DB UNIQUE 제약으로 직원별 하루 1건의 출근 기록을 보장 ([최초 UNIQUE 제약 및 동시성 테스트: 94dc4e2](https://github.com/limhjun/office-commute/commit/94dc4e220781413c9794f44d940601a0e9aeaa53), [중복 출근 409 처리 개선: PR #32](https://github.com/limhjun/office-commute/pull/32))
+- 출퇴근 시각은 UTC 기준으로 저장하고 출근 당시 직원의 시간대(Asia/Seoul 등)를 함께 기록해, 서버 및 직원의 시간대 설정 변경에도 과거 근무일을 일관되게 유지 ([시간대 스냅샷: 6d4c8a8](https://github.com/limhjun/office-commute/commit/6d4c8a8cbb003dbd6009558813cc4155291d82a5), [UTC 저장: f143f9a](https://github.com/limhjun/office-commute/commit/f143f9aaf588333126fd72c9850118d5fa055ec0))
+- 월별 정산에 필요한 공휴일 데이터를 요청 시 조회하되, HolidayCalendar 인터페이스로 공급원을 분리해 향후 DB 저장 방식으로 교체 가능하도록 설계 ([HolidayCalendar 도입: 1c23918](https://github.com/limhjun/office-commute/commit/1c239184049c324bd9d10b2457fe9abe228f365f))
 
 ## 주요 기능
 - 직원·팀 등록 및 소속 관리

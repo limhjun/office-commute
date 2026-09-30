@@ -36,93 +36,123 @@
 **출근: 조회 후 저장 → DB 제약이 최종 판정**
 
 <table>
-<tr><th>Before</th><th>After</th></tr>
-<tr>
-<td valign="top">
+<tr><th align="left">Before</th></tr>
+<tr><td>
 
 ```java
-@Transactional
-public void registerWorkStartTime(Long employeeId) {
-    Employee employee = findEmployeeById(employeeId);
-    // 퇴근을 안 했으면 출근할 수 없다
-    distinguishItIsPossibleToWork(employee.getEmployeeId());
+public class CommuteHistoryService {
 
-    commuteHistoryRepository.save(
-        new CommuteHistory(null, employee.getEmployeeId(),
-                           ZonedDateTime.now(), null, 0));
-}
-```
+    @Transactional
+    public void registerWorkStartTime(Long employeeId) {
+        Employee employee = findEmployeeById(employeeId);
+        // 퇴근을 안 했으면 출근할 수 없다
+        distinguishItIsPossibleToWork(employee.getEmployeeId());
 
-</td>
-<td valign="top">
-
-```java
-@Table(uniqueConstraints = @UniqueConstraint(
-    name = "uk_commute_history_employee_date",
-    columnNames = {"employee_id", "work_date"}))
-public class CommuteHistory { … }
-
-private void saveCommuteHistory(CommuteHistory commute) {
-    try {
-        commuteHistoryRepository.saveAndFlush(commute);
-    } catch (DataIntegrityViolationException e) {
-        if (matches(e, UK_COMMUTE_HISTORY_EMPLOYEE_DATE)) {
-            throw new DuplicateWorkOnDateException(…); // 409
-        }
-        throw e;
+        commuteHistoryRepository.save(
+                new CommuteHistory(null, employee.getEmployeeId(),
+                                   ZonedDateTime.now(), null, 0));
     }
 }
 ```
 
-</td>
-</tr>
+</td></tr>
+<tr><th align="left">After</th></tr>
+<tr><td>
+
+```java
+@Entity
+@Table(uniqueConstraints = @UniqueConstraint(
+        name = "uk_commute_history_employee_date",
+        columnNames = {"employee_id", "work_date"}))
+public class CommuteHistory {
+    …
+}
+
+public class CommuteHistoryService {
+
+    private void saveCommuteHistory(CommuteHistory commuteHistory) {
+        try {
+            commuteHistoryRepository.saveAndFlush(commuteHistory);
+        } catch (DataIntegrityViolationException e) {
+            if (DatabaseConstraintMatcher.matches(e, UK_COMMUTE_HISTORY_EMPLOYEE_DATE)) {
+                throw new DuplicateWorkOnDateException(commuteHistory.getWorkDate(), e); // 409
+            }
+            throw e;
+        }
+    }
+}
+```
+
+</td></tr>
 </table>
 
 **퇴근: 엔티티 변경 후 저장 → 확인과 변경을 한 문장으로 ([d4724cb](https://github.com/limhjun/office-commute/commit/d4724cbd02e7da402a1cdc2a8e6fa545fd6e7fcf))**
 
 <table>
-<tr><th>Before</th><th>After</th></tr>
-<tr>
-<td valign="top">
+<tr><th align="left">Before</th></tr>
+<tr><td>
 
 ```java
-@Transactional
-public void registerWorkEndTime(Long employeeId) {
-    CommuteHistory lastCommute =
-            findFirstByEmployeeId(employee.getEmployeeId());
-    ZonedDateTime now = ZonedDateTime.now(clock.withZone(zone));
-    CommuteHistory commuteHistory = lastCommute.endWork(now);
-    commuteHistoryRepository.save(commuteHistory);
+public class CommuteHistoryService {
+
+    @Transactional
+    public void registerWorkEndTime(Long employeeId) {
+        Employee employee = getEmployee(employeeId);
+        CommuteHistory lastCommute = findFirstByEmployeeId(employee.getEmployeeId());
+        ZonedDateTime now = ZonedDateTime.now(clock.withZone(lastCommute.getWorkZoneId()));
+        CommuteHistory commuteHistory = lastCommute.endWork(now);
+        commuteHistoryRepository.save(commuteHistory);
+    }
 }
 
-// CommuteHistory.endWork(): 메모리 안에서만 검사
-if (this.workEndTime != null) {
-    throw new CommuteAlreadyEndedException();
+public class CommuteHistory {
+
+    public CommuteHistory endWork(ZonedDateTime workEndTime) {
+        if (this.workEndTime != null) { // 메모리 안에서만 검사
+            throw new CommuteAlreadyEndedException();
+        }
+        …
+        this.workEndTime = workEndTime;
+        return this;
+    }
 }
 ```
 
-</td>
-<td valign="top">
+</td></tr>
+<tr><th align="left">After</th></tr>
+<tr><td>
 
 ```java
-long workingMinutes = lastCommute.calculateWorkingMinutes(now);
-int updated = commuteHistoryRepository.updateWorkEndTimeIfOpen(
-        lastCommute.getCommuteHistoryId(), now, workingMinutes);
-if (updated == 0) {
-    throw new CommuteAlreadyEndedException();
+public class CommuteHistoryService {
+
+    @Transactional
+    public void registerWorkEndTime(Long employeeId) {
+        Employee employee = getEmployee(employeeId);
+        CommuteHistory lastCommute = findFirstByEmployeeId(employee.getEmployeeId());
+        Instant now = clock.instant();
+        long workingMinutes = lastCommute.calculateWorkingMinutes(now); // 계산만, 상태 변경 없음
+        int updated = commuteHistoryRepository.updateWorkEndTimeIfOpen(
+                lastCommute.getCommuteHistoryId(), now, workingMinutes);
+        if (updated == 0) {
+            throw new CommuteAlreadyEndedException();
+        }
+    }
 }
 
-@Query("""
-    UPDATE CommuteHistory ch
-    SET ch.workEndTime = :workEndTime,
-        ch.workingMinutes = :workingMinutes
-    WHERE ch.commuteHistoryId = :commuteHistoryId
-      AND ch.workEndTime IS NULL
-    """)
+public interface CommuteHistoryRepository extends JpaRepository<CommuteHistory, Long> {
+
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            UPDATE CommuteHistory ch
+            SET ch.workEndTime = :workEndTime, ch.workingMinutes = :workingMinutes
+            WHERE ch.commuteHistoryId = :commuteHistoryId
+                AND ch.workEndTime IS NULL
+            """)
+    int updateWorkEndTimeIfOpen(Long commuteHistoryId, Instant workEndTime, long workingMinutes);
+}
 ```
 
-</td>
-</tr>
+</td></tr>
 </table>
 
 ### 서버 타임존과 무관하게 근무일을 일관되게 계산
@@ -135,52 +165,72 @@ if (updated == 0) {
 **시간대를 잃는 시각 → 절대 시각 + 시간대 스냅샷**
 
 <table>
-<tr><th>Before</th><th>After</th></tr>
-<tr>
-<td valign="top">
+<tr><th align="left">Before</th></tr>
+<tr><td>
 
 ```java
-// CommuteHistory
-private ZonedDateTime workStartTime;
-private ZonedDateTime workEndTime;
-private LocalDate workDate;
+public class CommuteHistory {
 
-this.workDate = (workStartTime != null)
-        ? workStartTime.toLocalDate()
-        : LocalDate.now();
+    private ZonedDateTime workStartTime; // 저장 시 Hibernate가 시간대를 떼고 JVM 시간대로 정규화
+    private ZonedDateTime workEndTime;
+    private LocalDate workDate;
 
-// CommuteHistoryService.registerWorkStartTime
-CommuteHistory newWork = new CommuteHistory(
-        null, employee.getEmployeeId(),
-        ZonedDateTime.now(), null, 0);
-commuteHistoryRepository.save(newWork);
+    public CommuteHistory(…, ZonedDateTime workStartTime, …) {
+        …
+        this.workDate = (workStartTime != null)
+                ? workStartTime.toLocalDate()
+                : LocalDate.now();
+    }
+}
+
+public class CommuteHistoryService {
+
+    @Transactional
+    public void registerWorkStartTime(Long employeeId) {
+        …
+        CommuteHistory newWork = new CommuteHistory(
+                null, employee.getEmployeeId(), ZonedDateTime.now(), null, 0);
+        commuteHistoryRepository.save(newWork);
+    }
+}
 ```
 
-</td>
-<td valign="top">
+</td></tr>
+<tr><th align="left">After</th></tr>
+<tr><td>
 
 ```java
-// CommuteHistory
-@Column(nullable = false)
-private Instant workStartTime;
-private Instant workEndTime;
-private LocalDate workDate;
+public class CommuteHistory {
 
-@Column(name = "work_zone", nullable = false)
-private String workZone;
+    @Column(nullable = false)
+    private Instant workStartTime; // 항상 UTC로 저장
+    private Instant workEndTime;
+    private LocalDate workDate;
 
-this.workZone = workZone.getId();
-this.workDate = workStartTime.atZone(workZone).toLocalDate();
+    @Column(name = "work_zone", nullable = false)
+    private String workZone; // 출근 당시 직원 시간대 스냅샷
 
-// CommuteHistoryService.registerWorkStartTime
-Instant workStartTime = clock.instant();
-CommuteHistory newCommute = CommuteHistory.registerWorkStart(
-        employee.getEmployeeId(), workStartTime,
-        employee.getZoneId());
+    private CommuteHistory(…, Instant workStartTime, …, ZoneId workZone) {
+        …
+        this.workZone = workZone.getId();
+        this.workDate = workStartTime.atZone(workZone).toLocalDate();
+    }
+}
+
+public class CommuteHistoryService {
+
+    @Transactional
+    public void registerWorkStartTime(Long employeeId) {
+        Employee employee = getEmployee(employeeId);
+        Instant workStartTime = clock.instant(); // 주입된 Clock → 테스트에서 고정 가능
+        CommuteHistory newCommute = CommuteHistory.registerWorkStart(
+                employee.getEmployeeId(), workStartTime, employee.getZoneId());
+        …
+    }
+}
 ```
 
-</td>
-</tr>
+</td></tr>
 </table>
 
 ### 공휴일 데이터 조회 전략: 저장 vs 요청 시 조회
@@ -193,98 +243,131 @@ CommuteHistory newCommute = CommuteHistory.registerWorkStart(
 **서비스가 외부 API 클라이언트를 직접 앎 → "공휴일 집합"이라는 경계 뒤로**
 
 <table>
-<tr><th>Before</th><th>After</th></tr>
-<tr>
-<td valign="top">
+<tr><th align="left">Before</th></tr>
+<tr><td>
 
 ```java
-// OverTimeService
-private final HolidayApiClient holidayApiClient;
+public class OverTimeService {
 
-public List<OverTimeCalculateResponse> calculateOverTime(
-        YearMonth yearMonth) {
-    OverTimePeriod period = new OverTimePeriod(yearMonth);
-    Set<LocalDate> holidays = findHolidays(period);
-    …
-}
+    private final HolidayApiClient holidayApiClient;
 
-private Set<LocalDate> findHolidays(OverTimePeriod period) {
-    Set<LocalDate> holidays = new HashSet<>();
-    for (YearMonth month : period.requiredHolidayMonths()) {
-        holidays.addAll(holidayApiClient.getHolidays(month));
+    public List<OverTimeCalculateResponse> calculateOverTime(YearMonth yearMonth) {
+        OverTimePeriod period = new OverTimePeriod(yearMonth);
+        Set<LocalDate> holidays = findHolidays(period);
+        …
     }
-    return holidays;
+
+    private Set<LocalDate> findHolidays(OverTimePeriod period) {
+        Set<LocalDate> holidays = new HashSet<>();
+        for (YearMonth month : period.requiredHolidayMonths()) {
+            holidays.addAll(holidayApiClient.getHolidays(month));
+        }
+        return holidays;
+    }
 }
 ```
 
-</td>
-<td valign="top">
+</td></tr>
+<tr><th align="left">After</th></tr>
+<tr><td>
 
 ```java
 public interface HolidayCalendar {
+
     Set<LocalDate> findHolidays(OverTimePeriod period);
 }
 
-// OverTimeService
-private final HolidayCalendar holidayCalendar;
+public class OverTimeService {
 
-public List<OverTimeCalculateResponse> calculateOverTime(
-        YearMonth yearMonth) {
-    OverTimePeriod period = new OverTimePeriod(yearMonth);
-    Set<LocalDate> holidays = holidayCalendar.findHolidays(period);
-    …
+    private final HolidayCalendar holidayCalendar;
+
+    public List<OverTimeCalculateResponse> calculateOverTime(YearMonth yearMonth) {
+        OverTimePeriod period = new OverTimePeriod(yearMonth);
+        Set<LocalDate> holidays = holidayCalendar.findHolidays(period);
+        …
+    }
 }
 
 @Component
 public class ApiHolidayCalendar implements HolidayCalendar {
+
     private final HolidayApiClient holidayApiClient;
-    // 월 경계 규칙 + API 호출은 이 구현이 책임
+
+    @Override
+    public Set<LocalDate> findHolidays(OverTimePeriod period) {
+        Set<LocalDate> holidays = new HashSet<>();
+        for (YearMonth month : period.requiredHolidayMonths()) {
+            holidays.addAll(holidayApiClient.getHolidays(month));
+        }
+        return holidays;
+    }
 }
 ```
 
-</td>
-</tr>
+</td></tr>
 </table>
 
 **서비스 테스트: API 호출 방식까지 검증 → 공휴일 집합만 주입**
 
 <table>
-<tr><th>Before</th><th>After</th></tr>
-<tr>
-<td valign="top">
+<tr><th align="left">Before</th></tr>
+<tr><td>
 
 ```java
-@Mock HolidayApiClient holidayApiClient;
+class OverTimeServiceTest {
 
-// 월 1일이 속한 주가 전월에 걸치면 전월 공휴일도 조회
-void calculateOverTime_fetchesStraddlingMonthHolidays() {
-    given(holidayApiClient.getHolidays(any(YearMonth.class)))
-            .willReturn(Set.of());
-    overTimeService.calculateOverTime(AUGUST);
+    @Mock
+    private HolidayApiClient holidayApiClient;
 
-    then(holidayApiClient).should().getHolidays(AUGUST);
-    then(holidayApiClient).should().getHolidays(JULY);
+    @Test
+    @DisplayName("월 1일이 속한 주가 전월에 걸치면 전월 공휴일도 함께 가져온다")
+    void calculateOverTime_fetchesStraddlingMonthHolidays() {
+        given(holidayApiClient.getHolidays(any(YearMonth.class))).willReturn(Set.of());
+        …
+        overTimeService.calculateOverTime(AUGUST);
+
+        then(holidayApiClient).should().getHolidays(AUGUST);
+        then(holidayApiClient).should().getHolidays(JULY);
+    }
 }
 ```
 
-</td>
-<td valign="top">
+</td></tr>
+<tr><th align="left">After</th></tr>
+<tr><td>
 
 ```java
-@Mock HolidayCalendar holidayCalendar;
+class OverTimeServiceTest {
 
-// OverTimeServiceTest: 공휴일 트랙 계산만 검증
-given(holidayCalendar.findHolidays(new OverTimePeriod(JULY)))
-        .willReturn(Set.of(LocalDate.of(2024, 7, 3)));
+    @Mock
+    private HolidayCalendar holidayCalendar;
 
-// 월 경계 규칙은 ApiHolidayCalendarTest로 이동
-//  · 월 1일이 속한 주가 전월에 걸치면 전월도 조회
-//  · 월 1일이 월요일이면 해당 월만 조회
-//  · 걸친 두 달의 공휴일을 하나의 집합으로 합침
+    @Test
+    @DisplayName("일요일·공휴일 근무는 휴일근로 트랙으로 응답에 실린다")
+    void calculateOverTime_populatesHolidayTracks() {
+        given(holidayCalendar.findHolidays(new OverTimePeriod(JULY)))
+                .willReturn(Set.of(LocalDate.of(2024, 7, 3)));
+        …
+    }
+}
+
+class ApiHolidayCalendarTest { // 월 경계 규칙은 구현체 테스트로 이동
+
+    @Test
+    @DisplayName("월 1일이 속한 주가 전월에 걸치면 전월 공휴일도 함께 가져온다")
+    void findHolidays_fetchesStraddlingMonthHolidays() { … }
+
+    @Test
+    @DisplayName("월 1일이 월요일이면 해당 월 공휴일만 가져온다")
+    void findHolidays_singleMonthWhenWeekAlignsWithMonth() { … }
+
+    @Test
+    @DisplayName("걸친 두 달의 공휴일을 하나의 집합으로 합친다")
+    void findHolidays_mergesHolidaysOfBothMonths() { … }
+}
 ```
 
-</td>
-</tr>
+</td></tr>
 </table>
 
 ## 현재 한계 및 개선 계획

@@ -30,16 +30,96 @@
 - 문제: 출근 전 중복 조회를 해도 요청이 동시에 들어오면 둘 다 통과해 두 건이 저장됐고, 이로 인해 근무 시간과 수당 계산을 왜곡했습니다.
 - 해결: 출근, 연차 등록은 DB UNIQUE 제약을 최종 정합성 경계로 두고 제약 위반을 409 Conflict로 변환했습니다. 퇴근은 조건부 UPDATE로 확인과 변경을 원자적으로 수행하고 갱신 건수로 성공 여부를 판정했습니다.
 - 검증: 동시 출근 100개 요청에서 1건만 저장되고, 동시 퇴근 20개 요청에서 1건만 성공함을 서비스 계층 테스트로 확인했습니다.
+- 코드 변화 (핵심만)
+  - 출근: 조회 후 `save` → `(employee_id, work_date)` UNIQUE 제약이 최종 판정. `saveAndFlush`로 위반을 메서드 안에서 즉시 받아, 제약 이름이 일치할 때만 409로 변환합니다.
+
+    ```diff
+     // CommuteHistory
+    +@Table(uniqueConstraints = @UniqueConstraint(
+    +        name = "uk_commute_history_employee_date",
+    +        columnNames = {"employee_id", "work_date"}))
+
+     // CommuteHistoryService.registerWorkStartTime
+     validateCanRegisterWorkStart(employeeId, workDate); // 사전 조회는 빠른 실패용으로만
+    -commuteHistoryRepository.save(newWork);
+    +try {
+    +    commuteHistoryRepository.saveAndFlush(commute);
+    +} catch (DataIntegrityViolationException e) {
+    +    if (DatabaseConstraintMatcher.matches(e, UK_COMMUTE_HISTORY_EMPLOYEE_DATE)) {
+    +        throw new DuplicateWorkOnDateException(commute.getWorkDate(), e); // 409
+    +    }
+    +    throw e;
+    +}
+    ```
+
+  - 퇴근: 엔티티를 메모리에서 검사·변경 후 `save` → "아직 퇴근 안 한 행만" 갱신하는 조건부 UPDATE. 갱신 건수 0이면 경합에서 진 요청입니다. ([d4724cb](https://github.com/limhjun/office-commute/commit/d4724cbd02e7da402a1cdc2a8e6fa545fd6e7fcf))
+
+    ```diff
+    -CommuteHistory commuteHistory = lastCommute.endWork(now);
+    -commuteHistoryRepository.save(commuteHistory);
+    +long workingMinutes = lastCommute.calculateWorkingMinutes(now); // 계산만, 상태 변경 없음
+    +int updated = commuteHistoryRepository.updateWorkEndTimeIfOpen(
+    +        lastCommute.getCommuteHistoryId(), now, workingMinutes);
+    +if (updated == 0) {
+    +    throw new CommuteAlreadyEndedException();
+    +}
+
+     // CommuteHistoryRepository
+    +UPDATE CommuteHistory ch
+    +SET ch.workEndTime = :workEndTime, ch.workingMinutes = :workingMinutes
+    +WHERE ch.commuteHistoryId = :commuteHistoryId
+    +    AND ch.workEndTime IS NULL
+    ```
 
 ### 서버 타임존과 무관하게 근무일을 일관되게 계산
 - 문제: 서버의 시간대를 기준으로 근무일을 계산해, 한국에서는 8월 1일인 출근이 UTC 서버에서는 7월 31일로 기록되는 문제가 있었습니다. 이 날짜를 사용하는 하루 1회 출근 제한과 월별 집계에도 영향을 줄 수 있었습니다.
 - 해결: 출퇴근 시각은 UTC 기준으로 저장하고, 근무일은 출근 당시 직원의 시간대로 계산해 저장했습니다. 각 기록에 당시 시간대를 함께 저장해, 이후 직원의 시간대 설정이 바뀌어도 과거 근무일과 출퇴근 표시 시각이 유지되도록 했습니다.
 - 검증: 현재 시각을 고정할 수 있도록 구성해, 한국과 UTC의 날짜가 달라지는 새벽, 월말 상황을 테스트 코드로 재현했습니다. MySQL에서도 출근 시각은 UTC 기준으로, 근무일은 직원 시간대의 날짜로 저장되는 것을 관찰했습니다.
+- 코드 변화 (핵심만): 기존 `ZonedDateTime`은 MySQL 저장 시 Hibernate가 시간대를 떼고 JVM 기본 시간대로 정규화했고, "지금"과 근무일도 서버 시간대 기준이었습니다. 시각은 `Instant`(항상 UTC)로, 시간대는 기록마다 `work_zone`으로 남기고, "지금"은 주입된 `Clock`에서 가져옵니다.
+
+  ```diff
+   // CommuteHistory
+  -private ZonedDateTime workStartTime;
+  +private Instant workStartTime;
+  +
+  +@Column(name = "work_zone", nullable = false)
+  +private String workZone;
+
+  -this.workDate = workStartTime.toLocalDate();
+  +this.workDate = workStartTime.atZone(workZone).toLocalDate();
+
+   // CommuteHistoryService.registerWorkStartTime
+  -new CommuteHistory(null, employee.getEmployeeId(), ZonedDateTime.now(), null, 0);
+  +Instant workStartTime = clock.instant();
+  +CommuteHistory.registerWorkStart(employee.getEmployeeId(), workStartTime, employee.getZoneId());
+  ```
 
 ### 공휴일 데이터 조회 전략: 저장 vs 요청 시 조회
 - 상황: 월별 초과근무와 수당 계산에 공공데이터포털의 공휴일 정보가 필요했습니다.
 - 판단: 관리자 정산 시에만 사용하는 저빈도 데이터라 별도 저장소와 동기화 로직을 유지하는 비용보다 요청 시 조회가 단순하다고 판단했습니다. 외부 API 조회 실패는 정상 결과로 간주하지 않고 명시적으로 전달했습니다.
 - 설계: 사용량이나 가용성 요구가 커질 경우 DB 저장 방식으로 교체할 수 있도록 공휴일 데이터 공급 경계를 인터페이스로 분리했습니다.
+- 코드 변화 (핵심만): 초과근무 계산 서비스가 `HolidayApiClient`를 직접 들고 "몇 월을 몇 번 호출할지"까지 알던 구조에서, "이 기간의 공휴일 집합"만 요구하도록 바꿨습니다. 외부 호출과 월 경계 규칙은 `ApiHolidayCalendar`로 모였고, 서비스 테스트도 API 호출 방식 대신 공휴일 집합만 주입받게 되었습니다(월 경계 규칙은 `ApiHolidayCalendarTest`가 검증).
+
+  ```diff
+  +public interface HolidayCalendar {
+  +    Set<LocalDate> findHolidays(OverTimePeriod period);
+  +}
+
+   // OverTimeService
+  -private final HolidayApiClient holidayApiClient;
+  +private final HolidayCalendar holidayCalendar;
+
+  -Set<LocalDate> holidays = findHolidays(period);
+  +Set<LocalDate> holidays = holidayCalendar.findHolidays(period);
+
+  -private Set<LocalDate> findHolidays(OverTimePeriod period) {
+  -    Set<LocalDate> holidays = new HashSet<>();
+  -    for (YearMonth month : period.requiredHolidayMonths()) {
+  -        holidays.addAll(holidayApiClient.getHolidays(month));
+  -    }
+  -    return holidays;
+  -}
+  ```
 
 ## 현재 한계 및 개선 계획
 - 퇴근 버튼을 누르지 못하고 퇴근했다거나 하는 경우, 관리자에게 수정해달라고 요청할 수 있게 하고 관리자는 이에 대해 승낙할 수 있게 해야한다.

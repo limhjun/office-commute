@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Button, Card, Group, Stack, Table, Title, Text, Alert } from '@mantine/core';
+import { Anchor, Button, Card, Group, Stack, Table, Title, Text, Alert } from '@mantine/core';
+import { Link } from 'react-router-dom';
 import { MonthPickerInput } from '@mantine/dates';
 import { IconFileSpreadsheet, IconAlertTriangle } from '@tabler/icons-react';
 import { useOvertime } from '@/hooks/useOvertime';
@@ -18,8 +19,8 @@ export function OvertimePage() {
   async function onDownload() {
     setDownloading(true);
     try {
-      await downloadFile(`/api/overtime/report/excel?yearMonth=${ym}`, `${ym}_초과근무보고서.xlsx`);
-      notifySuccess('리포트를 내려받았습니다.');
+      await downloadFile(`/api/overtime/report/excel?yearMonth=${ym}`, `${ym}_초과근무보고서_참고용.xlsx`);
+      notifySuccess('참고용 리포트를 내려받았습니다.');
     } catch (e) {
       notifyError(e, '리포트를 내려받지 못했습니다.');
     } finally {
@@ -44,10 +45,15 @@ export function OvertimePage() {
             loading={downloading}
             disabled={holidayUnavailable}
           >
-            Excel 리포트
+            참고용 Excel
           </Button>
         </Group>
       </Group>
+
+      <Text size="sm" c="dimmed">
+        이 화면과 Excel 은 현재 데이터로 다시 집계한 참고용입니다. 승인 전 정정은 반영되지 않습니다.
+        발송된 확정본은 <Anchor component={Link} to="/closing" size="sm">월 마감</Anchor> 화면에서 내려받으세요.
+      </Text>
 
       {holidayUnavailable && (
         <Alert color="orange" icon={<IconAlertTriangle size={16} />} title="공휴일 데이터를 불러오지 못했습니다">

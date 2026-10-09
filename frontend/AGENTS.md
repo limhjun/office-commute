@@ -17,10 +17,11 @@ Admin SPA for the office-commute backend. Root-level rules (spec-first, error en
 
 ## Auth / networking
 - Session-cookie auth (`JSESSIONID`), same-origin by design: dev via the Vite proxy (`/api` → `localhost:8080` in `vite.config.ts`), deploy by serving `dist/` behind the same origin as the backend. **No CORS setup, no absolute API base URLs** — keep `baseUrl: ''`. All backend endpoints live under `/api/**`; keep it that way (SPA routes must never collide with API paths).
-- Session/role restore on boot via `GET /api/auth/me` (`src/auth/AuthContext.tsx`); role-based route guards in `src/routes/guards.tsx` (manager: teams/employees/overtime; member: my commute/annual leave).
+- Session/role restore on boot via `GET /api/auth/me` (`src/auth/AuthContext.tsx`); role-based route guards in `src/routes/guards.tsx` (`RequireRole`; MANAGER: teams/employees/overtime/closing; MANAGER·COMMUTE_APPROVER: correction approvals; all roles: my commute/corrections/annual leave). Roles are re-read by the server on every request — a 403 `FORBIDDEN` refetches `/api/auth/me` to realign menus.
 - TanStack Query is configured not to retry 401/403.
 
 ## Structure
-- `src/hooks/` — one file per resource (`useTeams`, `useEmployees`, `useCommute`, `useAnnualLeave`, `useOvertime`) wrapping TanStack Query.
+- `src/hooks/` — one file per resource (`useTeams`, `useEmployees`, `useCommute`, `useCommuteCorrections`, `useMonthlyClosings`, `useAnnualLeave`, `useOvertime`). Correction/closing mutations invalidate commute months, request lists and closing status on success and on 409. wrapping TanStack Query.
 - `src/pages/` — one page per route; `src/components/AppLayout.tsx` — Mantine AppShell.
-- `src/lib/` — `errors` (ApiError/unwrap), `download` (Excel blob + `Content-Disposition` filename), `notify`, `month` utils.
+- `src/lib/` — `errors` (ApiError/unwrap), `errorMessages` (error code → user copy; correction time codes → time-field errors), `download` (Excel blob + `Content-Disposition` filename), `notify`, `month` utils, `zonedTime` (record `workZone` wall time → offset ISO, DST gap/overlap), `roles`.
+- Correction/closing contract summary: `docs/COMMUTE_CORRECTION_API.md` (`openapi.yml` wins on conflict).

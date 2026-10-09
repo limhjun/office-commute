@@ -5,7 +5,7 @@ import { ZonedDateTimeInput } from '@/components/ZonedDateTimeInput';
 import { ZonedTimeText } from '@/components/ZonedTimeText';
 import { formatMinutes } from '@/lib/month';
 import {
-  emptyZonedValue, pickInstant, todayInZone, zonedValueFromIso, type ZonedDateTimeValue,
+  emptyZonedValue, parseIsoMs, pickInstant, todayInZone, zonedValueFromIso, type ZonedDateTimeValue,
 } from '@/lib/zonedTime';
 
 export interface CorrectionTarget {
@@ -30,6 +30,8 @@ interface Props {
   // 서버 오류를 입력 칸 오류로 옮길 수 있으면 반환한다. null 이면 호출부가 알림으로 처리한 것.
   mapError?: (e: unknown) => CorrectionFieldErrors | null;
   submitting: boolean;
+  // 신청 전 안내(예: 승인 담당자 미지정). 신청을 막지는 않는다.
+  notice?: React.ReactNode;
 }
 
 export function CorrectionRequestModal({ target, onClose, ...rest }: Props) {
@@ -57,10 +59,10 @@ interface FormValues { endTime: ZonedDateTimeValue; reason: string }
 
 // 서버와 같은 분 미만 절삭. 미리보기 전용이며 저장 값은 서버가 계산한다.
 function previewMinutes(startIso: string, endMs: number): number {
-  return Math.floor((endMs - Date.parse(startIso)) / 60_000);
+  return Math.floor((endMs - parseIsoMs(startIso)) / 60_000);
 }
 
-function CorrectionForm({ target, onClose, onSubmit, mapError, submitting }: Props & { target: CorrectionTarget }) {
+function CorrectionForm({ target, onClose, onSubmit, mapError, submitting, notice }: Props & { target: CorrectionTarget }) {
   const zone = target.workZone;
   const form = useForm<FormValues>({
     initialValues: {
@@ -74,9 +76,9 @@ function CorrectionForm({ target, onClose, onSubmit, mapError, submitting }: Pro
         if (resolution.kind === 'invalid') return '날짜·시각 형식을 확인하세요.';
         if (resolution.kind === 'nonexistent') return '서머타임 전환으로 존재하지 않는 시각입니다.';
         if (!instant) return null;
-        if (instant.epochMs < Date.parse(target.workStartTime)) return '출근 시각 이후여야 합니다.';
+        if (instant.epochMs < parseIsoMs(target.workStartTime)) return '출근 시각 이후여야 합니다.';
         if (instant.epochMs > Date.now()) return '현재 시각 이후로는 신청할 수 없습니다.';
-        if (target.workEndTime && instant.epochMs === Date.parse(target.workEndTime)) return '현재 퇴근 시각과 같습니다.';
+        if (target.workEndTime && instant.epochMs === parseIsoMs(target.workEndTime)) return '현재 퇴근 시각과 같습니다.';
         return null;
       },
       reason: (v) => (v.trim() ? null : '정정 사유를 입력하세요.'),
@@ -130,7 +132,7 @@ function CorrectionForm({ target, onClose, onSubmit, mapError, submitting }: Pro
           onChange={(v) => form.setFieldValue('endTime', v)}
           error={form.errors.endTime}
         />
-        {instant && instant.epochMs >= Date.parse(target.workStartTime) && (
+        {instant && instant.epochMs >= parseIsoMs(target.workStartTime) && (
           <Text size="sm" c="dimmed">
             정정 후 근무 시간(예상): {formatMinutes(previewMinutes(target.workStartTime, instant.epochMs))}
           </Text>
@@ -139,11 +141,13 @@ function CorrectionForm({ target, onClose, onSubmit, mapError, submitting }: Pro
         <Textarea
           label="정정 사유"
           withAsterisk
+          maxLength={500}
           autosize
           minRows={3}
           {...form.getInputProps('reason')}
         />
 
+        {notice}
         <Alert color="blue" variant="light" icon={<IconInfoCircle size={16} />}>
           승인되기 전까지 근태 기록은 바뀌지 않습니다. 제출한 시각·사유는 수정할 수 없으며,
           바꾸려면 신청을 취소한 뒤 다시 신청하세요.

@@ -3,9 +3,10 @@ import { useDisclosure } from '@mantine/hooks';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   IconUsersGroup, IconUser, IconClockHour4, IconCalendarStats, IconReportAnalytics, IconLogout,
+  IconChecklist, IconLock, IconEdit,
 } from '@tabler/icons-react';
 import { useAuth } from '@/auth/AuthContext';
-import { roleLabel, type Role } from '@/lib/roles';
+import { REVIEWER_ROLES, roleLabel, type Role } from '@/lib/roles';
 
 // roles 가 없으면 모든 역할에 노출한다.
 interface NavItem { label: string; to: string; icon: React.ReactNode; roles?: Role[] }
@@ -14,7 +15,10 @@ const NAV: NavItem[] = [
   { label: '팀', to: '/teams', icon: <IconUsersGroup size={18} />, roles: ['MANAGER'] },
   { label: '직원', to: '/employees', icon: <IconUser size={18} />, roles: ['MANAGER'] },
   { label: '초과근무·리포트', to: '/overtime', icon: <IconReportAnalytics size={18} />, roles: ['MANAGER'] },
+  { label: '월 마감', to: '/closing', icon: <IconLock size={18} />, roles: ['MANAGER'] },
+  { label: '정정 승인', to: '/approvals', icon: <IconChecklist size={18} />, roles: REVIEWER_ROLES },
   { label: '내 근태', to: '/me/commute', icon: <IconClockHour4 size={18} /> },
+  { label: '내 정정 요청', to: '/me/corrections', icon: <IconEdit size={18} /> },
   { label: '내 연차', to: '/me/annual-leave', icon: <IconCalendarStats size={18} /> },
 ];
 

@@ -35,6 +35,11 @@ function offsetMinutesAt(epochMs: number, zone: string): number {
   return Math.round((asUtc - Math.floor(epochMs / 1000) * 1000) / MINUTE);
 }
 
+// 서버 시각에는 마이크로초가 붙을 수 있다(…T23:32:40.611261+09:00). 밀리초까지만 남겨 파싱한다.
+export function parseIsoMs(iso: string): number {
+  return Date.parse(iso.replace(/(\.\d{3})\d+/, '$1'));
+}
+
 export function isValidZone(zone: string): boolean {
   try {
     formatterFor(zone);

@@ -41,9 +41,22 @@ public final class CorrectionReviewPolicy {
         }
     }
 
-    public static boolean canReview(Employee reviewer, Employee requester) {
+    /**
+     * 요청 단위 처리 권한. 현재 지정 관계에 더해, 신청 당시 지정 승인자 스냅샷과도 같아야 한다 —
+     * 대기 중 담당자 변경은 막혀 있으므로 어긋나면 데이터가 우회 경로로 바뀐 것이다.
+     * 담당자 없이 신청된 MANAGER·COMMUTE_APPROVER 요청은 누구도 처리할 수 없다(CORRECTION_APPROVER_NOT_ASSIGNED).
+     */
+    public static void authorize(Employee reviewer, Employee requester, CommuteCorrectionRequest request) {
+        authorize(reviewer, requester);
+        if (requester.getRole().requiredCorrectionApproverRole() != null
+                && !Objects.equals(request.getAssignedApproverId(), requester.getCorrectionApproverId())) {
+            throw new ForbiddenException();
+        }
+    }
+
+    public static boolean canReview(Employee reviewer, Employee requester, CommuteCorrectionRequest request) {
         try {
-            authorize(reviewer, requester);
+            authorize(reviewer, requester, request);
             return true;
         } catch (CorrectionException | ForbiddenException e) {
             return false;

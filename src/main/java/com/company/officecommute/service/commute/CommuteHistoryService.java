@@ -9,6 +9,7 @@ import com.company.officecommute.domain.correction.CommuteCorrectionRequest;
 import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.domain.employee.EmployeeNotFoundException;
 import com.company.officecommute.dto.commute.response.CommuteDetailResponse;
+import com.company.officecommute.dto.commute.response.RegularEndTargetResponse;
 import com.company.officecommute.dto.commute.response.WorkDurationPerDateResponse;
 import com.company.officecommute.global.persistence.DatabaseConstraintMatcher;
 import com.company.officecommute.repository.commute.CommuteHistoryRepository;
@@ -27,6 +28,7 @@ import java.time.YearMonth;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -121,20 +123,25 @@ public class CommuteHistoryService {
                 findCommuteHistoriesByEmployeeIdAndMonth(employee.getEmployeeId(), yearMonth));
 
         Instant now = clock.instant();
-        // 후속 근무 판정은 조회 월에 한정하지 않는다 — 다음 달 출근도 이 달 미퇴근을 정정 필요로 만든다.
-        Instant latestActualWorkStart = commuteHistoryRepository
-                .findFirstByEmployeeIdAndUsingDayOffFalseOrderByWorkStartTimeDesc(employee.getEmployeeId())
-                .map(CommuteHistory::getWorkStartTime)
-                .orElse(null);
+        // 후속 근무 판정과 일반 퇴근 대상은 조회 월에 한정하지 않는다 — 다음 달 출근도 이 달 미퇴근을
+        // 정정 필요로 만들고, 전월 말에 시작한 야간근무가 이번 달 조회의 퇴근 대상일 수 있다.
+        Optional<CommuteHistory> latestActualWork = commuteHistoryRepository
+                .findFirstByEmployeeIdAndUsingDayOffFalseOrderByWorkStartTimeDesc(employee.getEmployeeId());
+        Instant latestActualWorkStart = latestActualWork.map(CommuteHistory::getWorkStartTime).orElse(null);
         Map<Long, Long> pendingRequestIdByCommuteId = findPendingRequestIds(histories.commuteHistoryIds());
         ProtectedPeriods protectedPeriods = commutePeriodGuard.load();
 
-        return histories.toWorkDurationPerDateResponse(history -> CommuteDetailResponse.of(
+        WorkDurationPerDateResponse response = histories.toWorkDurationPerDateResponse(history -> CommuteDetailResponse.of(
                 history,
                 history.status(now, latestActualWorkStart),
                 pendingRequestIdByCommuteId.get(history.getCommuteHistoryId()),
                 protectedPeriods.lockReason(history.getWorkDate()).orElse(null)
         ));
+        return response.withRegularEndTarget(latestActualWork
+                .filter(latest -> latest.isRegularEndableAt(now))
+                .map(latest -> RegularEndTargetResponse.of(
+                        latest, protectedPeriods.lockReason(latest.getWorkDate()).orElse(null)))
+                .orElse(null));
     }
 
     private Map<Long, Long> findPendingRequestIds(List<Long> commuteHistoryIds) {

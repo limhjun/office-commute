@@ -8,6 +8,7 @@ import com.company.officecommute.domain.commute.CommuteStatus;
 import com.company.officecommute.domain.commute.DuplicateWorkOnDateException;
 import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.dto.commute.response.CommuteDetailResponse;
+import com.company.officecommute.dto.commute.response.RegularEndTargetResponse;
 import com.company.officecommute.dto.commute.response.WorkDurationPerDateResponse;
 import com.company.officecommute.service.commute.CommuteHistoryService;
 import org.junit.jupiter.api.DisplayName;
@@ -147,6 +148,39 @@ class CommuteHistoryControllerTest {
                         """);
 
         then(commuteHistoryService).shouldHaveNoInteractions();
+    }
+
+    @Test
+    @DisplayName("GET /commute — 일반 퇴근 대상은 조회 월의 details 밖이어도 regularEndTarget 으로 내려간다")
+    void getWorkDurationPerDate_exposesRegularEndTarget() {
+        ZoneOffset kst = ZoneOffset.ofHours(9);
+        given(commuteHistoryService.getWorkDurationPerDate(2L, YearMonth.of(2026, 10)))
+                .willReturn(new WorkDurationPerDateResponse(List.of(), 0L, new RegularEndTargetResponse(
+                        41L, 0L, LocalDate.of(2026, 9, 30), "Asia/Seoul",
+                        OffsetDateTime.of(2026, 9, 30, 22, 0, 0, 0, kst),
+                        OffsetDateTime.of(2026, 10, 1, 22, 0, 0, 0, kst),
+                        null)));
+
+        assertThat(mockMvcTester
+                .get()
+                .uri("/api/commute?yearMonth=2026-10")
+                .session(memberSession()))
+                .hasStatus(HttpStatus.OK)
+                .bodyJson()
+                .isLenientlyEqualTo("""
+                        {
+                            "details": [],
+                            "sumWorkingMinutes": 0,
+                            "regularEndTarget": {
+                                "commuteHistoryId": 41,
+                                "version": 0,
+                                "workDate": "2026-09-30",
+                                "workZone": "Asia/Seoul",
+                                "workStartTime": "2026-09-30T22:00:00+09:00",
+                                "endableUntil": "2026-10-01T22:00:00+09:00"
+                            }
+                        }
+                        """);
     }
 
     @Test

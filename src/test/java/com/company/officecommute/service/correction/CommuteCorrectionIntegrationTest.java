@@ -279,12 +279,47 @@ class CommuteCorrectionIntegrationTest {
     }
 
     @Test
-    @DisplayName("지정 승인자가 없는 MANAGER 는 신청할 수 없다")
-    void managerWithoutApproverCannotSubmit() {
+    @DisplayName("지정 승인자가 없는 MANAGER 도 신청할 수 있지만, 그 요청은 누구도 승인·반려할 수 없다(계획 1.3)")
+    void managerWithoutApproverCanSubmitButNobodyCanReview() {
         CommuteHistory record = saveOpen(otherManagerId, at(2026, 9, 2, 9, 0));
 
-        assertCorrection(() -> submit(otherManagerId, record, at(2026, 9, 2, 18, 0)),
+        CorrectionRequestResponse request = submit(otherManagerId, record, at(2026, 9, 2, 18, 0));
+
+        assertThat(request.status()).isEqualTo(CorrectionStatus.PENDING);
+        assertThat(request.assignedApprover()).isNull();
+        assertThat(request.actions().canCancel()).isTrue();
+        assertThat(request.actions().canReview()).isFalse();
+        // 다른 관리자도, 상위 승인자도 처리할 수 없다 — 원본은 그대로다
+        assertCorrection(() -> correctionService.approve(managerId, request.requestId(), null),
                 CorrectionErrorCode.CORRECTION_APPROVER_NOT_ASSIGNED);
+        assertCorrection(() -> correctionService.reject(approverId, request.requestId(), "반려"),
+                CorrectionErrorCode.CORRECTION_APPROVER_NOT_ASSIGNED);
+        assertThat(reload(record).endTimeIsNull()).isTrue();
+        assertThat(correctionService.findReviewScope(managerId, CorrectionStatus.PENDING))
+                .extracting(CorrectionRequestResponse::requestId)
+                .doesNotContain(request.requestId());
+        // 승인 대기 요청이므로 월 마감도 막는다
+        assertThat(monthlyClosingService.getStatus(SEPTEMBER).blockers())
+                .contains(ClosingBlocker.PENDING_CORRECTIONS);
+    }
+
+    @Test
+    @DisplayName("담당자 없이 신청한 요청은 취소 → 담당자 지정 → 재신청 순서로 처리한다")
+    void unassignedRequestIsResolvedByCancelAssignResubmit() {
+        CommuteHistory record = saveOpen(otherManagerId, at(2026, 9, 2, 9, 0));
+        CorrectionRequestResponse unassigned = submit(otherManagerId, record, at(2026, 9, 2, 18, 0));
+
+        // 대기 중에는 미지정 → 지정도 "변경"이므로 막힌다
+        assertCorrection(() -> employeeService.assignCorrectionApprover(otherManagerId, approverId),
+                CorrectionErrorCode.PENDING_CORRECTION_EXISTS);
+
+        correctionService.cancel(otherManagerId, unassigned.requestId());
+        employeeService.assignCorrectionApprover(otherManagerId, approverId);
+        CorrectionRequestResponse resubmitted = submit(otherManagerId, record, at(2026, 9, 2, 18, 0));
+
+        assertThat(resubmitted.assignedApprover().employeeId()).isEqualTo(approverId);
+        assertThat(correctionService.approve(approverId, resubmitted.requestId(), null).status())
+                .isEqualTo(CorrectionStatus.APPROVED);
     }
 
     @Test

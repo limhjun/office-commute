@@ -199,6 +199,21 @@ public class CommuteHistoryTest {
     }
 
     @Test
+    @DisplayName("일반 퇴근 대상 판정은 calculateRegularEndMinutes 와 같은 경계를 쓴다 — 종료·연차·24시간 초과는 대상이 아니다")
+    void isRegularEndableAt_matchesRegularEndRule() {
+        ZonedDateTime workStartTime = ZonedDateTime.of(2026, 9, 30, 22, 0, 0, 0, ZoneId.of(KOREA));
+        CommuteHistory open = CommuteHistoryFixture.open(1L, 1L, workStartTime);
+
+        assertThat(open.isRegularEndableAt(workStartTime.plusHours(24).toInstant())).isTrue();
+        assertThat(open.isRegularEndableAt(workStartTime.plusHours(24).plusSeconds(1).toInstant())).isFalse();
+        assertThat(open.zonedRegularEndDeadline()).isEqualTo(workStartTime.plusHours(24).toOffsetDateTime());
+        assertThat(CommuteHistoryFixture.ended(1L, 1L, workStartTime, workStartTime.plusHours(8))
+                .isRegularEndableAt(workStartTime.plusHours(9).toInstant())).isFalse();
+        assertThat(CommuteHistoryFixture.annualLeave(1L, LocalDate.of(2026, 10, 1), ZoneId.of(KOREA))
+                .isRegularEndableAt(workStartTime.plusHours(3).toInstant())).isFalse();
+    }
+
+    @Test
     @DisplayName("일반 퇴근 — 이미 종료된 기록은 시간 창보다 먼저 AlreadyEnded")
     void calculateRegularEndMinutes_alreadyEnded() {
         ZonedDateTime workStartTime = ZonedDateTime.of(2024, 1, 1, 8, 0, 0, 0, ZoneId.of(KOREA));

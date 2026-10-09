@@ -128,10 +128,29 @@ public class CommuteHistory {
         if (this.workEndTime != null) {
             throw new CommuteAlreadyEndedException();
         }
-        if (now.isAfter(this.workStartTime.plus(REGULAR_END_WINDOW))) {
+        if (now.isAfter(regularEndDeadline())) {
             throw new CommuteEndWindowExpiredException();
         }
         return calculateWorkingMinutes(now);
+    }
+
+    /**
+     * 일반 퇴근으로 지금 종료할 수 있는가. 이 기록이 직원의 가장 최근 실제 근무인지는 호출자가 보장한다.
+     * {@link #calculateRegularEndMinutes}와 같은 경계(정확히 24시간까지 허용)를 쓴다.
+     */
+    public boolean isRegularEndableAt(Instant now) {
+        return !isAnnualLeaveDate()
+                && this.workEndTime == null
+                && !now.isBefore(this.workStartTime)
+                && !now.isAfter(regularEndDeadline());
+    }
+
+    public OffsetDateTime zonedRegularEndDeadline() {
+        return toWorkZone(regularEndDeadline());
+    }
+
+    private Instant regularEndDeadline() {
+        return this.workStartTime.plus(REGULAR_END_WINDOW);
     }
 
     /**
@@ -177,7 +196,7 @@ public class CommuteHistory {
             return CommuteStatus.COMPLETED;
         }
         boolean hasLaterWork = latestActualWorkStart != null && latestActualWorkStart.isAfter(this.workStartTime);
-        if (hasLaterWork || now.isAfter(this.workStartTime.plus(REGULAR_END_WINDOW))) {
+        if (hasLaterWork || now.isAfter(regularEndDeadline())) {
             return CommuteStatus.CORRECTION_REQUIRED;
         }
         return CommuteStatus.IN_PROGRESS;

@@ -104,15 +104,16 @@ public class CommuteCorrectionService {
         return toResponses(List.of(saved), requester).getFirst();
     }
 
+    /**
+     * 신청 당시 지정 승인자 스냅샷. 담당자가 없어도 신청은 받는다(계획 1.3: 담당자가 없으면 "승인할 수 없다") —
+     * 승인·반려 시점에 {@link CorrectionReviewPolicy}가 CORRECTION_APPROVER_NOT_ASSIGNED 로 막는다.
+     * 대기 중에는 담당자를 바꿀 수 없으므로 처리하려면 취소 → 지정 → 재신청 순서를 따른다.
+     */
     private Long resolveAssignedApprover(Employee requester) {
         if (requester.getRole().requiredCorrectionApproverRole() == null) {
             return null;
         }
-        Long approverId = requester.getCorrectionApproverId();
-        if (approverId == null) {
-            throw new CorrectionException(CorrectionErrorCode.CORRECTION_APPROVER_NOT_ASSIGNED);
-        }
-        return approverId;
+        return requester.getCorrectionApproverId();
     }
 
     private CommuteCorrectionRequest savePending(CommuteCorrectionRequest request) {
@@ -137,7 +138,7 @@ public class CommuteCorrectionService {
             CommuteCorrectionRequest request = getRequest(requestId);
             Employee reviewer = getEmployee(reviewerId);
             Employee requester = getEmployee(requesterId);
-            CorrectionReviewPolicy.authorize(reviewer, requester);
+            CorrectionReviewPolicy.authorize(reviewer, requester, request);
             request.ensurePending();
 
             CommuteHistory commute = getCommute(request.getCommuteHistoryId());
@@ -174,7 +175,7 @@ public class CommuteCorrectionService {
             CommuteCorrectionRequest request = getRequest(requestId);
             Employee reviewer = getEmployee(reviewerId);
             Employee requester = getEmployee(requesterId);
-            CorrectionReviewPolicy.authorize(reviewer, requester);
+            CorrectionReviewPolicy.authorize(reviewer, requester, request);
 
             request.reject(reviewerId, reason, clock.instant());
             flushTransition(request);
@@ -279,7 +280,7 @@ public class CommuteCorrectionService {
             return new CorrectionRequestResponse.Actions(false, false);
         }
         Employee requester = employees.get(request.getRequesterId());
-        boolean canReview = requester != null && CorrectionReviewPolicy.canReview(viewer, requester);
+        boolean canReview = requester != null && CorrectionReviewPolicy.canReview(viewer, requester, request);
         return new CorrectionRequestResponse.Actions(request.isRequestedBy(viewer.getEmployeeId()), canReview);
     }
 

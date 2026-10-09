@@ -9,6 +9,7 @@
 - 계약 커밋: `fd51868` — `openapi.yml`, 생성 타입, `docs/COMMUTE_CORRECTION_API.md`
 - 최종 구현 커밋: `d2c146cf2885b54d70203df03a6d4f21ab277017` (`d2c146c`)
 - 이 인계 파일은 구현 커밋 뒤의 별도 문서 커밋이다. 코드 변경은 없다.
+- Frontend 연결 인계(실행 방법·테스트 계정·Frontend 7개 확인 항목 대조): [commute-correction-frontend-integration.md](commute-correction-frontend-integration.md)
 
 ## 구현한 기능
 

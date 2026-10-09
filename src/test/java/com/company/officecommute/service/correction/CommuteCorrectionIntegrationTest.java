@@ -356,6 +356,34 @@ class CommuteCorrectionIntegrationTest {
     }
 
     @Test
+    @DisplayName("출근 시각에 소수 초가 있어도 같은 시각 정정은 0분으로 받고, 그보다 이르면 거부한다")
+    void endEqualToFractionalStartIsAllowed() {
+        ZonedDateTime start = at(2026, 9, 2, 9, 0).plusNanos(123_456_000);
+        CommuteHistory open = saveOpen(memberId, start);
+        assertCorrection(() -> submit(memberId, open, start.minusNanos(1_000)),
+                CorrectionErrorCode.CORRECTION_END_BEFORE_START);
+
+        CorrectionRequestResponse submitted = submit(memberId, open, start);
+        assertThat(submitted.requestedWorkingMinutes()).isZero();
+
+        correctionService.approve(managerId, submitted.requestId(), null);
+        CommuteHistory approved = reload(open);
+        assertThat(approved.getWorkEndTime()).isEqualTo(start.toInstant());
+        assertThat(approved.getWorkingMinutes()).isZero();
+    }
+
+    @Test
+    @DisplayName("신청 시각의 마이크로초 미만은 버리고 저장한다")
+    void requestedEndTruncatedToMicros() {
+        CommuteHistory open = saveOpen(memberId, at(2026, 9, 2, 9, 0));
+
+        CorrectionRequestResponse submitted = submit(memberId, open, at(2026, 9, 2, 18, 0).plusNanos(123_456_789));
+        correctionService.approve(managerId, submitted.requestId(), null);
+
+        assertThat(reload(open).getWorkEndTime()).isEqualTo(at(2026, 9, 2, 18, 0).plusNanos(123_456_000).toInstant());
+    }
+
+    @Test
     @DisplayName("신청 후 같은 기록이 바뀌면 승인하지 않고 요청은 PENDING 으로 남는다")
     void sameRecordChangedAfterSubmitIsConflict() {
         // 오늘(10/9) 08:00 출근 — 최신 근무, 24시간 이내

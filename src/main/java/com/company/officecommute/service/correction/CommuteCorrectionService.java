@@ -94,8 +94,9 @@ public class CommuteCorrectionService {
         Long assignedApproverId = resolveAssignedApprover(requester);
 
         Instant now = clock.instant();
-        // 저장 정밀도를 초 단위로 고정해 화면 입력·DB(DATETIME(6))·근무 분 계산이 같은 값을 보게 한다.
-        Instant requestedEnd = request.requestedWorkEndTime().toInstant().truncatedTo(ChronoUnit.SECONDS);
+        // DB(DATETIME(6)) 정밀도인 마이크로초로 맞춰 신청·승인·저장이 같은 값을 보게 한다.
+        // 초로 자르면 마이크로초를 가진 출근 시각과 같은 시각 신청이 출근 이전으로 거부된다.
+        Instant requestedEnd = request.requestedWorkEndTime().toInstant().truncatedTo(ChronoUnit.MICROS);
         long requestedMinutes = commute.calculateCorrectedWorkingMinutes(
                 requestedEnd, now, nextActualWorkStart(commute));
 

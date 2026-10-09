@@ -3,7 +3,7 @@
 | 항목 | 값 |
 | --- | --- |
 | 작업 식별자 | commute-correction |
-| 상태 | **INTEGRATED (브라우저 주요 흐름 검증)** — 병합·자동 검증·브라우저 주요 흐름 완료. #9 결정, 일부 데이터 의존 화면이 남음 |
+| 상태 | **INTEGRATED (브라우저 주요 흐름 검증)** — 병합·자동 검증·브라우저 주요 흐름 완료. 일부 데이터 의존 화면이 남음 |
 | 통합 브랜치 | `worktree-integrate` (기준 `fac7dc9`) |
 | Backend 대상 커밋 | `worktree-backend` @ `4ae4fd2` (계약 `fd51868`·`346e55a`, 구현 `e1aef28`) |
 | Frontend 대상 커밋 | `worktree-frontend` @ `ef0c0e1` (기준 `08a8353`, `2052d5b`·`08a8353` 은 계약 cherry-pick) |
@@ -35,7 +35,7 @@
 
 | # | 항목 | 출처 | 결과 |
 | --- | --- | --- | --- |
-| 1 | `./gradlew clean check --rerun-tasks` (JDK 21.0.12, 통합 결과) | 공통 | 통과. 358개, 실패 0, 건너뜀 0 (Docker 실행 상태라 MySQL 6개 포함) |
+| 1 | `./gradlew clean check --rerun-tasks` (JDK 21.0.12, 통합 결과) | 공통 | 통과. 358개, 실패 0, 건너뜀 0. #9 수정 후 `clean check` 재실행: 360개, 실패 0, 건너뜀 0 (Docker 실행 상태라 MySQL 6개 포함) |
 | 2 | `pnpm --dir frontend lint` / `build` (Backend 인계의 `UNCLOSED` tsc 실패 해소 확인 포함) | Backend #3, 공통 | 통과. lint 0건, build 성공(vite 청크 크기 경고만) |
 | 3 | `gen:api` drift 없음 | 공통 | 확인. 재생성 후 변경 없음 |
 | 4 | MySQL/Flyway: `*MySqlIntegrationTest`(신규 `CommuteCorrectionMySqlIntegrationTest` 포함), V15·V16, `ddl-auto=validate`, UNIQUE 제약, `FOR UPDATE`, DATETIME(6) | Backend #1 | 통과. Docker 29.5.2, `mysql:8.4` Testcontainers. 6개 실행·통과(건너뜀 0) |
@@ -43,7 +43,7 @@
 | 6 | 브라우저: 화면 렌더링, 로딩·빈·오류 상태, 모달(DST overlap 포함), 역할별 메뉴·직접 URL 리다이렉트(MEMBER·MANAGER·COMMUTE_APPROVER), 409 후 재조회, 다운로드 파일명 | Frontend, Backend #4 | **대부분 통과** (아래 "브라우저 검증 상세"). 미검증: DST overlap 선택(Asia/Seoul 기록만 있음), 로딩 상태(로컬이라 순간적) |
 | 7 | 월 마감 성공·마감 직후 발송·수신 확인·확정본 다운로드·기존 발송 월(`legacyDispatch`) 화면 | Frontend | 마감 성공·발송 FAILED 표시·확정본 다운로드 통과. **미검증**: 발송 재시도 클릭, 수신 확인(DELIVERY_COMMITTED 필요), `legacyDispatch` 화면(기존 SENT 월 데이터 없음). 실제 메일은 나가지 않음(수신자 미설정·닫힌 포트) |
 | 8 | 담당자 미지정 요청 신청·처리 409, `PENDING_CORRECTION_EXISTS`, `COMMUTE_END_WINDOW_EXPIRED`, `CORRECTION_REQUIRED` 행, 월 경계 야간근무 `regularEndTarget` | Frontend | 서버 동작은 통합·컨트롤러 테스트로 통과. 일반 퇴근 대상·기한 표시는 브라우저 통과. **나머지 화면 표시 미검증**(dev 는 실제 Clock 이라 24시간 초과·과거 근무 데이터 준비 불가) |
-| 9 | **알려진 문제**: 출근과 같은 시각 정정이 소수 초 때문에 `CORRECTION_END_BEFORE_START` 로 거부됨. `CommuteCorrectionService` 는 신청 시각을 초 단위로 자르고, `CommuteHistory.calculateCorrectedWorkingMinutes` 는 마이크로초를 가진 `workStartTime` 과 그대로 비교한다 | Frontend → Backend | **미결정 — 수정하지 않음**. 비교 정밀도·저장값을 정하는 도메인 규칙 변경이라 계약 담당 결정 필요. 화면은 분 단위만 보내므로 사용자 영향은 출근한 분 안의 0분 정정 불가 정도 |
+| 9 | **알려진 문제**: 출근과 같은 시각 정정이 소수 초 때문에 `CORRECTION_END_BEFORE_START` 로 거부됨. `CommuteCorrectionService` 는 신청 시각을 초 단위로 자르고, `CommuteHistory.calculateCorrectedWorkingMinutes` 는 마이크로초를 가진 `workStartTime` 과 그대로 비교한다 | Frontend → Backend | **수정**: 신청 시각을 초 대신 마이크로초(DATETIME(6) 저장 정밀도)로 자른다. 계약의 "출근 시각 이상(동일 시각 허용 → 0분)" 을 지키고, 종료 ≥ 출근 불변식도 유지된다. `openapi.yml` 설명 문구 갱신(`schema.d.ts` 주석 1줄 재생성). 회귀 테스트 2개 추가(수정 전 코드에서 둘 다 실패 확인). 남는 화면 동작: 입력이 분 단위라 출근한 분 안의 시각(예: 09:00:20 출근 → 09:00)은 고를 수 없고 "출근 시각 이후여야 합니다" 로 안내된다 — 출근과 같은 분에 퇴근한 기록의 기본값도 이 경우다 |
 | 10 | CSRF 운영 확인(Nginx `Host` 전달, 스테이징 403 여부) | Backend #5 | 배포 범위 — 미실행 |
 | 11 | CI 도구 버전(Node 22 / pnpm 10) | Backend #6, Frontend | **미실행**. 로컬은 Node 24.16 / pnpm 11.5.1, Node 22 미설치. 셸 기본 JDK 25 라 `JAVA_HOME` 을 temurin 21 로 지정해 실행 |
 | 12 | 프론트엔드 단위 테스트 러너 없음 | Frontend | 범위 밖 |

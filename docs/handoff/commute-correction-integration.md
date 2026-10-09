@@ -3,7 +3,7 @@
 | 항목 | 값 |
 | --- | --- |
 | 작업 식별자 | commute-correction |
-| 상태 | **INTEGRATED (브라우저 주요 흐름 검증)** — 병합·자동 검증·브라우저 주요 흐름 완료. #9 결정, #13 로그아웃 수정의 브라우저 재확인, 일부 데이터 의존 화면이 남음 |
+| 상태 | **INTEGRATED (브라우저 주요 흐름 검증)** — 병합·자동 검증·브라우저 주요 흐름 완료. #9 결정, 일부 데이터 의존 화면이 남음 |
 | 통합 브랜치 | `worktree-integrate` (기준 `fac7dc9`) |
 | Backend 대상 커밋 | `worktree-backend` @ `4ae4fd2` (계약 `fd51868`·`346e55a`, 구현 `e1aef28`) |
 | Frontend 대상 커밋 | `worktree-frontend` @ `ef0c0e1` (기준 `08a8353`, `2052d5b`·`08a8353` 은 계약 cherry-pick) |
@@ -47,7 +47,7 @@
 | 10 | CSRF 운영 확인(Nginx `Host` 전달, 스테이징 403 여부) | Backend #5 | 배포 범위 — 미실행 |
 | 11 | CI 도구 버전(Node 22 / pnpm 10) | Backend #6, Frontend | **미실행**. 로컬은 Node 24.16 / pnpm 11.5.1, Node 22 미설치. 셸 기본 JDK 25 라 `JAVA_HOME` 을 temurin 21 로 지정해 실행 |
 | 12 | 프론트엔드 단위 테스트 러너 없음 | Frontend | 범위 밖 |
-| 13 | **발견(기존 버그)**: 로그아웃 후 화면이 이전 사용자로 남는다. `/login` 대신 역할 기본 화면에 머물고 헤더·메뉴가 이전 사용자 그대로이며, 이후 API 는 401. 원인: `AuthContext.logout` 의 `qc.clear()` 가 `['auth','me']` 쿼리를 제거해 `AuthProvider` 의 `useQuery` 관찰자가 끊기고, 뒤이은 `setQueryData` 는 새 쿼리에 써서 `user` 가 갱신되지 않음 → `LoginPage` 가 남은 `user` 로 홈에 되돌림 | 통합 브라우저 검증 | **수정**: `['auth','me']` 는 유지한 채 `null` 로 비우고 나머지 쿼리·뮤테이션 캐시만 제거. lint·build 통과. **브라우저 재확인 미실행**(재로그인 필요) |
+| 13 | **발견(기존 버그)**: 로그아웃 후 화면이 이전 사용자로 남는다. `/login` 대신 역할 기본 화면에 머물고 헤더·메뉴가 이전 사용자 그대로이며, 이후 API 는 401. 원인: `AuthContext.logout` 의 `qc.clear()` 가 `['auth','me']` 쿼리를 제거해 `AuthProvider` 의 `useQuery` 관찰자가 끊기고, 뒤이은 `setQueryData` 는 새 쿼리에 써서 `user` 가 갱신되지 않음 → `LoginPage` 가 남은 `user` 로 홈에 되돌림 | 통합 브라우저 검증 | **수정**: `['auth','me']` 는 유지한 채 `null` 로 비우고 나머지 쿼리·뮤테이션 캐시만 제거. lint·build 통과. 브라우저 재확인 통과: MANAGER 로 `/employees` 에서 로그아웃 → `/login`, 헤더·메뉴 사라짐, `/api/auth/me` 401, 보호 URL 직접 접근 → `/login`, 콘솔 오류 없음 |
 
 ## 브라우저 검증 상세
 

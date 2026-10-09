@@ -2,12 +2,12 @@
 
 - 작업 식별자: `commute-correction`
 - 담당 영역: Backend(서버·DB·테스트), API 계약(`openapi.yml`), 생성 타입(`frontend/src/api/schema.d.ts`)
-- 상태: **WORKING** — 후속 보완 진행 중이다. 이전 READY(`d2c146c`)는 무효이므로 통합하지 않는다.
-  - (1) 월별 근태 응답에 일반 퇴근 대상 추가(계약 변경)
-  - (2) 승인 담당자 미지정 시 신청은 허용하고 승인만 불가로 정정(계획 1.3 대조)
+- 상태: **READY**
+  - Backend 범위는 통합할 수 있는 상태다(후속 보완 `346e55a`·`e1aef28` 반영).
+  - MySQL/Flyway 검증은 Docker가 없어 실행하지 못했다. 통합 단계 필수 확인 항목이다(아래 "건너뛴 검증").
 - 작업 브랜치: `worktree-backend`
-- 계약 커밋: `fd51868` — `openapi.yml`, 생성 타입, `docs/COMMUTE_CORRECTION_API.md`
-- 최종 구현 커밋: `d2c146cf2885b54d70203df03a6d4f21ab277017` (`d2c146c`)
+- 계약 커밋: `fd51868`(최초), `346e55a`(후속 변경: 일반 퇴근 대상 추가, 담당자 미지정 신청 허용) — `openapi.yml`, 생성 타입, `docs/COMMUTE_CORRECTION_API.md`
+- 최종 구현 커밋: `e1aef28c851016a9214949854ac7c8ed1cc5804e` (`e1aef28`). 이전 구현 커밋 `d2c146c`에 후속 수정을 더한 것이며, 공유 커밋은 재작성하지 않았다.
 - 이 인계 파일은 구현 커밋 뒤의 별도 문서 커밋이다. 코드 변경은 없다.
 - Frontend 연결 인계(실행 방법·테스트 계정·Frontend 7개 확인 항목 대조): [commute-correction-frontend-integration.md](commute-correction-frontend-integration.md)
 
@@ -40,7 +40,7 @@
 | --- | --- |
 | `./gradlew openApiValidate` | Spec is valid |
 | 가까운 테스트(도메인·서비스 단위 → 통합 → 동시성 → 컨트롤러) | 통과 |
-| `./gradlew clean check --rerun-tasks` (Java 21, 커밋 `d2c146c`, 작업 트리 깨끗한 상태) | BUILD SUCCESSFUL. 351개 실행, 실패 0, 건너뜀 6 |
+| `./gradlew clean check --rerun-tasks` (Java 21, 커밋 `e1aef28`) | BUILD SUCCESSFUL. 358개 실행, 실패 0, 건너뜀 6 |
 | `pnpm --dir frontend gen:api` | `schema.d.ts` 재생성(계약 커밋에 포함) |
 
 추가한 테스트:
@@ -68,4 +68,17 @@
 - 기존 발송 월의 원본 파일 업로드 기능은 없다. 확보 여부는 마감 `note`에 기록한다(정책 3.3: 재생성 파일을 원본으로 표시하지 않음).
 - 실제 운영 데이터 전환(9월 정정 대상 특정, 마감, 정정본 발송)은 수행하지 않았다. 배포, 운영 데이터 변경, 메일 발송도 하지 않았다.
 - `docs/COMMUTE_CORRECTION_PLAN.md`는 메인 체크아웃의 미추적 파일이며 이 브랜치에 포함되지 않았다. 운영 문서의 링크가 이 파일을 가리키므로 통합 시 함께 커밋해야 한다.
-- 공유 이후 API 계약 변경: **없음**(`fd51868` 그대로).
+- 공유 이후 API 계약 변경: **있음 — `346e55a`**. 상세와 Frontend 영향은 [Frontend 연결 인계 §1-1](commute-correction-frontend-integration.md)에 있다.
+
+## 후속 보완 (`346e55a` 계약, `e1aef28` 구현)
+
+1. **일반 퇴근 대상 식별**
+   - 기존 월별 응답에는 `PUT /api/commute`가 종료할 기록이 없었다. 화면이 `details`의 `IN_PROGRESS`로 추측해야 했고, 9/30 22:00 시작 야간근무를 10월로 조회하면 대상이 목록에 없었다.
+   - `regularEndTarget`을 추가했다. 대상은 최신 실제 근무, 미퇴근, 24시간 이내이며 조회 월과 무관하다.
+   - 판정은 `CommuteHistory.isRegularEndableAt`으로, 일반 퇴근(`calculateRegularEndMinutes`)과 같은 경계를 쓴다.
+2. **담당자 미지정 처리**
+   - 계획 1.3은 "담당자가 없으면 관리자·상위 승인자의 요청은 **승인할 수 없다**", "담당자 변경 = 대기 요청 취소 → 변경 → 재신청"이다.
+   - 기존 구현은 신청 자체를 409로 거부해 합의보다 범위가 넓었다.
+   - 이제 신청은 받고, 승인·반려만 `CORRECTION_APPROVER_NOT_ASSIGNED`로 막는다. 대기 중 미지정 → 지정도 "변경"으로 보고 막는다(취소 → 지정 → 재신청).
+   - `CorrectionReviewPolicy`는 신청 당시 지정 승인자 스냅샷과 현재 지정 관계가 같은지도 검사한다.
+   - 결과: 담당자 미지정 대기 요청도 월 마감을 막는다. 처리할 수 없는 요청이 마감을 막지 않게 하려면 신청자가 취소해야 한다.

@@ -8,17 +8,24 @@
 | --- | --- |
 | Backend worktree | `/Users/hyungjun/Developer/office-commute/.claude/worktrees/backend` |
 | 브랜치 | `worktree-backend` (원격 push 안 함 — 로컬 브랜치) |
-| API 계약 커밋 | `fd51868` — 공유 이후 계약 변경 없음 |
-| 최종 구현 커밋 | `d2c146c` (`d2c146cf2885b54d70203df03a6d4f21ab277017`) |
-| 인계 커밋 | `b612e9f` 이후 문서 커밋들(코드 변경 없음) |
+| API 계약 커밋 | `fd51868`(최초) + **`346e55a`(후속 계약 변경 — 아래 §1-1)** |
+| 최종 구현 커밋 | **`e1aef28`** (`e1aef28c851016a9214949854ac7c8ed1cc5804e`). 이전 `d2c146c` 를 대체한다 |
+| 인계 커밋 | 구현 커밋 이후의 문서 커밋들(코드 변경 없음) |
 | 계약 파일 | worktree 루트의 `openapi.yml` |
-| 생성 타입 | `frontend/src/api/schema.d.ts` (`fd51868`에 포함, `pnpm --dir frontend gen:api`로 생성. 직접 편집 금지) |
+| 생성 타입 | `frontend/src/api/schema.d.ts` (`fd51868`·`346e55a`에 포함, `pnpm --dir frontend gen:api`로 생성. 직접 편집 금지) |
 | 계약 상세 | `docs/COMMUTE_CORRECTION_API.md` (경로·요청/응답 예시·오류 코드·권장 문구·역할별 권한) |
 | 운영 안내 | `docs/COMMUTE_CORRECTION_OPERATIONS.md` |
 
 Frontend 브랜치(`worktree-frontend`, `0beea38`)에서 계약을 받는 방법은 둘 중 하나다.
-- `git cherry-pick fd51868`: 계약·생성 타입·계약 문서만 받는다. 이 커밋은 `openapi.yml`, `schema.d.ts`, `docs/COMMUTE_CORRECTION_API.md`, 당시 WORKING 상태의 `docs/handoff/commute-correction-backend.md`만 바꾸고 코드는 바꾸지 않는다.
-- 또는 `openapi.yml`만 가져와 Frontend 쪽에서 `pnpm --dir frontend gen:api`를 실행한다.
+- `git cherry-pick fd51868 346e55a`: 계약·생성 타입·계약 문서만 받는다. 두 커밋은 코드를 바꾸지 않는다. `fd51868`은 당시 WORKING 상태의 `docs/handoff/commute-correction-backend.md`도 포함한다.
+- 또는 최신 `openapi.yml`만 가져와 Frontend 쪽에서 `pnpm --dir frontend gen:api`를 실행한다.
+
+### 1-1. 공유 이후 계약 변경 (`346e55a`)
+
+| 변경 | 내용 | Frontend 영향 |
+| --- | --- | --- |
+| `WorkDurationPerDateResponse.regularEndTarget` 추가(선택 필드) | 지금 `PUT /api/commute`가 종료할 기록 `{ commuteHistoryId, version, workDate, workZone, workStartTime, endableUntil, lockReason? }`. 최신 실제 근무가 미퇴근이고 24시간 이내일 때만 내려가며, 조회 월과 무관하다. | 퇴근 버튼 활성화와 대상 표시는 이 필드로 한다. 월 경계 야간근무(9/30 22:00 시작 → 10월 조회)는 `details`에 없어도 식별된다. 기존 필드는 그대로라 하위 호환이다. |
+| 담당자 미지정 신청 허용 | MANAGER·COMMUTE_APPROVER는 지정 승인자가 없어도 `POST /api/commute-corrections`가 201이다. 이전에는 409였다. 그 요청은 승인·반려 시 409 `CORRECTION_APPROVER_NOT_ASSIGNED`이고, `assignedApprover`는 생략, `canReview`는 항상 false, `/review` 목록에서 빠진다. | 신청 화면에서 이 409를 처리하는 분기를 지운다. 내 요청에 "담당자 미지정 — 처리 불가, 취소 후 담당자 지정 필요" 안내를 표시한다. 승인 화면의 이 409는 그대로 처리한다. |
 
 ## 2. API 요약
 
@@ -26,7 +33,7 @@ Frontend 브랜치(`worktree-frontend`, `0beea38`)에서 계약을 받는 방법
 
 | 화면 | 호출 |
 | --- | --- |
-| 내 근태 | `GET /api/commute?yearMonth=` — `commuteHistoryId`, `version`, `workZone`, `status`, `pendingCorrectionRequestId?`, `lockReason?` |
+| 내 근태 | `GET /api/commute?yearMonth=` — `details[]`(`commuteHistoryId`, `version`, `workZone`, `status`, `pendingCorrectionRequestId?`, `lockReason?`), `regularEndTarget?`(일반 퇴근 대상) |
 | 정정 신청 | `POST /api/commute-corrections` `{ commuteHistoryId, commuteVersion, requestedWorkEndTime, reason }` → 201 |
 | 내 요청 이력·취소 | `GET /api/commute-corrections/mine?status=`, `POST /api/commute-corrections/{id}/cancel` |
 | 승인 목록·처리 | `GET /api/commute-corrections/review?status=`, `POST …/{id}/approve` `{ comment? }`, `POST …/{id}/reject` `{ reason }` |
@@ -74,11 +81,15 @@ Frontend 브랜치(`worktree-frontend`, `0beea38`)에서 계약을 받는 방법
 
 | 검증 | 결과 |
 | --- | --- |
-| `./gradlew clean check --rerun-tasks` (Java 21, `d2c146c`) | 성공. 351개 실행, 실패 0, 건너뜀 6 |
+| `./gradlew clean check --rerun-tasks` (Java 21, `e1aef28`) | 성공. 358개 실행, 실패 0, 건너뜀 6(MySQL) |
 | `./gradlew openApiValidate` | Spec is valid |
 | 로컬 dev 서버 스모크(2026-10-09) | 아래 표 |
 
-로컬 스모크는 `bootRun`(dev, H2)에서 curl로 실행했다.
+로컬 스모크는 `bootRun`(dev, H2)에서 curl로 실행했다. 이전 구현 `d2c146c` 기준이며, `e1aef28`의 두 보완은 자동 테스트로만 검증했다.
+
+- `RegularEndTargetIntegrationTest`(4개): 월 경계 야간근무, 24시간 경계, 최신 근무 종료, 연차 제외
+- `CommuteCorrectionIntegrationTest`의 담당자 미지정 2개
+- 컨트롤러 JSON 직렬화 테스트
 
 | 시나리오 | 결과 |
 | --- | --- |
@@ -131,7 +142,7 @@ POST /api/employee
 ```
 
 추가 시나리오 준비:
-- **승인자 미지정 오류** 확인: MANAGER를 하나 더 만들고 담당자를 지정하지 않은 채 정정 신청 → `CORRECTION_APPROVER_NOT_ASSIGNED`
+- **승인자 미지정** 확인: MANAGER를 하나 더 만들고 담당자를 지정하지 않은 채 정정 신청 → 201 PENDING(`assignedApprover` 없음, `canReview` false). 다른 관리자·상위 승인자의 승인·반려 → 409 `CORRECTION_APPROVER_NOT_ASSIGNED`
 - **담당자 변경 차단**: 관리자가 정정 대기 중일 때 `PUT /api/employee/1/correction-approver` → `PENDING_CORRECTION_EXISTS`
 - **과거 기록 정정**: dev에서 출근은 현재 시각으로만 생긴다. 과거 날짜 미퇴근 기록은 API로 만들 수 없다. 화면 확인은 오늘 출근 기록으로 하거나, H2 콘솔·SQL로 직접 넣는다(dev 전용).
 - **월 마감 차단**: 전월에 미퇴근 기록이 없으면 `closable: true`다. 차단 화면을 보려면 위와 같이 전월 미퇴근 기록을 준비한다.
@@ -158,4 +169,5 @@ POST /api/employee
 4. **잠금 표시**: `CommuteDetail.lockReason`이 있으면 정정 신청과 퇴근 버튼을 막고 사유(마감 / 수신 확인 대기)를 표시한다.
 5. **일반 퇴근 24시간 초과**: 퇴근 버튼은 `COMMUTE_END_WINDOW_EXPIRED`(409)를 받을 수 있다. 정정 신청 진입으로 안내한다.
 6. **정정 가능 대상**: 서버는 `IN_PROGRESS` 미퇴근 기록의 정정 신청도 허용한다(현재 시각 이하). 화면에서 `CORRECTION_REQUIRED`·`COMPLETED`로만 제한해도 계약 위반은 아니다.
-7. **승인 담당자 미지정**: `/api/auth/me`의 `correctionApprover`가 없는 MANAGER·COMMUTE_APPROVER는 신청이 409가 된다. 신청 버튼에서 미리 안내할 수 있다.
+7. **승인 담당자 미지정**(후속 보완으로 변경): `/api/auth/me`의 `correctionApprover`가 없는 MANAGER·COMMUTE_APPROVER도 신청할 수 있다. 다만 그 요청은 담당자가 지정될 때까지 처리되지 않고, 대기 중에는 담당자 지정도 막힌다. 신청 화면과 내 요청 목록에서 "담당자 미지정 — 처리 불가, 취소 후 담당자 지정 요청"을 안내한다.
+8. **일반 퇴근 대상**(후속 보완으로 추가): 퇴근 버튼은 `WorkDurationPerDateResponse.regularEndTarget`이 있을 때만 활성화하고 대상 근무일·출근 시각을 표시한다. `details`의 `IN_PROGRESS`만으로 추측하지 않는다. 월 경계 야간근무는 조회 월 `details`에 없을 수 있다.

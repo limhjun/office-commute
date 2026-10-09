@@ -1,6 +1,8 @@
 package com.company.officecommute.mail;
 
 import com.company.officecommute.domain.report.DispatchFailureReason;
+import com.company.officecommute.domain.report.ReportFile;
+import com.company.officecommute.domain.report.ReportKind;
 import com.company.officecommute.dto.overtime.response.OverTimeReport;
 import com.company.officecommute.dto.overtime.response.OverTimeReportData;
 import com.company.officecommute.service.overtime.UnclosedCommute;
@@ -16,6 +18,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mail.javamail.JavaMailSender;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
@@ -47,31 +50,45 @@ class ReportMailerTest {
     }
 
     @Test
-    @DisplayName("정상 리포트는 대표에게만 가고, 첨부 파일명·제목에 대상 월이 들어간다")
-    void sendMonthlyReport_toCeoWithNamedAttachment() throws Exception {
+    @DisplayName("확정본은 대표에게만 가고, 보관 파일명 그대로 첨부되며 제목에 대상 월이 들어간다")
+    void sendMonthlyReport_toCeoWithStoredFile() throws Exception {
         givenRealMimeMessage();
 
-        mailer.sendMonthlyReport(report(JULY, 2, 0), "xlsx-bytes".getBytes());
+        mailer.sendMonthlyReport(storedFile(ReportKind.ORIGINAL, "2026년7월_초과근무보고서.xlsx"));
 
         MimeMessage sent = captureSent();
         assertThat(recipients(sent)).containsExactly("ceo@company.com");
-        assertThat(sent.getSubject()).contains("2026년 7월");
+        assertThat(sent.getSubject()).contains("2026년 7월").doesNotContain("정정본");
         assertThat(attachmentFileName(sent)).isEqualTo("2026년7월_초과근무보고서.xlsx");
     }
 
     @Test
-    @DisplayName("정상 리포트 본문에 대상자 수·미마감 건수·산정 기준이 들어간다")
+    @DisplayName("확정본 본문에 대상자 수·월 마감 상태·산정 기준이 들어간다")
     void sendMonthlyReport_bodyCarriesReliabilitySignals() throws Exception {
         givenRealMimeMessage();
 
-        mailer.sendMonthlyReport(report(JULY, 2, 0), "xlsx-bytes".getBytes());
+        mailer.sendMonthlyReport(storedFile(ReportKind.ORIGINAL, "2026년7월_초과근무보고서.xlsx"));
 
         String body = bodyText(captureSent());
         assertThat(body)
                 .contains("대상 월: 2026년 7월")
                 .contains("대상자: 2명")
-                .contains("퇴근 미마감: 0건")
+                .contains("월 마감 완료")
                 .contains("1일 8시간·1주 40시간 초과, 휴일근로 별도 트랙");
+    }
+
+    @Test
+    @DisplayName("정정본은 제목·본문에서 기존 보고서 대신 사용하도록 안내한다")
+    void sendCorrectedMonthlyReport_marksCorrection() throws Exception {
+        givenRealMimeMessage();
+
+        mailer.sendCorrectedMonthlyReport(storedFile(ReportKind.CORRECTION, "2026년7월_초과근무보고서_정정본.xlsx"));
+
+        MimeMessage sent = captureSent();
+        assertThat(recipients(sent)).containsExactly("ceo@company.com");
+        assertThat(sent.getSubject()).contains("정정본");
+        assertThat(bodyText(sent)).contains("대신 이 정정본을 사용");
+        assertThat(attachmentFileName(sent)).isEqualTo("2026년7월_초과근무보고서_정정본.xlsx");
     }
 
     @Test
@@ -90,7 +107,7 @@ class ReportMailerTest {
         assertThat(sent.getSubject()).contains("2026년 7월").contains("발송 보류");
         assertThat(bodyText(sent)).contains("EMP001 임형준 2026-07-31");
         // 관리자가 수치를 바로 확인할 수 있도록 리포트도 함께 간다
-        assertThat(attachmentFileName(sent)).isEqualTo("2026년7월_초과근무보고서.xlsx");
+        assertThat(attachmentFileName(sent)).isEqualTo("2026년7월_초과근무보고서_참고용.xlsx");
     }
 
     @Test
@@ -164,6 +181,10 @@ class ReportMailerTest {
             }
         }
         return builder.toString();
+    }
+
+    private ReportFile storedFile(ReportKind kind, String fileName) {
+        return new ReportFile(JULY, kind, fileName, "xlsx-bytes".getBytes(), 2, Instant.parse("2026-08-01T06:00:00Z"));
     }
 
     private OverTimeReport report(YearMonth yearMonth, int rowCount, long unclosedCount) {

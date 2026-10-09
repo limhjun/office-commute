@@ -1,5 +1,6 @@
 package com.company.officecommute.service.overtime;
 
+import com.company.officecommute.domain.report.ReportFinality;
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
 import com.company.officecommute.dto.overtime.response.OverTimeReport;
 import com.company.officecommute.dto.overtime.response.OverTimeReportData;
@@ -61,17 +62,29 @@ public class OverTimeReportService {
      * 리포트는 과소 집계"인 조합이 나오지 않는다. 순서를 뒤집으면 두 읽기 사이의 마감이 그 조합을 만든다.
      */
     public OverTimeReportSnapshot generateReportSnapshot(YearMonth yearMonth) {
+        return generateReportSnapshot(yearMonth, ReportFinality.REFERENCE);
+    }
+
+    /**
+     * {@code finality}는 파일에 찍힐 성격일 뿐 집계 방식은 같다. 확정본·정정본은 월 마감 뒤에만 만들어지므로
+     * 입력 기간이 잠겨 있어 읽는 순서와 무관하게 같은 값이 나온다.
+     */
+    public OverTimeReportSnapshot generateReportSnapshot(YearMonth yearMonth, ReportFinality finality) {
         List<UnclosedCommute> unclosedCommutes = overTimeService.findUnclosedCommutes(yearMonth);
+        long pendingCorrectionCount = overTimeService.countPendingCorrections(yearMonth);
         List<OverTimeCalculateResponse> overTimeData = overTimeService.calculateOverTime(yearMonth);
 
-        OverTimeReport report = createReport(yearMonth, overTimeData, unclosedCommutes.size());
+        OverTimeReport report = createReport(
+                yearMonth, overTimeData, unclosedCommutes.size(), pendingCorrectionCount, finality);
         return new OverTimeReportSnapshot(report, unclosedCommutes);
     }
 
     private OverTimeReport createReport(
             YearMonth yearMonth,
             List<OverTimeCalculateResponse> overTimeData,
-            long unclosedCommuteCount
+            long unclosedCommuteCount,
+            long pendingCorrectionCount,
+            ReportFinality finality
     ) {
 
         List<OverTimeReportData> rows = overTimeData.stream()
@@ -79,7 +92,7 @@ public class OverTimeReportService {
                 .sorted(REPORT_ORDER)
                 .toList();
 
-        return new OverTimeReport(yearMonth, rows, unclosedCommuteCount);
+        return new OverTimeReport(yearMonth, rows, unclosedCommuteCount, pendingCorrectionCount, finality);
     }
 
     private OverTimeReportData convertToReportData(OverTimeCalculateResponse response) {

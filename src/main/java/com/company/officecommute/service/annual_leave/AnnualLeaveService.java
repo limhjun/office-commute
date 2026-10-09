@@ -11,6 +11,7 @@ import com.company.officecommute.global.persistence.DatabaseConstraintMatcher;
 import com.company.officecommute.repository.annual_leave.AnnualLeaveRepository;
 import com.company.officecommute.repository.employee.EmployeeRepository;
 import com.company.officecommute.service.commute.CommuteHistoryService;
+import com.company.officecommute.service.commute.CommuteWriteLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -29,19 +30,24 @@ public class AnnualLeaveService {
     private final EmployeeRepository employeeRepository;
     private final AnnualLeaveRepository annualLeaveRepository;
     private final CommuteHistoryService commuteHistoryService;
+    private final CommuteWriteLock commuteWriteLock;
 
     public AnnualLeaveService(
             EmployeeRepository employeeRepository,
             AnnualLeaveRepository annualLeaveRepository,
-            CommuteHistoryService commuteHistoryService) {
+            CommuteHistoryService commuteHistoryService,
+            CommuteWriteLock commuteWriteLock) {
         this.employeeRepository = employeeRepository;
         this.annualLeaveRepository = annualLeaveRepository;
         this.commuteHistoryService = commuteHistoryService;
+        this.commuteWriteLock = commuteWriteLock;
     }
 
     @Transactional
     public List<AnnualLeaveEnrollmentResponse> enrollAnnualLeave(Long employeeId, List<LocalDate> wantedDates) {
         log.info("연차 신청 시작 - employeeId: {}", employeeId);
+        // 연차도 근태 행을 만든다 — 월 마감과 직렬화되도록 다른 근태 쓰기와 같은 잠금을 먼저 잡는다.
+        commuteWriteLock.lockEmployee(employeeId);
         Employee employee = employeeRepository.findByEmployeeIdWithTeam(employeeId)
                 .orElseThrow(() -> new EmployeeNotFoundException(employeeId));
         List<AnnualLeave> existingAnnualLeaves = annualLeaveRepository.findByEmployeeId(employeeId);

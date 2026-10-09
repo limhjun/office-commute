@@ -1,6 +1,8 @@
 package com.company.officecommute.mail;
 
 import com.company.officecommute.domain.report.DispatchFailureReason;
+import com.company.officecommute.domain.report.ReportFile;
+import com.company.officecommute.domain.report.ReportFinality;
 import com.company.officecommute.dto.overtime.response.OverTimeReport;
 import com.company.officecommute.service.overtime.OverTimeReportFileName;
 import com.company.officecommute.service.overtime.UnclosedCommute;
@@ -37,21 +39,46 @@ public class ReportMailer {
     }
 
     /**
-     * 정상 리포트 — 대표에게. 이 메일이 나가는 경우는 미마감 0건뿐이다.
+     * 확정본 — 대표에게. 월 마감 뒤 보관한 파일을 그대로 첨부한다(재시도도 같은 파일).
      */
-    public void sendMonthlyReport(OverTimeReport report, byte[] excel) {
+    public void sendMonthlyReport(ReportFile file) {
         String body = """
-                %s 초과근무 보고서를 첨부합니다.
+                %s 초과근무 보고서(월 마감 확정본)를 첨부합니다.
 
                 %s
-                """.formatted(displayMonth(report.yearMonth()), summary(report));
+                """.formatted(displayMonth(file.getTargetYearMonth()), finalSummary(file));
 
         send(
                 List.of(requireConfigured(properties.getCeo(), "report.mail.ceo")),
-                SUBJECT_PREFIX + displayMonth(report.yearMonth()) + " 초과근무 보고서",
+                SUBJECT_PREFIX + displayMonth(file.getTargetYearMonth()) + " 초과근무 보고서",
                 body,
-                report.yearMonth(),
-                excel
+                file.getFileName(),
+                file.getContent()
+        );
+    }
+
+    /**
+     * 정정본 — 대표에게. 기능 도입 전에 이미 발송한 월을 정정 후 마감해 보낸다.
+     * 기존 보고서 대신 이 파일을 쓰도록 제목·본문에서 분명히 안내한다.
+     */
+    public void sendCorrectedMonthlyReport(ReportFile file) {
+        String body = """
+                %s 초과근무 보고서의 정정본을 첨부합니다.
+                앞서 받으신 %s 보고서 대신 이 정정본을 사용해 주십시오.
+
+                %s
+                """.formatted(
+                displayMonth(file.getTargetYearMonth()),
+                displayMonth(file.getTargetYearMonth()),
+                finalSummary(file)
+        );
+
+        send(
+                List.of(requireConfigured(properties.getCeo(), "report.mail.ceo")),
+                SUBJECT_PREFIX + displayMonth(file.getTargetYearMonth()) + " 초과근무 보고서 (정정본)",
+                body,
+                file.getFileName(),
+                file.getContent()
         );
     }
 
@@ -80,7 +107,7 @@ public class ReportMailer {
                 SUBJECT_PREFIX + displayMonth(report.yearMonth()) + " 리포트 발송 보류 — 퇴근 미마감 "
                         + report.unclosedCommuteCount() + "건",
                 body,
-                report.yearMonth(),
+                OverTimeReportFileName.of(report.yearMonth(), ReportFinality.REFERENCE),
                 excel
         );
     }
@@ -102,12 +129,12 @@ public class ReportMailer {
                 managers(),
                 SUBJECT_PREFIX + displayMonth(target) + " 리포트 발송 실패 — " + reason.name(),
                 body,
-                target,
+                null,
                 null
         );
     }
 
-    private void send(List<String> recipients, String subject, String body, YearMonth target, byte[] excel) {
+    private void send(List<String> recipients, String subject, String body, String attachmentName, byte[] excel) {
         MimeMessage message = mailSender.createMimeMessage();
         try {
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
@@ -116,7 +143,7 @@ public class ReportMailer {
             helper.setSubject(subject);
             helper.setText(body, false);
             if (excel != null) {
-                helper.addAttachment(OverTimeReportFileName.of(target), new ByteArrayResource(excel));
+                helper.addAttachment(attachmentName, new ByteArrayResource(excel));
             }
         } catch (jakarta.mail.MessagingException e) {
             throw new ReportMailException("메일 구성에 실패했습니다: " + subject, e);
@@ -152,6 +179,18 @@ public class ReportMailer {
                 displayMonth(report.yearMonth()),
                 report.rows().size(),
                 report.unclosedCommuteCount(),
+                CALCULATION_BASIS
+        );
+    }
+
+    private String finalSummary(ReportFile file) {
+        return """
+                - 대상 월: %s
+                - 대상자: %d명
+                - 상태: 월 마감 완료(미퇴근·승인 대기 정정 0건)
+                - 산정 기준: %s""".formatted(
+                displayMonth(file.getTargetYearMonth()),
+                file.getEmployeeCount(),
                 CALCULATION_BASIS
         );
     }

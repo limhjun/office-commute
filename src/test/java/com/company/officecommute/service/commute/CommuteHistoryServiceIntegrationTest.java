@@ -3,7 +3,8 @@ package com.company.officecommute.service.commute;
 import com.company.officecommute.domain.commute.CommuteHistoryFixture;
 import com.company.officecommute.domain.commute.CommuteStatus;
 import com.company.officecommute.domain.commute.DuplicateWorkOnDateException;
-import com.company.officecommute.domain.commute.PreviousCommuteNotEndedException;
+import com.company.officecommute.domain.commute.CommuteAlreadyEndedException;
+import com.company.officecommute.domain.commute.CommuteHistory;
 import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.domain.employee.EmployeeBuilder;
 import com.company.officecommute.domain.employee.Role;
@@ -80,17 +81,38 @@ class CommuteHistoryServiceIntegrationTest {
     }
 
     @Test
-    @DisplayName("어제 미완료 근무 + 오늘 첫 출근시 PreviousCommuteNotEndedException")
-    void crossDayPreviousOpenStillTriggersPreviousCommuteNotEnded() {
-        ZonedDateTime yesterdayStart = ZonedDateTime.now()
-                .minusDays(1)
+    @DisplayName("과거 미퇴근이 남아 있어도 새 근무일 출근은 성공하고, 퇴근은 최신 근무만 닫는다")
+    void previousOpenCommuteDoesNotBlockNewWorkDay() {
+        ZoneId korea = ZoneId.of("Asia/Seoul");
+        ZonedDateTime twoDaysAgo = ZonedDateTime.now(korea)
+                .minusDays(2)
                 .withHour(9).withMinute(0).withSecond(0).withNano(0);
-        commuteHistoryRepository.save(CommuteHistoryFixture.open(
-                null, testEmployeeId, yesterdayStart, yesterdayStart.getZone()));
+        CommuteHistory previousOpen = commuteHistoryRepository.save(CommuteHistoryFixture.open(
+                null, testEmployeeId, twoDaysAgo, korea));
 
-        assertThatThrownBy(() -> commuteHistoryService.registerWorkStartTime(testEmployeeId))
-                .isInstanceOf(PreviousCommuteNotEndedException.class)
-                .hasMessage("이전 근무가 아직 종료되지 않았습니다.");
+        commuteHistoryService.registerWorkStartTime(testEmployeeId);
+        commuteHistoryService.registerWorkEndTime(testEmployeeId);
+
+        // 과거 미퇴근은 자동으로 닫히거나 추정값으로 채워지지 않는다
+        assertThat(commuteHistoryRepository.findById(previousOpen.getCommuteHistoryId()).orElseThrow().endTimeIsNull())
+                .isTrue();
+        // 최신 근무가 이미 끝났으면 재클릭해도 과거 미퇴근을 대신 닫지 않는다
+        assertThatThrownBy(() -> commuteHistoryService.registerWorkEndTime(testEmployeeId))
+                .isInstanceOf(CommuteAlreadyEndedException.class);
+        assertThat(commuteHistoryRepository.findById(previousOpen.getCommuteHistoryId()).orElseThrow().endTimeIsNull())
+                .isTrue();
+    }
+
+    @Test
+    @DisplayName("일반 퇴근은 version 을 1 올린다 — 이 기록에 대한 정정 대기 요청이 원본 변경을 알아챈다")
+    void regularEndIncrementsVersion() {
+        commuteHistoryService.registerWorkStartTime(testEmployeeId);
+        CommuteHistory started = commuteHistoryRepository.findAll().getFirst();
+
+        commuteHistoryService.registerWorkEndTime(testEmployeeId);
+
+        assertThat(commuteHistoryRepository.findById(started.getCommuteHistoryId()).orElseThrow().getVersion())
+                .isEqualTo(started.getVersion() + 1);
     }
 
     @Test
@@ -105,10 +127,8 @@ class CommuteHistoryServiceIntegrationTest {
         commuteHistoryService.registerWorkStartTime(testEmployeeId);
         commuteHistoryService.registerWorkEndTime(testEmployeeId);
 
-        assertThat(commuteHistoryRepository.findAll()).hasSize(2);
-        assertThat(commuteHistoryRepository
-                .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(testEmployeeId))
-                .isEmpty();
+        assertThat(commuteHistoryRepository.findAll()).hasSize(2)
+                .noneMatch(CommuteHistory::endTimeIsNull);
     }
 
     @Test
@@ -123,7 +143,7 @@ class CommuteHistoryServiceIntegrationTest {
     }
 
     @Test
-    @DisplayName("월별 조회는 일자별 출퇴근 시각과 상태를 돌려준다 — 날이 지난 미기록은 UNCLOSED")
+    @DisplayName("월별 조회는 일자별 출퇴근 시각과 상태를 돌려준다 — 24시간이 지난 미기록은 CORRECTION_REQUIRED")
     void monthlyViewCarriesCheckInAndCheckOutTimes() {
         ZoneId korea = ZoneId.of("Asia/Seoul");
         ZonedDateTime closedStart = ZonedDateTime.of(2026, 3, 2, 9, 3, 0, 0, korea);
@@ -151,7 +171,7 @@ class CommuteHistoryServiceIntegrationTest {
                         tuple(LocalDate.of(2026, 3, 2), closedStart.toOffsetDateTime(),
                                 closedEnd.toOffsetDateTime(), 9L * 60 + 55, false, CommuteStatus.COMPLETED),
                         tuple(LocalDate.of(2026, 3, 3), openStart.toOffsetDateTime(), null, 0L, false,
-                                CommuteStatus.UNCLOSED),
+                                CommuteStatus.CORRECTION_REQUIRED),
                         tuple(LocalDate.of(2026, 3, 4), null, null, 0L, true, CommuteStatus.DAY_OFF));
         assertThat(response.sumWorkingMinutes()).isEqualTo(9L * 60 + 55);
     }

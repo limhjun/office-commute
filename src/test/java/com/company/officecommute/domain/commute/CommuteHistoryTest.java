@@ -1,5 +1,8 @@
 package com.company.officecommute.domain.commute;
 
+import com.company.officecommute.domain.correction.CorrectionErrorCode;
+import com.company.officecommute.domain.correction.CorrectionException;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -121,7 +124,7 @@ public class CommuteHistoryTest {
         ZonedDateTime workEndTime = ZonedDateTime.of(2024, 1, 1, 18, 0, 0, 0, ZoneId.of(KOREA));
         CommuteHistory commuteHistory = CommuteHistoryFixture.ended(1L, 1L, workStartTime, workEndTime);
 
-        assertThat(commuteHistory.status(workEndTime.plusDays(3).toInstant()))
+        assertThat(commuteHistory.status(workEndTime.plusDays(3).toInstant(), workStartTime.plusDays(2).toInstant()))
                 .isEqualTo(CommuteStatus.COMPLETED);
     }
 
@@ -130,43 +133,158 @@ public class CommuteHistoryTest {
         CommuteHistory commuteHistory = CommuteHistoryFixture.annualLeave(
                 1L, LocalDate.of(2024, 1, 1), ZoneId.of(KOREA));
 
-        assertThat(commuteHistory.status(Instant.parse("2024-01-01T05:00:00Z")))
+        assertThat(commuteHistory.status(Instant.parse("2024-01-01T05:00:00Z"), null))
                 .isEqualTo(CommuteStatus.DAY_OFF);
     }
 
     @Test
-    void status_isInProgressWhileTheWorkDateIsStillTodayInTheWorkZone() {
-        ZonedDateTime workStartTime = ZonedDateTime.of(2024, 1, 1, 8, 0, 0, 0, ZoneId.of(KOREA));
+    @DisplayName("날짜가 바뀐 야간근무도 최신 근무이고 24시간 이내면 IN_PROGRESS 다")
+    void status_overnightWithin24HoursIsInProgress() {
+        ZonedDateTime workStartTime = ZonedDateTime.of(2024, 1, 1, 22, 0, 0, 0, ZoneId.of(KOREA));
         CommuteHistory commuteHistory = CommuteHistoryFixture.open(1L, 1L, workStartTime);
 
-        assertThat(commuteHistory.status(workStartTime.plusHours(5).toInstant()))
+        assertThat(commuteHistory.status(workStartTime.plusHours(10).toInstant(), workStartTime.toInstant()))
                 .isEqualTo(CommuteStatus.IN_PROGRESS);
     }
 
     @Test
-    void status_isUnclosedOnceTheWorkDatePassedInTheWorkZone() {
+    @DisplayName("정확히 24시간까지는 IN_PROGRESS, 1초라도 넘으면 CORRECTION_REQUIRED")
+    void status_24HourBoundary() {
         ZonedDateTime workStartTime = ZonedDateTime.of(2024, 1, 1, 8, 0, 0, 0, ZoneId.of(KOREA));
         CommuteHistory commuteHistory = CommuteHistoryFixture.open(1L, 1L, workStartTime);
+        Instant latest = workStartTime.toInstant();
 
-        assertThat(commuteHistory.status(workStartTime.plusDays(1).toInstant()))
-                .isEqualTo(CommuteStatus.UNCLOSED);
+        assertThat(commuteHistory.status(workStartTime.plusHours(24).toInstant(), latest))
+                .isEqualTo(CommuteStatus.IN_PROGRESS);
+        assertThat(commuteHistory.status(workStartTime.plusHours(24).plusSeconds(1).toInstant(), latest))
+                .isEqualTo(CommuteStatus.CORRECTION_REQUIRED);
     }
 
     @Test
-    void status_judgesTodayByWorkZoneNotByTheServerOrCallerZone() {
+    @DisplayName("후속 실제 근무가 있으면 24시간 이내라도 CORRECTION_REQUIRED")
+    void status_laterWorkMakesCorrectionRequired() {
+        ZonedDateTime workStartTime = ZonedDateTime.of(2024, 1, 1, 20, 0, 0, 0, ZoneId.of(KOREA));
+        CommuteHistory commuteHistory = CommuteHistoryFixture.open(1L, 1L, workStartTime);
+        Instant nextDayStart = workStartTime.plusHours(13).toInstant();
+
+        assertThat(commuteHistory.status(workStartTime.plusHours(14).toInstant(), nextDayStart))
+                .isEqualTo(CommuteStatus.CORRECTION_REQUIRED);
+    }
+
+    @Test
+    void status_judgesByElapsedTimeNotByTheServerOrCallerZone() {
         ZoneId losAngeles = ZoneId.of("America/Los_Angeles");
         ZonedDateTime workStartTime = ZonedDateTime.of(2024, 1, 2, 9, 0, 0, 0, losAngeles);
         CommuteHistory commuteHistory = CommuteHistoryFixture.open(1L, 1L, workStartTime, losAngeles);
 
-        // LA 기준으로는 아직 근무일(1월 2일) 저녁이지만, UTC 로 읽으면 이미 1월 3일이다.
-        Instant stillTheSameWorkDayInLosAngeles = ZonedDateTime
-                .of(2024, 1, 2, 18, 0, 0, 0, losAngeles).toInstant();
-        assertThat(stillTheSameWorkDayInLosAngeles.atZone(ZoneId.of("UTC")).toLocalDate())
-                .isEqualTo(LocalDate.of(2024, 1, 3));
+        // UTC 로 읽으면 이미 1월 3일이지만, 상태는 경과 시간과 후속 근무로만 판정한다.
+        Instant sameEvening = ZonedDateTime.of(2024, 1, 2, 18, 0, 0, 0, losAngeles).toInstant();
+        assertThat(sameEvening.atZone(ZoneId.of("UTC")).toLocalDate()).isEqualTo(LocalDate.of(2024, 1, 3));
 
-        // UTC 로 판정했다면 "날이 지난 미마감"이 됐을 순간 — workZone 으로 판정하므로 근무 중이다.
-        assertThat(commuteHistory.status(stillTheSameWorkDayInLosAngeles))
+        assertThat(commuteHistory.status(sameEvening, workStartTime.toInstant()))
                 .isEqualTo(CommuteStatus.IN_PROGRESS);
+    }
+
+    @Test
+    @DisplayName("일반 퇴근은 정확히 24시간까지 허용하고 초과하면 거부한다")
+    void calculateRegularEndMinutes_24HourBoundary() {
+        ZonedDateTime workStartTime = ZonedDateTime.of(2024, 1, 1, 8, 0, 0, 0, ZoneId.of(KOREA));
+        CommuteHistory commuteHistory = CommuteHistoryFixture.open(1L, 1L, workStartTime);
+
+        assertThat(commuteHistory.calculateRegularEndMinutes(workStartTime.plusHours(24).toInstant()))
+                .isEqualTo(24L * 60);
+        assertThatThrownBy(() -> commuteHistory.calculateRegularEndMinutes(
+                workStartTime.plusHours(24).plusSeconds(1).toInstant()))
+                .isInstanceOf(CommuteEndWindowExpiredException.class);
+    }
+
+    @Test
+    @DisplayName("일반 퇴근 대상 판정은 calculateRegularEndMinutes 와 같은 경계를 쓴다 — 종료·연차·24시간 초과는 대상이 아니다")
+    void isRegularEndableAt_matchesRegularEndRule() {
+        ZonedDateTime workStartTime = ZonedDateTime.of(2026, 9, 30, 22, 0, 0, 0, ZoneId.of(KOREA));
+        CommuteHistory open = CommuteHistoryFixture.open(1L, 1L, workStartTime);
+
+        assertThat(open.isRegularEndableAt(workStartTime.plusHours(24).toInstant())).isTrue();
+        assertThat(open.isRegularEndableAt(workStartTime.plusHours(24).plusSeconds(1).toInstant())).isFalse();
+        assertThat(open.zonedRegularEndDeadline()).isEqualTo(workStartTime.plusHours(24).toOffsetDateTime());
+        assertThat(CommuteHistoryFixture.ended(1L, 1L, workStartTime, workStartTime.plusHours(8))
+                .isRegularEndableAt(workStartTime.plusHours(9).toInstant())).isFalse();
+        assertThat(CommuteHistoryFixture.annualLeave(1L, LocalDate.of(2026, 10, 1), ZoneId.of(KOREA))
+                .isRegularEndableAt(workStartTime.plusHours(3).toInstant())).isFalse();
+    }
+
+    @Test
+    @DisplayName("일반 퇴근 — 이미 종료된 기록은 시간 창보다 먼저 AlreadyEnded")
+    void calculateRegularEndMinutes_alreadyEnded() {
+        ZonedDateTime workStartTime = ZonedDateTime.of(2024, 1, 1, 8, 0, 0, 0, ZoneId.of(KOREA));
+        CommuteHistory commuteHistory = CommuteHistoryFixture.ended(
+                1L, 1L, workStartTime, workStartTime.plusHours(9));
+
+        assertThatThrownBy(() -> commuteHistory.calculateRegularEndMinutes(workStartTime.plusDays(3).toInstant()))
+                .isInstanceOf(CommuteAlreadyEndedException.class);
+    }
+
+    @Test
+    @DisplayName("정정 근무 분 — 출근과 같은 시각 0분, 59초 0분, 60초 1분 (분 미만 절삭)")
+    void calculateCorrectedWorkingMinutes_truncatesBelowMinute() {
+        ZonedDateTime workStartTime = ZonedDateTime.of(2024, 1, 1, 8, 0, 0, 0, ZoneId.of(KOREA));
+        CommuteHistory commuteHistory = CommuteHistoryFixture.open(1L, 1L, workStartTime);
+        Instant now = workStartTime.plusDays(5).toInstant();
+
+        assertThat(commuteHistory.calculateCorrectedWorkingMinutes(workStartTime.toInstant(), now, null)).isZero();
+        assertThat(commuteHistory.calculateCorrectedWorkingMinutes(
+                workStartTime.plusSeconds(59).toInstant(), now, null)).isZero();
+        assertThat(commuteHistory.calculateCorrectedWorkingMinutes(
+                workStartTime.plusSeconds(60).toInstant(), now, null)).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("정정은 24시간 제한이 없다 — 26시간 근무도 승인으로 기록할 수 있다")
+    void calculateCorrectedWorkingMinutes_allowsOver24Hours() {
+        ZonedDateTime workStartTime = ZonedDateTime.of(2024, 1, 1, 8, 0, 0, 0, ZoneId.of(KOREA));
+        CommuteHistory commuteHistory = CommuteHistoryFixture.open(1L, 1L, workStartTime);
+
+        assertThat(commuteHistory.calculateCorrectedWorkingMinutes(
+                workStartTime.plusHours(26).toInstant(), workStartTime.plusDays(5).toInstant(), null))
+                .isEqualTo(26L * 60);
+    }
+
+    @Test
+    @DisplayName("정정 시각 검증 — 출근 이전·미래·후속 근무 이후·변경 없음·연차를 거부한다")
+    void calculateCorrectedWorkingMinutes_rejectsInvalidTimes() {
+        ZonedDateTime workStartTime = ZonedDateTime.of(2024, 1, 1, 8, 0, 0, 0, ZoneId.of(KOREA));
+        CommuteHistory open = CommuteHistoryFixture.open(1L, 1L, workStartTime);
+        CommuteHistory ended = CommuteHistoryFixture.ended(1L, 1L, workStartTime, workStartTime.plusHours(9));
+        Instant now = workStartTime.plusHours(30).toInstant();
+        Instant nextStart = workStartTime.plusHours(25).toInstant();
+
+        assertCorrectionError(() -> open.calculateCorrectedWorkingMinutes(
+                workStartTime.minusSeconds(1).toInstant(), now, null), CorrectionErrorCode.CORRECTION_END_BEFORE_START);
+        assertCorrectionError(() -> open.calculateCorrectedWorkingMinutes(
+                now.plusSeconds(1), now, null), CorrectionErrorCode.CORRECTION_END_IN_FUTURE);
+        assertCorrectionError(() -> open.calculateCorrectedWorkingMinutes(
+                nextStart.plusSeconds(1), now, nextStart), CorrectionErrorCode.CORRECTION_OVERLAPS_NEXT_WORK);
+        assertCorrectionError(() -> ended.calculateCorrectedWorkingMinutes(
+                workStartTime.plusHours(9).toInstant(), now, null), CorrectionErrorCode.CORRECTION_NO_CHANGE);
+        CommuteHistory dayOff = CommuteHistoryFixture.annualLeave(1L, LocalDate.of(2024, 1, 1), ZoneId.of(KOREA));
+        assertCorrectionError(() -> dayOff.calculateCorrectedWorkingMinutes(
+                workStartTime.plusHours(9).toInstant(), now, null), CorrectionErrorCode.CORRECTION_TARGET_DAY_OFF);
+
+        // 후속 근무의 출근 시각과 같은 종료는 허용한다
+        assertThat(open.calculateCorrectedWorkingMinutes(nextStart, now, nextStart)).isEqualTo(25L * 60);
+        // 완료 기록은 앞당기거나 늦출 수 있다
+        assertThat(ended.calculateCorrectedWorkingMinutes(workStartTime.plusHours(8).toInstant(), now, null))
+                .isEqualTo(8L * 60);
+        assertThat(ended.calculateCorrectedWorkingMinutes(workStartTime.plusHours(11).toInstant(), now, null))
+                .isEqualTo(11L * 60);
+    }
+
+    private static void assertCorrectionError(org.assertj.core.api.ThrowableAssert.ThrowingCallable call,
+                                              CorrectionErrorCode code) {
+        assertThatThrownBy(call)
+                .isInstanceOf(CorrectionException.class)
+                .extracting(e -> ((CorrectionException) e).getCode())
+                .isEqualTo(code);
     }
 
     @Test

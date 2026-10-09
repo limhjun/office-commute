@@ -50,3 +50,8 @@ public:
       # 외부 API 타임아웃 — 재배포 없이 조정할 수 있도록 환경변수로 노출 (기본값 = 종전 하드코딩 값)
       connectTimeout: ${PUBLIC_API_CONNECT_TIMEOUT:3s}
       readTimeout: ${PUBLIC_API_READ_TIMEOUT:5s}
+
+# 상태 변경 요청의 Origin 검사(CSRF) 허용 출처 — 로컬 Vite 개발 서버
+app:
+  security:
+    allowed-origins: http://localhost:5173

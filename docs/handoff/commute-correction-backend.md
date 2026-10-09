@@ -28,7 +28,7 @@
 
 ## 변경 파일(주요)
 
-- DB: `src/main/resources/db/migration/V15__commute_correction.sql`, `V16__monthly_closing_and_report_file.sql`, `data.sql`(dev 상위 승인자 계정 `approver@company.com` / admin1234, 관리자와 상호 지정)
+- DB: `src/main/resources/db/migration/V15__commute_correction.sql`, `V16__monthly_closing_and_report_file.sql`, `data.sql`(dev 상위 승인자 계정 `approver@company.com`, 관리자와 상호 지정 — 비밀번호는 `data.sql` 주석 참조)
 - 도메인: `domain/commute/CommuteHistory`, `domain/employee/{Employee,Role}`, `domain/correction/*`, `domain/closing/*`, `domain/report/{ReportDispatch,ReportFile,ReportKind,ReportFinality,DispatchFailureReason}`
 - 서비스: `service/commute/{CommuteHistoryService,CommuteWriteLock}`, `service/correction/CommuteCorrectionService`, `service/closing/{MonthlyClosingService,CommutePeriodGuard,ProtectedPeriods}`, `service/report/OverTimeReportDispatchService`, `service/employee/EmployeeService`, `service/overtime/*`
 - 웹: `controller/correction`, `controller/closing`, `controller/{employee,overtime}`, `auth/{AuthInterceptor,OriginCheckInterceptor}`, `config/WebConfig`, `global/exception/GlobalExceptionHandler`

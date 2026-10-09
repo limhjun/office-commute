@@ -2,9 +2,9 @@
 
 - 작업 식별자: `commute-correction`
 - 담당 영역: Backend(서버·DB·테스트), API 계약(`openapi.yml`), 생성 타입(`frontend/src/api/schema.d.ts`)
-- 상태: **READY**
-  - Backend 범위는 통합할 수 있는 상태다.
-  - MySQL/Flyway 검증은 Docker가 없어 실행하지 못했다. 통합 단계 필수 확인 항목이다(아래 "건너뛴 검증").
+- 상태: **WORKING** — 후속 보완 진행 중이다. 이전 READY(`d2c146c`)는 무효이므로 통합하지 않는다.
+  - (1) 월별 근태 응답에 일반 퇴근 대상 추가(계약 변경)
+  - (2) 승인 담당자 미지정 시 신청은 허용하고 승인만 불가로 정정(계획 1.3 대조)
 - 작업 브랜치: `worktree-backend`
 - 계약 커밋: `fd51868` — `openapi.yml`, 생성 타입, `docs/COMMUTE_CORRECTION_API.md`
 - 최종 구현 커밋: `d2c146cf2885b54d70203df03a6d4f21ab277017` (`d2c146c`)

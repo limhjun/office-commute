@@ -1,16 +1,19 @@
 package com.company.officecommute.global.exception;
 
 import com.company.officecommute.auth.AuthenticationFailedException;
+import com.company.officecommute.auth.CsrfOriginRejectedException;
 import com.company.officecommute.auth.ForbiddenException;
 import com.company.officecommute.domain.annual_leave.AnnualLeaveCriteriaNotMetException;
 import com.company.officecommute.domain.annual_leave.AnnualLeaveDuplicateException;
 import com.company.officecommute.domain.annual_leave.AnnualLeavePastDateException;
 import com.company.officecommute.domain.annual_leave.EmployeeWithoutTeamException;
+import com.company.officecommute.domain.closing.ClosingException;
 import com.company.officecommute.domain.commute.CommuteAlreadyEndedException;
+import com.company.officecommute.domain.commute.CommuteEndWindowExpiredException;
 import com.company.officecommute.domain.commute.CommuteNotStartedException;
 import com.company.officecommute.domain.commute.DuplicateWorkOnDateException;
 import com.company.officecommute.domain.commute.InvalidCommuteRangeException;
-import com.company.officecommute.domain.commute.PreviousCommuteNotEndedException;
+import com.company.officecommute.domain.correction.CorrectionException;
 import com.company.officecommute.domain.employee.EmployeeAlreadyExistsException;
 import com.company.officecommute.domain.employee.EmployeeNotFoundException;
 import com.company.officecommute.domain.employee.InvalidRetirementDateException;
@@ -22,6 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -180,10 +184,31 @@ public class GlobalExceptionHandler {
     }
 
     @ResponseStatus(HttpStatus.CONFLICT)
-    @ExceptionHandler(PreviousCommuteNotEndedException.class)
-    public ErrorResult handlePreviousCommuteNotEnded(PreviousCommuteNotEndedException e) {
-        log.warn("Previous commute not ended: {}", e.getMessage());
-        return new ErrorResult("PREVIOUS_COMMUTE_NOT_ENDED", e.getMessage());
+    @ExceptionHandler(CommuteEndWindowExpiredException.class)
+    public ErrorResult handleCommuteEndWindowExpired(CommuteEndWindowExpiredException e) {
+        log.warn("Commute end window expired: {}", e.getMessage());
+        return new ErrorResult("COMMUTE_END_WINDOW_EXPIRED", e.getMessage());
+    }
+
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    @ExceptionHandler(CsrfOriginRejectedException.class)
+    public ErrorResult handleCsrfOriginRejected(CsrfOriginRejectedException e) {
+        log.warn("CSRF origin rejected: {}", e.getMessage());
+        return new ErrorResult("CSRF_ORIGIN_REJECTED", e.getMessage());
+    }
+
+    @ExceptionHandler(CorrectionException.class)
+    public ResponseEntity<ErrorResult> handleCorrection(CorrectionException e) {
+        log.warn("Commute correction rejected: {} {}", e.getCode(), e.getMessage());
+        return ResponseEntity.status(e.getCode().getHttpStatus())
+                .body(new ErrorResult(e.getCode().name(), e.getMessage()));
+    }
+
+    @ExceptionHandler(ClosingException.class)
+    public ResponseEntity<ErrorResult> handleClosing(ClosingException e) {
+        log.warn("Closing rule rejected: {} {}", e.getCode(), e.getMessage());
+        return ResponseEntity.status(e.getCode().getHttpStatus())
+                .body(new ErrorResult(e.getCode().name(), e.getMessage()));
     }
 
     @ResponseStatus(HttpStatus.CONFLICT)

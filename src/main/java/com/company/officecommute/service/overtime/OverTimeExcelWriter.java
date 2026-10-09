@@ -1,5 +1,6 @@
 package com.company.officecommute.service.overtime;
 
+import com.company.officecommute.domain.report.ReportFinality;
 import com.company.officecommute.dto.overtime.response.OverTimeReport;
 import com.company.officecommute.dto.overtime.response.OverTimeReportData;
 import org.apache.poi.ss.usermodel.Cell;
@@ -83,27 +84,33 @@ public class OverTimeExcelWriter {
     /**
      * 퇴근 미마감 기록은 {@code workingMinutes = 0}으로 합계에 들어가므로, 그 직원의 초과근무는
      * 실제보다 적게 나온다. 수치만 보면 "야근 안 함"과 구분되지 않으니 파일 안에 근거를 남긴다.
+     * 미퇴근 0건은 월 마감 완료가 아니므로 파일 성격(참고용·확정본·정정본)과 승인 대기 정정도 함께 적는다.
      */
     private void createNoticeRow(Sheet sheet, OverTimeReport report) {
         Cell notice = sheet.createRow(NOTICE_ROW).createCell(COL_EMPLOYEE_CODE);
         notice.setCellValue(noticeText(report));
-        notice.setCellStyle(createNoticeStyle(sheet.getWorkbook(), report.hasUnclosedCommutes()));
+        boolean needsAttention = report.finality() == ReportFinality.REFERENCE || report.hasUnclosedCommutes();
+        notice.setCellStyle(createNoticeStyle(sheet.getWorkbook(), needsAttention));
     }
 
     private String noticeText(OverTimeReport report) {
-        if (!report.hasUnclosedCommutes()) {
-            return "퇴근 미마감 0건 — 대상 월의 출근 기록이 모두 마감되었습니다.";
-        }
-        return String.format(
-                "[주의] 퇴근 미마감 %d건 — 해당 기록은 0분으로 집계되어, 아래 초과근무가 실제보다 적을 수 있습니다.",
-                report.unclosedCommuteCount()
-        );
+        String unclosed = report.hasUnclosedCommutes()
+                ? String.format("[주의] 퇴근 미마감 %d건 — 해당 기록은 0분으로 집계되어, 아래 초과근무가 실제보다 적을 수 있습니다.",
+                report.unclosedCommuteCount())
+                : "퇴근 미마감 0건";
+        return switch (report.finality()) {
+            case REFERENCE -> String.format(
+                    "[참고용 — 확정본 아님] %s / 승인 대기 정정 %d건 — 승인 전 원본 값으로 현재 데이터를 다시 집계했습니다.",
+                    unclosed, report.pendingCorrectionCount());
+            case FINAL -> "[확정본] 월 마감 완료 — " + unclosed + " / 승인 대기 정정 0건 상태에서 잠근 집계입니다.";
+            case CORRECTION -> "[정정본] 기존에 발송된 보고서를 대체합니다 — 정정 승인 후 월 마감한 집계입니다. " + unclosed;
+        };
     }
 
-    private CellStyle createNoticeStyle(Workbook workbook, boolean hasUnclosedCommutes) {
+    private CellStyle createNoticeStyle(Workbook workbook, boolean needsAttention) {
         Font font = workbook.createFont();
         font.setBold(true);
-        if (hasUnclosedCommutes) {
+        if (needsAttention) {
             font.setColor(IndexedColors.DARK_RED.getIndex());
         }
         CellStyle style = workbook.createCellStyle();

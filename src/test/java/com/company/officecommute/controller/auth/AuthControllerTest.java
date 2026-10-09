@@ -1,5 +1,8 @@
 package com.company.officecommute.controller.auth;
 
+import com.company.officecommute.auth.SessionRoleFixture;
+import com.company.officecommute.repository.employee.EmployeeRepository;
+import org.junit.jupiter.api.BeforeEach;
 import com.company.officecommute.auth.AuthenticationFailedException;
 import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.domain.employee.Role;
@@ -32,6 +35,14 @@ class AuthControllerTest {
 
     @Autowired
     private MockMvcTester mockMvcTester;
+
+    @MockitoBean
+    private EmployeeRepository employeeRepository;
+
+    @BeforeEach
+    void stubSessionRoles() {
+        SessionRoleFixture.stubSessionRoles(employeeRepository);
+    }
 
     @MockitoBean
     private EmployeeService employeeService;
@@ -120,7 +131,7 @@ class AuthControllerTest {
     void me_withSession() {
         // given
         given(employeeService.getCurrentUser(1L))
-                .willReturn(new CurrentUserResponse(1L, "관리자", "admin@company.com", "MANAGER", null, null));
+                .willReturn(new CurrentUserResponse(1L, "관리자", "admin@company.com", "MANAGER", null, null, null));
 
         MockHttpSession session = new MockHttpSession();
         session.setAttribute("currentEmployeeId", 1L);

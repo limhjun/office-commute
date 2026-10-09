@@ -2,6 +2,7 @@ package com.company.officecommute.dto.auth.response;
 
 import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.domain.team.Team;
+import com.company.officecommute.dto.employee.response.EmployeeRef;
 
 public record CurrentUserResponse(
         Long employeeId,
@@ -9,7 +10,8 @@ public record CurrentUserResponse(
         String email,
         String role,
         Long teamId,
-        String teamName
+        String teamName,
+        EmployeeRef correctionApprover
 ) {
     public static CurrentUserResponse from(Employee employee) {
         Team team = employee.getTeam();
@@ -19,7 +21,8 @@ public record CurrentUserResponse(
                 employee.getEmail(),
                 employee.getRole().name(),
                 team != null ? team.getTeamId() : null,
-                team != null ? team.getName() : null
+                team != null ? team.getName() : null,
+                EmployeeRef.from(employee.getCorrectionApprover())
         );
     }
 }

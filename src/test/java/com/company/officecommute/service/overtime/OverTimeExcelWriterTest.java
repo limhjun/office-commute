@@ -1,5 +1,6 @@
 package com.company.officecommute.service.overtime;
 
+import com.company.officecommute.domain.report.ReportFinality;
 import com.company.officecommute.dto.overtime.response.OverTimeReport;
 import com.company.officecommute.dto.overtime.response.OverTimeReportData;
 import org.apache.poi.ss.usermodel.CellType;
@@ -181,6 +182,37 @@ class OverTimeExcelWriterTest {
 
             assertThat(notice).contains("0건");
             assertThat(notice).doesNotContain("[주의]");
+        }
+    }
+
+    @Test
+    @DisplayName("미퇴근 0건이어도 참고용은 확정본이 아니라고 표시하고 승인 대기 정정 건수를 드러낸다")
+    void referenceNoticeIsNotFinal() throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        overTimeExcelWriter.write(new OverTimeReport(YearMonth.of(2024, 8), List.of(), 0, 2, ReportFinality.REFERENCE), out);
+
+        try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(out.toByteArray()))) {
+            String notice = workbook.getSheetAt(0).getRow(0).getCell(0).getStringCellValue();
+
+            assertThat(notice).contains("참고용").contains("확정본 아님").contains("승인 대기 정정 2건");
+            assertThat(notice).doesNotContain("마감되었습니다");
+        }
+    }
+
+    @Test
+    @DisplayName("확정본과 정정본은 파일 안에서 서로 구분된다")
+    void finalAndCorrectionNotices() throws IOException {
+        ByteArrayOutputStream finalOut = new ByteArrayOutputStream();
+        overTimeExcelWriter.write(new OverTimeReport(YearMonth.of(2024, 8), List.of(), 0, 0, ReportFinality.FINAL), finalOut);
+        ByteArrayOutputStream correctionOut = new ByteArrayOutputStream();
+        overTimeExcelWriter.write(new OverTimeReport(YearMonth.of(2024, 8), List.of(), 0, 0, ReportFinality.CORRECTION), correctionOut);
+
+        try (XSSFWorkbook finalBook = new XSSFWorkbook(new ByteArrayInputStream(finalOut.toByteArray()));
+             XSSFWorkbook correctionBook = new XSSFWorkbook(new ByteArrayInputStream(correctionOut.toByteArray()))) {
+            assertThat(finalBook.getSheetAt(0).getRow(0).getCell(0).getStringCellValue())
+                    .startsWith("[확정본]").contains("월 마감 완료");
+            assertThat(correctionBook.getSheetAt(0).getRow(0).getCell(0).getStringCellValue())
+                    .startsWith("[정정본]").contains("대체");
         }
     }
 

@@ -45,8 +45,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     await api.POST('/api/auth/logout', {});
-    qc.clear();
+    // qc.clear() 는 ['auth','me'] 쿼리까지 지워 AuthProvider 의 관찰자가 끊긴다.
+    // 그러면 user 가 이전 사용자로 남으므로 이 쿼리는 유지한 채 값만 비우고 나머지 캐시를 지운다.
+    await qc.cancelQueries();
     qc.setQueryData(['auth', 'me'], null);
+    qc.removeQueries({ predicate: (q) => !(q.queryKey[0] === 'auth' && q.queryKey[1] === 'me') });
+    qc.getMutationCache().clear();
   }, [qc]);
 
   const user = meQuery.data ?? null;

@@ -1,6 +1,7 @@
 package com.company.officecommute.controller.employee;
 
 import com.company.officecommute.auth.ManagerOnly;
+import com.company.officecommute.dto.employee.request.CorrectionApproverAssignRequest;
 import com.company.officecommute.dto.employee.request.EmployeeChangeTeamRequest;
 import com.company.officecommute.dto.employee.request.EmployeeRetirementRequest;
 import com.company.officecommute.dto.employee.request.EmployeeSaveRequest;
@@ -59,5 +60,14 @@ public class EmployeeController {
             @RequestBody EmployeeRetirementRequest request
     ) {
         employeeService.changeWorkEndDate(employeeId, request.workEndDate());
+    }
+
+    @ManagerOnly
+    @PutMapping("/employee/{employeeId}/correction-approver")
+    public void assignCorrectionApprover(
+            @PathVariable Long employeeId,
+            @RequestBody CorrectionApproverAssignRequest request
+    ) {
+        employeeService.assignCorrectionApprover(employeeId, request.approverId());
     }
 }

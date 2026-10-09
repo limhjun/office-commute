@@ -1,5 +1,8 @@
 package com.company.officecommute.controller.annual_leave;
 
+import com.company.officecommute.auth.SessionRoleFixture;
+import com.company.officecommute.repository.employee.EmployeeRepository;
+import org.junit.jupiter.api.BeforeEach;
 import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.dto.annual_leave.response.AnnualLeaveEnrollmentResponse;
 import com.company.officecommute.dto.annual_leave.response.AnnualLeaveGetRemainingResponse;
@@ -31,6 +34,14 @@ class AnnualLeaveControllerTest {
 
     @Autowired
     private MockMvcTester mockMvcTester;
+
+    @MockitoBean
+    private EmployeeRepository employeeRepository;
+
+    @BeforeEach
+    void stubSessionRoles() {
+        SessionRoleFixture.stubSessionRoles(employeeRepository);
+    }
 
     @MockitoBean
     private AnnualLeaveService annualLeaveService;

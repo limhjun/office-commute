@@ -3,6 +3,6 @@ package com.company.officecommute.domain.commute;
 public enum CommuteStatus {
     COMPLETED,
     IN_PROGRESS,
-    UNCLOSED,
+    CORRECTION_REQUIRED,
     DAY_OFF
 }

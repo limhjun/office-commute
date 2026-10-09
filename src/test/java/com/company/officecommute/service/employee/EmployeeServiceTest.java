@@ -1,17 +1,23 @@
 package com.company.officecommute.service.employee;
 
 import com.company.officecommute.auth.AuthenticationFailedException;
+import com.company.officecommute.domain.correction.CorrectionErrorCode;
+import com.company.officecommute.domain.correction.CorrectionException;
+import com.company.officecommute.domain.correction.CorrectionStatus;
 import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.domain.employee.EmployeeBuilder;
 import com.company.officecommute.domain.employee.EmployeeAlreadyExistsException;
 import com.company.officecommute.domain.employee.EmployeeNotFoundException;
+import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.domain.team.Team;
 import com.company.officecommute.domain.team.TeamNotFoundException;
 import com.company.officecommute.dto.employee.request.EmployeeSaveRequest;
 import com.company.officecommute.dto.employee.response.EmployeeFindResponse;
 import com.company.officecommute.dto.employee.response.EmployeeRegisterResponse;
+import com.company.officecommute.repository.correction.CommuteCorrectionRequestRepository;
 import com.company.officecommute.repository.employee.EmployeeRepository;
 import com.company.officecommute.repository.team.TeamRepository;
+import com.company.officecommute.service.commute.CommuteWriteLock;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -44,6 +50,10 @@ class EmployeeServiceTest {
     private EmployeeRepository employeeRepository;
     @Mock
     private TeamRepository teamRepository;
+    @Mock
+    private CommuteCorrectionRequestRepository correctionRequestRepository;
+    @Mock
+    private CommuteWriteLock commuteWriteLock;
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     private Employee employee;
@@ -51,7 +61,8 @@ class EmployeeServiceTest {
 
     @BeforeEach
     void setUp() {
-        employeeService = new EmployeeService(employeeRepository, teamRepository, passwordEncoder);
+        employeeService = new EmployeeService(employeeRepository, teamRepository, passwordEncoder, correctionRequestRepository,
+                commuteWriteLock);
         team = new Team(1L, "백엔드팀", "이매니저", 0);
         employee = new EmployeeBuilder()
                 .withId(1L)
@@ -270,6 +281,90 @@ class EmployeeServiceTest {
             assertThatThrownBy(() -> employeeService.changeWorkEndDate(99L, LocalDate.of(2026, 7, 31)))
                     .isInstanceOf(EmployeeNotFoundException.class)
                     .hasMessageContaining("99");
+        }
+
+        @Test
+        @DisplayName("신청자이거나 지정 승인자인 대기 정정이 있으면 퇴사일을 지정할 수 없다")
+        void rejectedWhilePendingCorrectionInvolvesEmployee() {
+            BDDMockito.given(employeeRepository.findById(1L)).willReturn(Optional.of(employee));
+            BDDMockito.given(correctionRequestRepository.existsByRequesterIdAndStatus(1L, CorrectionStatus.PENDING))
+                    .willReturn(false);
+            BDDMockito.given(correctionRequestRepository.existsByAssignedApproverIdAndStatus(1L, CorrectionStatus.PENDING))
+                    .willReturn(true);
+
+            assertThatThrownBy(() -> employeeService.changeWorkEndDate(1L, LocalDate.of(2026, 7, 31)))
+                    .isInstanceOf(CorrectionException.class)
+                    .extracting(e -> ((CorrectionException) e).getCode())
+                    .isEqualTo(CorrectionErrorCode.PENDING_CORRECTION_EXISTS);
+            assertThat(employee.getWorkEndDate()).isNull();
+            verify(commuteWriteLock).lockAllEmployees();
+        }
+    }
+
+    @Nested
+    @DisplayName("assignCorrectionApprover")
+    class AssignCorrectionApprover {
+
+        private Employee manager;
+        private Employee approver;
+
+        @BeforeEach
+        void setUp() {
+            manager = new EmployeeBuilder().withId(10L).withName("관리자").withRole(Role.MANAGER)
+                    .withBirthday(LocalDate.of(1990, 1, 1)).withStartDate(LocalDate.of(2024, 1, 1))
+                    .withEmployeeCode("MGR001").withEmail("mgr@company.com").withPassword("password123").build();
+            approver = new EmployeeBuilder().withId(20L).withName("상위승인자").withRole(Role.COMMUTE_APPROVER)
+                    .withBirthday(LocalDate.of(1990, 1, 1)).withStartDate(LocalDate.of(2024, 1, 1))
+                    .withEmployeeCode("APR001").withEmail("apr@company.com").withPassword("password123").build();
+        }
+
+        @Test
+        @DisplayName("관리자에게 상위 승인자를 지정한다")
+        void assignsApproverToManager() {
+            BDDMockito.given(employeeRepository.findById(10L)).willReturn(Optional.of(manager));
+            BDDMockito.given(employeeRepository.findById(20L)).willReturn(Optional.of(approver));
+
+            employeeService.assignCorrectionApprover(10L, 20L);
+
+            assertThat(manager.getCorrectionApproverId()).isEqualTo(20L);
+            verify(commuteWriteLock).lockAllEmployees();
+        }
+
+        @Test
+        @DisplayName("대상 직원에게 승인 대기 정정이 있으면 담당자를 바꿀 수 없다")
+        void rejectedWhilePending() {
+            BDDMockito.given(employeeRepository.findById(10L)).willReturn(Optional.of(manager));
+            BDDMockito.given(employeeRepository.findById(20L)).willReturn(Optional.of(approver));
+            BDDMockito.given(correctionRequestRepository.existsByRequesterIdAndStatus(10L, CorrectionStatus.PENDING))
+                    .willReturn(true);
+
+            assertThatThrownBy(() -> employeeService.assignCorrectionApprover(10L, 20L))
+                    .isInstanceOf(CorrectionException.class)
+                    .extracting(e -> ((CorrectionException) e).getCode())
+                    .isEqualTo(CorrectionErrorCode.PENDING_CORRECTION_EXISTS);
+            assertThat(manager.getCorrectionApproverId()).isNull();
+        }
+
+        @Test
+        @DisplayName("본인 지정·같은 역할 지정·MEMBER 대상 지정은 INVALID_CORRECTION_APPROVER")
+        void rejectsInvalidPairs() {
+            Employee anotherManager = new EmployeeBuilder().withId(11L).withName("관리자2").withRole(Role.MANAGER)
+                    .withBirthday(LocalDate.of(1990, 1, 1)).withStartDate(LocalDate.of(2024, 1, 1))
+                    .withEmployeeCode("MGR002").withEmail("mgr2@company.com").withPassword("password123").build();
+
+            assertInvalid(() -> manager.assignCorrectionApprover(manager));
+            assertInvalid(() -> manager.assignCorrectionApprover(anotherManager));
+            assertInvalid(() -> employee.assignCorrectionApprover(manager));
+            // 상위 승인자의 담당자는 관리자다
+            approver.assignCorrectionApprover(manager);
+            assertThat(approver.getCorrectionApproverId()).isEqualTo(10L);
+        }
+
+        private void assertInvalid(org.assertj.core.api.ThrowableAssert.ThrowingCallable call) {
+            assertThatThrownBy(call)
+                    .isInstanceOf(CorrectionException.class)
+                    .extracting(e -> ((CorrectionException) e).getCode())
+                    .isEqualTo(CorrectionErrorCode.INVALID_CORRECTION_APPROVER);
         }
     }
 

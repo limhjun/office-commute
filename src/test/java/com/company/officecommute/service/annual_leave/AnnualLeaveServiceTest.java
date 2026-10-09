@@ -9,6 +9,7 @@ import com.company.officecommute.dto.annual_leave.response.AnnualLeaveGetRemaini
 import com.company.officecommute.repository.annual_leave.AnnualLeaveRepository;
 import com.company.officecommute.repository.employee.EmployeeRepository;
 import com.company.officecommute.service.commute.CommuteHistoryService;
+import com.company.officecommute.service.commute.CommuteWriteLock;
 import com.company.officecommute.domain.employee.EmployeeBuilder;
 import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,6 +45,9 @@ class AnnualLeaveServiceTest {
     private AnnualLeaveRepository annualLeaveRepository;
     @Mock
     private CommuteHistoryService commuteHistoryService;
+
+    @Mock
+    private CommuteWriteLock commuteWriteLock;
 
     private Long employeeId;
     private Employee employee;

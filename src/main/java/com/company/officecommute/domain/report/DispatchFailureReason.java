@@ -6,6 +6,9 @@ package com.company.officecommute.domain.report;
  */
 public enum DispatchFailureReason {
 
+    /** 월 마감 전이라 발송을 보류했다. 장애가 아니다 — 근태 관리자가 월 마감하면 그 직후 발송된다. */
+    MONTH_NOT_CLOSED("월 마감 전이라 발송을 보류했습니다. 미퇴근·승인 대기 정정을 해결하고 월 마감하면 발송됩니다."),
+
     /** 퇴근 미마감 기록이 있어 대표 발송을 보류했다. 마감하면 다음 재시도에서 자동 발송된다. */
     UNCLOSED_COMMUTES("퇴근 미마감 기록이 있어 발송을 보류했습니다. 마감하면 다음 재시도에서 자동 발송됩니다."),
 

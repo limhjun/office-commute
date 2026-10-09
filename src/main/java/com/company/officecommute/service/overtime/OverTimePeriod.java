@@ -9,11 +9,11 @@ import java.util.Set;
 
 public record OverTimePeriod(YearMonth targetMonth) {
 
-    LocalDate rangeStart() {
+    public LocalDate rangeStart() {
         return targetMonth.atDay(1).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
     }
 
-    LocalDate rangeEnd() {
+    public LocalDate rangeEnd() {
         return targetMonth.atEndOfMonth();
     }
 

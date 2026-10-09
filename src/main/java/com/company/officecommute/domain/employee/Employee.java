@@ -5,12 +5,15 @@ import com.company.officecommute.domain.annual_leave.AnnualLeaveCriteriaNotMetEx
 import com.company.officecommute.domain.annual_leave.AnnualLeaveEnrollment;
 import com.company.officecommute.domain.annual_leave.AnnualLeaves;
 import com.company.officecommute.domain.annual_leave.EmployeeWithoutTeamException;
+import com.company.officecommute.domain.correction.CorrectionErrorCode;
+import com.company.officecommute.domain.correction.CorrectionException;
 import com.company.officecommute.domain.team.Team;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
+import jakarta.persistence.ForeignKey;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -65,6 +68,11 @@ public class Employee {
 
     @Column(nullable = false)
     private String timezone;
+
+    // MANAGER·COMMUTE_APPROVER 의 정정 요청을 처리할 지정 승인자. MEMBER 는 비워 둔다(모든 MANAGER 가 처리).
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "correction_approver_id", foreignKey = @ForeignKey(name = "fk_employee_correction_approver"))
+    private Employee correctionApprover;
 
     protected Employee() {
     }
@@ -180,6 +188,30 @@ public class Employee {
         this.workEndDate = workEndDate;
     }
 
+    /**
+     * 정정 승인 담당자 지정. null 이면 해제한다. 대기 요청 여부는 잠금 범위를 아는 서비스가 먼저 확인한다.
+     */
+    public void assignCorrectionApprover(Employee approver) {
+        if (approver == null) {
+            this.correctionApprover = null;
+            return;
+        }
+        Role requiredRole = role.requiredCorrectionApproverRole();
+        if (requiredRole == null) {
+            throw new CorrectionException(CorrectionErrorCode.INVALID_CORRECTION_APPROVER,
+                    "일반 직원(MEMBER)의 정정 요청은 모든 근태 관리자가 처리하므로 승인 담당자를 지정하지 않습니다.");
+        }
+        if (Objects.equals(approver.getEmployeeId(), this.employeeId)) {
+            throw new CorrectionException(CorrectionErrorCode.INVALID_CORRECTION_APPROVER,
+                    "본인을 승인 담당자로 지정할 수 없습니다.");
+        }
+        if (approver.getRole() != requiredRole) {
+            throw new CorrectionException(CorrectionErrorCode.INVALID_CORRECTION_APPROVER,
+                    "%s 의 승인 담당자는 %s 역할이어야 합니다.".formatted(role, requiredRole));
+        }
+        this.correctionApprover = approver;
+    }
+
     public List<AnnualLeave> enrollAnnualLeave(List<LocalDate> wantedDates, List<AnnualLeave> existingAnnualLeaves) {
         if (team == null) {
             throw new EmployeeWithoutTeamException();
@@ -242,6 +274,14 @@ public class Employee {
 
     public String getTimezone() {
         return timezone;
+    }
+
+    public Employee getCorrectionApprover() {
+        return correctionApprover;
+    }
+
+    public Long getCorrectionApproverId() {
+        return correctionApprover != null ? correctionApprover.getEmployeeId() : null;
     }
 
     public ZoneId getZoneId() {

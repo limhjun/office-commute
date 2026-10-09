@@ -21,12 +21,12 @@ import java.util.Objects;
  * 한 대상 월의 발송 이력. 상태 전이를 엔티티가 소유해, "어디선가 status 만 바꿔치기"가
  * 생기지 않게 한다.
  * <p>
- * 최초 선점은 {@code UNIQUE(target_year_month)}, 기존 이력의 재선점은 낙관적 락이
+ * 최초 선점은 {@code UNIQUE(target_year_month, kind)}, 기존 이력의 재선점은 낙관적 락이
  * 중복 발송을 막는다.
  */
 @Entity
 @Table(uniqueConstraints = {
-        @UniqueConstraint(name = "uk_report_dispatch_year_month", columnNames = {"target_year_month"})
+        @UniqueConstraint(name = "uk_report_dispatch_year_month_kind", columnNames = {"target_year_month", "kind"})
 })
 public class ReportDispatch {
 
@@ -48,6 +48,10 @@ public class ReportDispatch {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
+    private ReportKind kind;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
     private DispatchStatus status;
 
     /** 결과가 기록된 시도 횟수. 진행 중인 시도는 아직 세지 않는다. */
@@ -62,11 +66,19 @@ public class ReportDispatch {
     @Column(length = MAX_FAILURE_REASON_LENGTH)
     private String lastFailureReason;
 
+    private Long deliveryConfirmedById;
+
+    private Instant deliveryConfirmedAt;
+
+    @Column(length = MAX_FAILURE_REASON_LENGTH)
+    private String deliveryConfirmationNote;
+
     protected ReportDispatch() {
     }
 
-    private ReportDispatch(YearMonth targetYearMonth, Instant now) {
+    private ReportDispatch(YearMonth targetYearMonth, ReportKind kind, Instant now) {
         this.targetYearMonth = Objects.requireNonNull(targetYearMonth, "targetYearMonth는 null일 수 없습니다.");
+        this.kind = Objects.requireNonNull(kind, "kind는 null일 수 없습니다.");
         this.status = DispatchStatus.IN_PROGRESS;
         this.attemptCount = 0;
         this.lastAttemptedAt = Objects.requireNonNull(now, "now는 null일 수 없습니다.");
@@ -74,7 +86,11 @@ public class ReportDispatch {
 
     /** 이 달을 선점한다. 동시에 두 실행이 부르면 유니크 제약이 한쪽을 떨어뜨린다. */
     public static ReportDispatch claim(YearMonth targetYearMonth, Instant now) {
-        return new ReportDispatch(targetYearMonth, now);
+        return claim(targetYearMonth, ReportKind.ORIGINAL, now);
+    }
+
+    public static ReportDispatch claim(YearMonth targetYearMonth, ReportKind kind, Instant now) {
+        return new ReportDispatch(targetYearMonth, kind, now);
     }
 
     /**
@@ -110,6 +126,42 @@ public class ReportDispatch {
         this.lastFailureReason = truncate(reason);
     }
 
+    /**
+     * 수신 여부 불명(DELIVERY_COMMITTED)을 운영자가 "수신됨"으로 확인했다. 실제 수신 시각은 모르므로
+     * 발송 결정 시각을 발송 시각으로 남긴다.
+     */
+    public void confirmDelivered(Long confirmedById, String note, Instant now) {
+        ensureDeliveryUncertain();
+        this.status = DispatchStatus.SENT;
+        this.sentAt = this.lastAttemptedAt;
+        this.attemptCount++;
+        this.lastFailureReason = null;
+        recordConfirmation(confirmedById, note, now);
+    }
+
+    /** 운영자가 "수신되지 않음"을 확인했다. FAILED 로 돌려 보관 파일로 다시 보낼 수 있게 한다. */
+    public void confirmNotDelivered(Long confirmedById, String note, Instant now) {
+        ensureDeliveryUncertain();
+        recordConfirmation(confirmedById, note, now);
+        markFailed(DispatchFailureReason.UNEXPECTED.name() + ": 운영자 확인 — 미수신. " + note, now);
+    }
+
+    public boolean isDeliveryUncertain() {
+        return status == DispatchStatus.DELIVERY_COMMITTED;
+    }
+
+    private void ensureDeliveryUncertain() {
+        if (!isDeliveryUncertain()) {
+            throw new IllegalStateException("DELIVERY_COMMITTED 상태에서만 수신 여부를 확인할 수 있다: " + status);
+        }
+    }
+
+    private void recordConfirmation(Long confirmedById, String note, Instant now) {
+        this.deliveryConfirmedById = Objects.requireNonNull(confirmedById, "confirmedById는 null일 수 없습니다.");
+        this.deliveryConfirmedAt = Objects.requireNonNull(now, "now는 null일 수 없습니다.");
+        this.deliveryConfirmationNote = truncate(note);
+    }
+
     public boolean isSent() {
         return status == DispatchStatus.SENT;
     }
@@ -141,6 +193,22 @@ public class ReportDispatch {
 
     public YearMonth getTargetYearMonth() {
         return targetYearMonth;
+    }
+
+    public ReportKind getKind() {
+        return kind;
+    }
+
+    public Long getDeliveryConfirmedById() {
+        return deliveryConfirmedById;
+    }
+
+    public Instant getDeliveryConfirmedAt() {
+        return deliveryConfirmedAt;
+    }
+
+    public String getDeliveryConfirmationNote() {
+        return deliveryConfirmationNote;
     }
 
     public DispatchStatus getStatus() {

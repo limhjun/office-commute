@@ -16,7 +16,8 @@ public record EmployeeFindResponse(
         LocalDate birthday,
         LocalDate workStartDate,
         LocalDate workEndDate,
-        String timezone
+        String timezone,
+        EmployeeRef correctionApprover
 ) {
     public static EmployeeFindResponse from(Employee employee) {
         Team team = employee.getTeam();
@@ -31,7 +32,8 @@ public record EmployeeFindResponse(
                 employee.getBirthday(),
                 employee.getWorkStartDate(),
                 employee.getWorkEndDate(),
-                employee.getTimezone()
+                employee.getTimezone(),
+                EmployeeRef.from(employee.getCorrectionApprover())
         );
     }
 }

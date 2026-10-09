@@ -1,8 +1,10 @@
 package com.company.officecommute.service.overtime;
 
+import com.company.officecommute.domain.correction.CorrectionStatus;
 import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
 import com.company.officecommute.repository.commute.CommuteHistoryRepository;
+import com.company.officecommute.repository.correction.CommuteCorrectionRequestRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -18,15 +20,28 @@ public class OverTimeService {
     private final CommuteHistoryRepository commuteHistoryRepository;
     private final OverTimeSnapshotReader overTimeSnapshotReader;
     private final HolidayCalendar holidayCalendar;
+    private final CommuteCorrectionRequestRepository correctionRequestRepository;
 
     public OverTimeService(
             CommuteHistoryRepository commuteHistoryRepository,
             OverTimeSnapshotReader overTimeSnapshotReader,
-            HolidayCalendar holidayCalendar
+            HolidayCalendar holidayCalendar,
+            CommuteCorrectionRequestRepository correctionRequestRepository
     ) {
         this.commuteHistoryRepository = commuteHistoryRepository;
         this.overTimeSnapshotReader = overTimeSnapshotReader;
         this.holidayCalendar = holidayCalendar;
+        this.correctionRequestRepository = correctionRequestRepository;
+    }
+
+    /**
+     * 집계 입력 범위의 승인 대기 정정 건수. 대기 중인 신청 값은 집계에 섞지 않으므로, 참고용 리포트가
+     * 과대·과소 근무 분을 포함할 수 있음을 드러내는 신호로만 쓴다.
+     */
+    public long countPendingCorrections(YearMonth yearMonth) {
+        OverTimePeriod period = new OverTimePeriod(yearMonth);
+        return correctionRequestRepository.countByStatusAndWorkDateBetween(
+                CorrectionStatus.PENDING, period.rangeStart(), period.rangeEnd());
     }
 
     /**

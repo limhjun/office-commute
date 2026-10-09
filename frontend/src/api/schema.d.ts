@@ -418,6 +418,82 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/employee/{employeeId}/correction-approver": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * 정정 승인 담당자 지정 (Manager Only)
+         * @description 근태 관리자(MANAGER)·상위 승인자(COMMUTE_APPROVER)의 정정 요청을 처리할 담당자를 지정한다.
+         *     - MANAGER 대상 → COMMUTE_APPROVER 를 지정, COMMUTE_APPROVER 대상 → MANAGER 를 지정.
+         *     - MEMBER 대상은 지정하지 않는다(모든 MANAGER 가 처리). 본인 지정 불가.
+         *     - `approverId`가 null이면 지정 해제.
+         *     - 대상 직원에게 PENDING 정정 요청이 있으면 변경할 수 없다 (취소 → 변경 → 재신청).
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    employeeId: components["parameters"]["EmployeeIdPath"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CorrectionApproverAssignRequest"];
+                };
+            };
+            responses: {
+                /** @description 변경됨. 응답 본문 없음. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description - INVALID_CORRECTION_APPROVER: 본인 지정, 역할 조합 불일치, MEMBER 대상 지정 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResult"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                /** @description 대상 또는 담당자 직원 미존재 (EMPLOYEE_NOT_FOUND) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResult"];
+                    };
+                };
+                /** @description 대상 직원에게 승인 대기 정정 요청이 있음 (PENDING_CORRECTION_EXISTS) */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResult"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/commute": {
         parameters: {
             query?: never;
@@ -467,8 +543,10 @@ export interface paths {
             };
         };
         /**
-         * 퇴근 등록
-         * @description 현재 로그인 직원의 퇴근 시각을 서버 시각으로 기록.
+         * 퇴근 등록 (일반 퇴근)
+         * @description 현재 로그인 직원의 **가장 최근에 시작한 실제 근무**(연차 제외)를 서버 시각으로 종료한다.
+         *     - 출근 시각부터 정확히 24시간까지 허용. 초과하면 정정 신청이 필요하다.
+         *     - 최신 근무가 이미 종료됐으면 거부하며, 이전 미퇴근 기록을 대신 종료하지 않는다.
          */
         put: {
             parameters: {
@@ -488,7 +566,7 @@ export interface paths {
                 };
                 /**
                  * @description 제약 위반.
-                 *     - COMMUTE_NOT_STARTED: 진행 중인 출근 기록이 없음
+                 *     - COMMUTE_NOT_STARTED: 실제 근무 기록이 하나도 없음
                  *     - INVALID_COMMUTE_RANGE: 퇴근 시간이 출근 시간보다 이름
                  */
                 400: {
@@ -509,7 +587,11 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResult"];
                     };
                 };
-                /** @description 이미 퇴근 처리됨 (COMMUTE_ALREADY_ENDED) */
+                /**
+                 * @description - COMMUTE_ALREADY_ENDED: 최신 근무가 이미 퇴근 처리됨(동시 퇴근 경합 포함)
+                 *     - COMMUTE_END_WINDOW_EXPIRED: 출근 후 24시간 초과 — 정정 신청 필요
+                 *     - CLOSING_PERIOD_LOCKED / REPORT_DELIVERY_UNCERTAIN: 출근 등록과 동일
+                 */
                 409: {
                     headers: {
                         [name: string]: unknown;
@@ -523,6 +605,7 @@ export interface paths {
         /**
          * 출근 등록
          * @description 현재 로그인 직원의 출근 시각을 서버 시각으로 기록.
+         *     과거 미퇴근 기록이 남아 있어도 새 근무일의 출근은 허용한다(해당 기록은 CORRECTION_REQUIRED 가 된다).
          */
         post: {
             parameters: {
@@ -552,8 +635,9 @@ export interface paths {
                 };
                 /**
                  * @description 상태/중복 충돌.
-                 *     - PREVIOUS_COMMUTE_NOT_ENDED: 다른 날 근무가 종료되지 않음
-                 *     - DUPLICATE_WORK: 같은 날 이미 출근 기록 존재
+                 *     - DUPLICATE_WORK: 같은 근무일에 이미 출근(또는 연차) 기록 존재
+                 *     - CLOSING_PERIOD_LOCKED: 근무일이 마감된 보고서의 집계 입력 기간에 속함
+                 *     - REPORT_DELIVERY_UNCERTAIN: 근무일이 수신 여부 미확인(DELIVERY_COMMITTED) 보고서의 입력 기간에 속함
                  */
                 409: {
                     headers: {
@@ -574,6 +658,658 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/commute-corrections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 퇴근 시각 정정 신청 (본인 기록, 모든 역할)
+         * @description 미퇴근 기록의 실제 종료 시각 등록, 또는 완료 기록의 종료 시각 변경(앞당김·늦춤)을 신청한다.
+         *     신청은 원본 근태를 변경하지 않는다. 승인 시에만 종료 시각과 근무 분이 갱신된다.
+         *
+         *     `requestedWorkEndTime` 검증 (신청·승인 시점 모두):
+         *     1. 출근 시각 이상 (동일 시각 허용 → 0분)
+         *     2. 현재 시각 이하
+         *     3. 후속 실제 근무가 있으면 그 출근 시각 이하
+         *     4. 연차 기록이 아님
+         *     일반 퇴근의 24시간 제한은 적용하지 않는다.
+         *
+         *     MANAGER·COMMUTE_APPROVER 는 지정 승인 담당자가 없어도 신청할 수 있다. 그 요청은 담당자가 없는 동안
+         *     누구도 승인·반려할 수 없다(`assignedApprover` 생략, `actions.canReview` 항상 false).
+         *     대기 중에는 담당자를 지정·변경할 수 없으므로 처리하려면 취소 → 담당자 지정 → 재신청 순서를 따른다.
+         *     승인 대기 요청이므로 해당 기간의 월 마감도 막는다.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CorrectionCreateRequest"];
+                };
+            };
+            responses: {
+                /** @description 신청됨 (status=PENDING) */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CorrectionRequestResponse"];
+                    };
+                };
+                /**
+                 * @description - VALIDATION_ERROR: 필수값 누락, 사유 공백/500자 초과 (fieldErrorResults 에 필드명)
+                 *     - INVALID_JSON: requestedWorkEndTime 형식 오류(오프셋 누락 포함)
+                 *     - CORRECTION_TARGET_DAY_OFF: 연차 기록
+                 *     - CORRECTION_END_BEFORE_START: 출근 시각 이전
+                 *     - CORRECTION_END_IN_FUTURE: 현재 시각 이후
+                 *     - CORRECTION_NO_CHANGE: 현재 종료 시각과 동일
+                 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResult"] | components["schemas"]["ValidationErrorResult"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                /** @description 본인 기록이 아님 (FORBIDDEN) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResult"];
+                    };
+                };
+                /** @description 근태 기록 미존재 (COMMUTE_NOT_FOUND) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResult"];
+                    };
+                };
+                /**
+                 * @description - CORRECTION_VERSION_CONFLICT: commuteVersion 이 현재 원본 버전과 다름 → 재조회 필요
+                 *     - CORRECTION_ALREADY_PENDING: 이 기록에 승인 대기 요청이 이미 있음
+                 *     - CORRECTION_OVERLAPS_NEXT_WORK: 후속 실제 근무의 출근 시각보다 늦음
+                 *     - CLOSING_PERIOD_LOCKED: 마감된 보고서의 입력 기간
+                 *     - REPORT_DELIVERY_UNCERTAIN: 수신 여부 미확인 보고서의 입력 기간
+                 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/commute-corrections/mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 내 정정 요청 이력 (모든 역할)
+         * @description 본인이 신청한 요청 전체(모든 상태). 최근 신청 순.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description 지정 시 해당 상태만 */
+                    status?: components["parameters"]["CorrectionStatusQuery"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 요청 목록 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CorrectionRequestResponse"][];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/commute-corrections/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 처리 대상 정정 요청 목록 (MANAGER, COMMUTE_APPROVER)
+         * @description 조회 범위:
+         *     - MANAGER: MEMBER 가 신청한 요청 전체 + 본인이 지정 승인자인 요청
+         *     - COMMUTE_APPROVER: 본인이 지정 승인자인 요청만
+         *     본인이 신청한 요청은 포함하지 않는다. 최근 신청 순.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description 지정 시 해당 상태만 */
+                    status?: components["parameters"]["CorrectionStatusQuery"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 요청 목록 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CorrectionRequestResponse"][];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/commute-corrections/{requestId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 정정 요청 단건 조회
+         * @description 신청자 본인 또는 review 조회 범위에 속하는 처리자만 조회 가능.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    requestId: components["parameters"]["CorrectionRequestIdPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 요청 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CorrectionRequestResponse"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                /** @description CORRECTION_REQUEST_NOT_FOUND */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResult"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/commute-corrections/{requestId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 정정 요청 취소 (신청자 본인)
+         * @description PENDING 요청만 취소할 수 있다. 취소된 요청도 이력으로 남는다.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    requestId: components["parameters"]["CorrectionRequestIdPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 취소됨 (status=CANCELLED) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CorrectionRequestResponse"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                /** @description 신청자 본인이 아님 (FORBIDDEN) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResult"];
+                    };
+                };
+                /** @description CORRECTION_REQUEST_NOT_FOUND */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResult"];
+                    };
+                };
+                /** @description 이미 처리된 요청 (CORRECTION_ALREADY_PROCESSED) */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/commute-corrections/{requestId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 정정 요청 승인
+         * @description 승인 권한: MEMBER 요청 → MANAGER, MANAGER 요청 → 지정된 COMMUTE_APPROVER,
+         *     COMMUTE_APPROVER 요청 → 지정된 MANAGER. 자기 승인 금지.
+         *     승인 트랜잭션에서 권한·지정 관계, PENDING 상태, 원본 버전, 연차 여부, 마감 범위,
+         *     제안 시각과 후속 실제 근무를 다시 검사한다. 원본 갱신과 요청 처리는 한 트랜잭션이다.
+         *     `CORRECTION_VERSION_CONFLICT`·`CORRECTION_OVERLAPS_NEXT_WORK` 는 요청을 REJECTED 로 바꾸지 않는다 —
+         *     요청은 PENDING 으로 남고, 처리자가 재조회 후 반려하거나 신청자가 취소·재신청한다.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    requestId: components["parameters"]["CorrectionRequestIdPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["CorrectionApproveRequest"];
+                };
+            };
+            responses: {
+                /** @description 승인됨 (status=APPROVED). 원본 근태의 종료 시각·근무 분이 갱신됨. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CorrectionRequestResponse"];
+                    };
+                };
+                /**
+                 * @description - VALIDATION_ERROR: comment 500자 초과
+                 *     - CORRECTION_END_IN_FUTURE 등 시각 검증 실패(신청 이후 조건이 바뀐 경우)
+                 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResult"] | components["schemas"]["ValidationErrorResult"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                /**
+                 * @description - FORBIDDEN: 처리 권한 없음(역할 불일치·다른 담당자)
+                 *     - CORRECTION_SELF_APPROVAL: 본인 요청
+                 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResult"];
+                    };
+                };
+                /** @description CORRECTION_REQUEST_NOT_FOUND */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResult"];
+                    };
+                };
+                /**
+                 * @description - CORRECTION_ALREADY_PROCESSED: PENDING 이 아님
+                 *     - CORRECTION_VERSION_CONFLICT: 신청 이후 원본 기록이 바뀜
+                 *     - CORRECTION_OVERLAPS_NEXT_WORK: 신청 이후 생긴 후속 출근과 겹침
+                 *     - CORRECTION_APPROVER_NOT_ASSIGNED: MANAGER·COMMUTE_APPROVER 요청인데 지정 승인자가 없음(승인 불가)
+                 *     - CLOSING_PERIOD_LOCKED / REPORT_DELIVERY_UNCERTAIN
+                 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/commute-corrections/{requestId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 정정 요청 반려
+         * @description 승인과 같은 처리 권한. 반려 사유 필수. 원본 근태는 바뀌지 않는다.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    requestId: components["parameters"]["CorrectionRequestIdPath"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CorrectionRejectRequest"];
+                };
+            };
+            responses: {
+                /** @description 반려됨 (status=REJECTED) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CorrectionRequestResponse"];
+                    };
+                };
+                400: components["responses"]["ValidationError"];
+                401: components["responses"]["Unauthorized"];
+                /** @description FORBIDDEN 또는 CORRECTION_SELF_APPROVAL */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResult"];
+                    };
+                };
+                /** @description CORRECTION_REQUEST_NOT_FOUND */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResult"];
+                    };
+                };
+                /**
+                 * @description - CORRECTION_ALREADY_PROCESSED
+                 *     - CORRECTION_APPROVER_NOT_ASSIGNED: 지정 승인자가 없는 MANAGER·COMMUTE_APPROVER 요청(반려도 불가)
+                 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/monthly-closings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 마감된 월 목록 (Manager Only)
+         * @description 최근 월 순.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 마감 목록 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MonthlyClosingResponse"][];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        /**
+         * 월 마감 (Manager Only)
+         * @description 회사 달력(Asia/Seoul) 기준으로 끝난 과거 월만 마감한다. 집계 입력 기간
+         *     (`rangeStart` = 월 1일이 속한 주의 월요일 ~ `rangeEnd` = 월말)에 미퇴근 또는 승인 대기 요청이
+         *     있으면 거부한다. 마감은 DB에 먼저 커밋되고, 그 뒤 같은 요청 안에서 최종 보고서 발송을 시도한다.
+         *     발송이 실패해도 마감은 유지된다(응답 `dispatch.status`=FAILED).
+         *
+         *     기능 도입 전에 이미 발송(SENT)된 월(`legacyDispatch`=true)은 `legacyResolution` 이 필수다.
+         *     - NO_CORRECTION_NEEDED: 기존 발송 완료 월로 등록하고 잠근다. 재발송하지 않는다.
+         *     - CORRECTED: 정정 완료 후 잠그고, 원본과 구분된 정정본(kind=CORRECTION)을 발송한다.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["MonthlyClosingCreateRequest"];
+                };
+            };
+            responses: {
+                /** @description 마감됨 */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MonthlyClosingCreateResponse"];
+                    };
+                };
+                /**
+                 * @description - VALIDATION_ERROR
+                 *     - INVALID_PARAMETER / INVALID_JSON: yearMonth 형식 오류
+                 *     - CLOSING_MONTH_NOT_ENDED: 진행 중이거나 미래 월
+                 *     - LEGACY_RESOLUTION_NOT_APPLICABLE: 기존 발송 월이 아닌데 legacyResolution 지정
+                 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResult"] | components["schemas"]["ValidationErrorResult"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                /**
+                 * @description - MONTH_ALREADY_CLOSED
+                 *     - CLOSING_HAS_UNRESOLVED: 입력 기간에 미퇴근/승인 대기 존재 (상세는 GET 상태 조회)
+                 *     - LEGACY_RESOLUTION_REQUIRED: 기존 발송 월인데 legacyResolution 누락
+                 *     - REPORT_DELIVERY_UNCERTAIN: 기존 발송이 DELIVERY_COMMITTED — 먼저 수신 확인 필요
+                 *     - CLOSING_PREVIOUS_LEGACY_MONTH_PENDING: 입력 기간이 겹치는 이전 월이 미정리 기존 발송 월
+                 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/monthly-closings/{yearMonth}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 월 마감 상태 조회 (Manager Only)
+         * @description 마감 가능 여부, 차단 사유, 미해결 목록, 발송 이력을 함께 돌려준다.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description ISO yyyy-MM */
+                    yearMonth: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 상태 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MonthlyClosingStatusResponse"];
+                    };
+                };
+                /** @description yearMonth 형식 오류 (INVALID_PARAMETER) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResult"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -662,6 +1398,7 @@ export interface paths {
                  *     - ANNUAL_LEAVE_DUPLICATE: 동일 일자 중복 신청
                  *     - EMPLOYEE_WITHOUT_TEAM: 팀 미배정 직원의 신청
                  *     - DUPLICATE_WORK: 신청 일자에 이미 출근 기록 존재
+                 *     - CLOSING_PERIOD_LOCKED: 신청 일자가 마감된 보고서의 집계 입력 기간에 속함
                  */
                 409: {
                     headers: {
@@ -740,10 +1477,12 @@ export interface paths {
         put?: never;
         /**
          * 월별 초과근무 리포트 수동 발송 (Manager Only)
-         * @description 매월 1~3일 배치와 **완전히 같은** 멱등 경로를 즉시 실행한다.
-         *     이미 발송된 달(`SENT`)에는 아무 일도 일어나지 않으며 강제 발송 플래그는 없다.
-         *     퇴근 미마감이 있으면 대표에게 보내지 않고 근태 관리자에게 교정 요청 메일이 나가며,
-         *     응답의 `status`는 `FAILED`, `lastFailureReason`은 `UNCLOSED_COMMUTES...`가 된다.
+         * @description 매월 1~3일 배치·월 마감 직후 발송과 **완전히 같은** 멱등 경로를 즉시 실행한다.
+         *     발송 종류(kind)는 마감 정보로 결정된다: 일반 마감 → ORIGINAL, 기존 발송 월 정정 마감 → CORRECTION.
+         *     - 월이 마감되지 않았으면 대표에게 보내지 않고 `status`=FAILED, `lastFailureReason`=`MONTH_NOT_CLOSED: ...`.
+         *     - 이미 SENT 또는 DELIVERY_COMMITTED 인 발송은 다시 보내지 않는다(강제 발송 플래그 없음).
+         *     - 최초 시도에서 최종 Excel 을 생성·보관하고, 재시도는 보관 파일을 그대로 사용한다.
+         *       파일 보관에 실패하면 발송하지 않는다.
          */
         post: {
             parameters: {
@@ -776,6 +1515,72 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/overtime/report/dispatch/confirmation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 수신 여부 불명 발송의 운영자 확인 (Manager Only)
+         * @description DELIVERY_COMMITTED(SMTP 호출 후 결과 미기록) 발송의 실제 수신 여부를 운영자가 확인해 기록한다.
+         *     - DELIVERED → SENT 로 확정(재발송 없음).
+         *     - NOT_DELIVERED → FAILED 로 전환해 다음 수동·예약 재시도가 보관 파일로 다시 보낼 수 있게 한다.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DispatchConfirmationRequest"];
+                };
+            };
+            responses: {
+                /** @description 확인 후 발송 상태 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OverTimeReportDispatchResponse"];
+                    };
+                };
+                400: components["responses"]["ValidationError"];
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                /** @description 해당 월·종류의 발송 이력 없음 (DISPATCH_NOT_FOUND) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResult"];
+                    };
+                };
+                /** @description DELIVERY_COMMITTED 상태가 아님 (DISPATCH_NOT_UNCERTAIN) */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/overtime/report/excel": {
         parameters: {
             query?: never;
@@ -783,7 +1588,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 월별 초과근무 Excel 리포트 다운로드 (Manager Only) */
+        /**
+         * 월별 초과근무 Excel 참고용 다운로드 (Manager Only)
+         * @description 현재 데이터로 매번 다시 집계한 **참고용** 파일이다. 마감 여부와 관계없이 확정본이 아니며,
+         *     파일명과 시트 상단 문구로 참고용임을 표시한다. 승인 전 정정 신청 값은 섞지 않는다.
+         *     확정본은 `/api/overtime/report/final-excel` 을 사용한다.
+         */
         get: {
             parameters: {
                 query: {
@@ -798,7 +1608,7 @@ export interface paths {
             responses: {
                 /**
                  * @description xlsx 바이너리.
-                 *     Content-Disposition: `attachment; filename*=UTF-8''YYYY년M월_초과근무보고서.xlsx`
+                 *     Content-Disposition: `attachment; filename*=UTF-8''YYYY년M월_초과근무보고서_참고용.xlsx`
                  */
                 200: {
                     headers: {
@@ -812,6 +1622,74 @@ export interface paths {
                 403: components["responses"]["Forbidden"];
                 /** @description 공휴일 데이터 미가용 (HOLIDAY_DATA_UNAVAILABLE) */
                 503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResult"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/overtime/report/final-excel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 월별 초과근무 확정본 다운로드 (Manager Only)
+         * @description 발송에 사용한(또는 사용할) 보관 파일을 그대로 내려준다. 현재 데이터로 재생성하지 않는다.
+         *     원본(ORIGINAL)과 기존 발송 월의 정정본(CORRECTION)은 별개 파일이다.
+         */
+        get: {
+            parameters: {
+                query: {
+                    /** @description ISO yyyy-MM */
+                    yearMonth: components["parameters"]["YearMonthQuery"];
+                    /** @description 기본값 ORIGINAL */
+                    kind?: components["schemas"]["ReportKind"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /**
+                 * @description xlsx 바이너리.
+                 *     Content-Disposition: ORIGINAL `YYYY년M월_초과근무보고서.xlsx`, CORRECTION `YYYY년M월_초과근무보고서_정정본.xlsx`
+                 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
+                    };
+                };
+                /** @description INVALID_PARAMETER / MISSING_PARAMETER */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResult"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                /** @description 보관된 확정본 없음 (REPORT_FILE_NOT_FOUND) */
+                404: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -843,6 +1721,17 @@ export interface components {
              *     - DUPLICATE_WORK, DATA_INTEGRITY_ERROR
              *     - HOLIDAY_DATA_UNAVAILABLE
              *     - INTERNAL_SERVER_ERROR
+             *     - CSRF_ORIGIN_REJECTED
+             *     - 근태: COMMUTE_NOT_STARTED, COMMUTE_ALREADY_ENDED, COMMUTE_END_WINDOW_EXPIRED,
+             *       INVALID_COMMUTE_RANGE, COMMUTE_NOT_FOUND, CLOSING_PERIOD_LOCKED, REPORT_DELIVERY_UNCERTAIN
+             *     - 정정: CORRECTION_REQUEST_NOT_FOUND, CORRECTION_TARGET_DAY_OFF, CORRECTION_END_BEFORE_START,
+             *       CORRECTION_END_IN_FUTURE, CORRECTION_NO_CHANGE, CORRECTION_OVERLAPS_NEXT_WORK,
+             *       CORRECTION_ALREADY_PENDING, CORRECTION_VERSION_CONFLICT, CORRECTION_ALREADY_PROCESSED,
+             *       CORRECTION_APPROVER_NOT_ASSIGNED, CORRECTION_SELF_APPROVAL
+             *     - 담당자: INVALID_CORRECTION_APPROVER, PENDING_CORRECTION_EXISTS
+             *     - 월 마감: CLOSING_MONTH_NOT_ENDED, MONTH_ALREADY_CLOSED, CLOSING_HAS_UNRESOLVED,
+             *       LEGACY_RESOLUTION_REQUIRED, LEGACY_RESOLUTION_NOT_APPLICABLE, CLOSING_PREVIOUS_LEGACY_MONTH_PENDING
+             *     - 발송: DISPATCH_NOT_FOUND, DISPATCH_NOT_UNCERTAIN, REPORT_FILE_NOT_FOUND
              */
             code: string;
             message: string;
@@ -858,8 +1747,20 @@ export interface components {
             message: string;
             fieldErrorResults: components["schemas"]["FieldErrorResult"][];
         };
-        /** @enum {string} */
-        Role: "MANAGER" | "MEMBER";
+        /**
+         * @description MANAGER = 근태 관리자(직원·팀·초과근무·월 마감 등 관리자 기능 + MEMBER 정정 승인),
+         *     MEMBER = 일반 직원,
+         *     COMMUTE_APPROVER = 상위 승인자. 지정된 대상(MANAGER)의 정정 요청 조회·승인·반려만 가능하며
+         *     관리자 기능 권한은 없다. 모든 역할은 본인 출퇴근·근태 조회·정정 신청을 사용한다.
+         * @enum {string}
+         */
+        Role: "MANAGER" | "MEMBER" | "COMMUTE_APPROVER";
+        EmployeeRef: {
+            /** Format: int64 */
+            employeeId: number;
+            name: string;
+            employeeCode: string;
+        };
         LoginRequest: {
             /** Format: email */
             email: string;
@@ -875,6 +1776,12 @@ export interface components {
             /** Format: int64 */
             teamId?: number | null;
             teamName?: string | null;
+            /**
+             * @description 본인 정정 요청의 지정 승인자. MEMBER 는 항상 없음(모든 MANAGER 가 처리).
+             *     MANAGER·COMMUTE_APPROVER 인데 없으면 신청은 되지만 그 요청은 승인·반려할 수 없다
+             *     (처리 시 409 CORRECTION_APPROVER_NOT_ASSIGNED). 담당자 지정 후 재신청해야 처리된다.
+             */
+            correctionApprover?: components["schemas"]["EmployeeRef"] | null;
         };
         TeamRegisterRequest: {
             teamName: string;
@@ -966,6 +1873,8 @@ export interface components {
              * @example Asia/Seoul
              */
             timezone: string;
+            /** @description 정정 승인 담당자(MANAGER·COMMUTE_APPROVER 대상만 지정됨). */
+            correctionApprover?: components["schemas"]["EmployeeRef"] | null;
         };
         EmployeeChangeTeamRequest: {
             /**
@@ -978,8 +1887,17 @@ export interface components {
             /**
              * Format: date
              * @description 퇴사일. null이면 퇴사 취소. 입사일 이전이면 400.
+             *     퇴사일 지정(계정 비활성화)은 그 직원이 신청자이거나 지정 승인자인 PENDING 정정 요청이 있으면
+             *     409 PENDING_CORRECTION_EXISTS 로 거부된다.
              */
             workEndDate?: string | null;
+        };
+        CorrectionApproverAssignRequest: {
+            /**
+             * Format: int64
+             * @description 지정할 승인 담당자 직원 ID. null이면 지정 해제.
+             */
+            approverId?: number | null;
         };
         AnnualLeaveEnrollRequest: {
             /** @description 미래 날짜 목록. */
@@ -1004,12 +1922,46 @@ export interface components {
             employeeId: number;
             remainingLeaves: components["schemas"]["AnnualLeave"][];
         };
+        /**
+         * @description 서버가 파생 계산하는 근태 상태(저장 컬럼 아님). 정정 요청 상태와는 별개다.
+         *     - DAY_OFF = 연차
+         *     - COMPLETED = 종료 시각 있음 (승인 대기 정정이 있어도 COMPLETED)
+         *     - CORRECTION_REQUIRED = 미퇴근이면서 (출근 후 24시간 초과 또는 후속 실제 근무 존재)
+         *       → 일반 퇴근 불가, 정정 신청으로만 해결. 신청 제출 여부를 뜻하지 않는다.
+         *     - IN_PROGRESS = 그 외 미퇴근 (일반 퇴근 가능 — 날짜가 바뀐 야간근무 포함)
+         * @enum {string}
+         */
+        CommuteStatus: "COMPLETED" | "IN_PROGRESS" | "CORRECTION_REQUIRED" | "DAY_OFF";
+        /**
+         * @description MONTH_CLOSED = 마감된 보고서의 집계 입력 기간(전월 말 참조 기간 포함),
+         *     DELIVERY_UNCERTAIN = 수신 여부 미확인 보고서의 입력 기간(운영자 확인 전 임시 차단)
+         * @enum {string}
+         */
+        CommuteLockReason: "MONTH_CLOSED" | "DELIVERY_UNCERTAIN";
         CommuteDetail: {
-            /** Format: date */
+            /**
+             * Format: int64
+             * @description 근태 기록 ID (정정 신청 대상)
+             */
+            commuteHistoryId: number;
+            /**
+             * Format: int64
+             * @description 원본 버전. 정정 신청 시 `commuteVersion` 으로 그대로 보낸다. 이 기록이 바뀔 때마다 증가한다.
+             */
+            version: number;
+            /**
+             * Format: date
+             * @description 근무일 (기록 당시 workZone 기준 확정값)
+             */
             date: string;
             /**
+             * @description 기록 당시 직원 시간대(IANA). 표시·입력 변환에 사용
+             * @example Asia/Seoul
+             */
+            workZone: string;
+            /**
              * Format: date-time
-             * @description 출근 시각. 기록의 workZone(직원 timezone) 오프셋으로 내려간다 — 표시는 이 오프셋
+             * @description 출근 시각. 기록의 workZone 오프셋으로 내려간다 — 표시는 이 오프셋
              *     기준으로 하고 브라우저 timezone 으로 재해석하지 않는다.
              *     연차 기록은 출퇴근 시각이 자정으로 합성된 값이므로 내려가지 않는다.
              * @example 2026-08-19T09:03:12+09:00
@@ -1017,30 +1969,271 @@ export interface components {
             workStartTime?: string | null;
             /**
              * Format: date-time
-             * @description 퇴근 시각. 미퇴근(진행 중이거나 마감 누락)이거나 연차이면 내려가지 않는다.
+             * @description 퇴근 시각. 미퇴근이거나 연차이면 내려가지 않는다.
              *     날짜 부분이 date 와 다르면 자정을 넘긴 근무다.
              * @example 2026-08-19T18:58:41+09:00
              */
             workEndTime?: string | null;
             /**
              * Format: int64
-             * @description 해당 일자 근무 시간(분). 미퇴근·연차는 0
+             * @description 저장된 근무 분(분 미만 절삭). 미퇴근·연차는 0 — 미퇴근의 0은 "근무하지 않음"의 확정값이 아니다.
              */
             workingMinutes: number;
             usingDayOff: boolean;
+            status: components["schemas"]["CommuteStatus"];
             /**
-             * @description IN_PROGRESS = 퇴근 미기록이지만 그 기록의 workZone 기준 오늘 = 아직 근무 중,
-             *     UNCLOSED = 퇴근 미기록인 채 날이 지남(초과근무가 0분으로 집계되는 미마감 기록),
-             *     COMPLETED = 퇴근까지 기록됨, DAY_OFF = 연차.
-             *     "오늘"의 판정은 서버가 기록의 workZone 으로 한다 — 클라이언트 타임존으로 유추하지 않는다.
-             * @enum {string}
+             * Format: int64
+             * @description 이 기록의 승인 대기(PENDING) 정정 요청 ID. 없으면 생략.
              */
-            status: "COMPLETED" | "IN_PROGRESS" | "UNCLOSED" | "DAY_OFF";
+            pendingCorrectionRequestId?: number | null;
+            /** @description 값이 있으면 이 기록은 정정·퇴근 등 모든 쓰기가 막혀 있다. */
+            lockReason?: components["schemas"]["CommuteLockReason"] | null;
+        };
+        /**
+         * @description 지금 `PUT /api/commute`(일반 퇴근)를 부르면 종료되는 기록. 가장 최근에 시작한 실제 근무(연차 제외)가
+         *     미퇴근이고 출근 후 24시간 이내일 때만 내려간다. 조회 월과 무관하게 같은 값이다 —
+         *     9/30 22:00 에 시작한 야간근무는 10월을 조회해도 이 필드로 식별된다(details 에는 없다).
+         */
+        RegularEndTarget: {
+            /** Format: int64 */
+            commuteHistoryId: number;
+            /** Format: int64 */
+            version: number;
+            /**
+             * Format: date
+             * @description 근무일 — 조회 월과 다를 수 있다
+             */
+            workDate: string;
+            /** @example Asia/Seoul */
+            workZone: string;
+            /**
+             * Format: date-time
+             * @description workZone 오프셋
+             */
+            workStartTime: string;
+            /**
+             * Format: date-time
+             * @description 일반 퇴근 마감 시각(출근 + 정확히 24시간, workZone 오프셋). 이후에는 정정 신청 대상이다.
+             */
+            endableUntil: string;
+            /** @description 값이 있으면 퇴근해도 보호 기간 오류(409)가 난다. 드문 경우(다른 시간대 근무일이 마감 월)다. */
+            lockReason?: components["schemas"]["CommuteLockReason"] | null;
         };
         WorkDurationPerDateResponse: {
             details: components["schemas"]["CommuteDetail"][];
             /** Format: int64 */
             sumWorkingMinutes: number;
+            /**
+             * @description 일반 퇴근 대상. 없으면 생략 — 퇴근 버튼을 비활성화한다(최신 근무가 이미 끝났거나, 24시간이 지났거나,
+             *     실제 근무 기록이 없음). details 의 같은 commuteHistoryId 행이 퇴근 대상이다.
+             */
+            regularEndTarget?: components["schemas"]["RegularEndTarget"] | null;
+        };
+        /**
+         * @description 정정 요청 상태. PENDING 에서 한 번만 전이하며 종착 상태는 변경되지 않는다.
+         * @enum {string}
+         */
+        CorrectionStatus: "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
+        CorrectionCreateRequest: {
+            /** Format: int64 */
+            commuteHistoryId: number;
+            /**
+             * Format: int64
+             * @description 화면이 본 CommuteDetail.version. 다르면 409 CORRECTION_VERSION_CONFLICT.
+             */
+            commuteVersion: number;
+            /**
+             * Format: date-time
+             * @description 실제 종료 시각. **오프셋 필수**(RFC 3339). 서버는 UTC Instant 로 변환해 비교·저장하며
+             *     마이크로초 미만은 버린다(DATETIME(6) 저장). 출근 시각과 같은 값이면 0분이다. 기록의 workZone 현지 시각을 오프셋으로 바꾸는 일은 클라이언트가 한다 —
+             *     DST 로 존재하지 않는 현지 시각은 입력 단계에서 막고, 중복되는 현지 시각은 사용자가 오프셋을 선택하게 한다.
+             * @example 2026-09-02T19:30:00+09:00
+             */
+            requestedWorkEndTime: string;
+            /** @description 정정 사유(필수, 공백만은 불가) */
+            reason: string;
+        };
+        CorrectionApproveRequest: {
+            /** @description 승인 의견(선택) */
+            comment?: string | null;
+        };
+        CorrectionRejectRequest: {
+            /** @description 반려 사유(필수, 공백만은 불가) */
+            reason: string;
+        };
+        /** @description 현재 사용자 기준으로 지금 가능한 동작. 서버가 다시 검사하므로 표시용이다. */
+        CorrectionActions: {
+            /** @description 신청자 본인 + PENDING */
+            canCancel: boolean;
+            /** @description 승인·반려 권한 + PENDING */
+            canReview: boolean;
+        };
+        CorrectionRequestResponse: {
+            /** Format: int64 */
+            requestId: number;
+            status: components["schemas"]["CorrectionStatus"];
+            /** Format: int64 */
+            commuteHistoryId: number;
+            /**
+             * Format: int64
+             * @description 신청 당시 원본 버전
+             */
+            commuteVersion: number;
+            requester: components["schemas"]["EmployeeRef"];
+            requesterRole: components["schemas"]["Role"];
+            /** @description 신청 당시 지정 승인자. MEMBER 요청은 없음(모든 MANAGER). */
+            assignedApprover?: components["schemas"]["EmployeeRef"] | null;
+            /**
+             * Format: date
+             * @description 기록의 근무일(신청 당시 스냅샷)
+             */
+            workDate: string;
+            /** @description 기록 당시 시간대. 아래 시각은 모두 이 오프셋으로 내려간다 */
+            workZone: string;
+            /** Format: date-time */
+            workStartTime: string;
+            /**
+             * Format: date-time
+             * @description 신청 당시 종료 시각. 미퇴근 기록이면 생략. 승인은 원본 버전이 같을 때만 적용되므로 승인 직전 값과 같다.
+             */
+            previousWorkEndTime?: string | null;
+            /**
+             * Format: int64
+             * @description 신청 당시 저장 근무 분
+             */
+            previousWorkingMinutes: number;
+            /** Format: date-time */
+            requestedWorkEndTime: string;
+            /**
+             * Format: int64
+             * @description 승인 시 저장될 근무 분(분 미만 절삭)
+             */
+            requestedWorkingMinutes: number;
+            reason: string;
+            /**
+             * Format: date-time
+             * @description UTC
+             */
+            requestedAt: string;
+            /** @description 승인·반려자 또는 취소한 신청자. PENDING 이면 생략. */
+            processedBy?: components["schemas"]["EmployeeRef"] | null;
+            /**
+             * Format: date-time
+             * @description UTC
+             */
+            processedAt?: string | null;
+            /** @description 승인 의견(APPROVED, 선택) 또는 반려 사유(REJECTED, 필수) */
+            reviewComment?: string | null;
+            actions: components["schemas"]["CorrectionActions"];
+        };
+        /**
+         * @description MANUAL = 신규 기능의 수동 월 마감(마감 후 원본 발송),
+         *     LEGACY_CONFIRMED = 기능 도입 전 발송 월을 정정 없이 기존 발송 완료 월로 등록,
+         *     LEGACY_CORRECTED = 기능 도입 전 발송 월을 정정 후 잠금(정정본 별도 발송)
+         * @enum {string}
+         */
+        MonthlyClosingType: "MANUAL" | "LEGACY_CONFIRMED" | "LEGACY_CORRECTED";
+        /** @enum {string} */
+        LegacyResolution: "NO_CORRECTION_NEEDED" | "CORRECTED";
+        MonthlyClosingCreateRequest: {
+            /**
+             * @description ISO yyyy-MM
+             * @example 2026-09
+             */
+            yearMonth: string;
+            /** @description 기존 발송 월(legacyDispatch=true)에만 필수. 그 외에는 생략. */
+            legacyResolution?: components["schemas"]["LegacyResolution"] | null;
+            /** @description 운영 메모. 기존 발송 월은 필수(확인한 사실, 원본 파일 확보 여부 등). */
+            note?: string | null;
+        };
+        MonthlyClosingResponse: {
+            /** @example 2026-09 */
+            yearMonth: string;
+            type: components["schemas"]["MonthlyClosingType"];
+            /**
+             * Format: date
+             * @description 보호(집계 입력) 기간 시작 — 월 1일이 속한 주의 월요일
+             */
+            rangeStart: string;
+            /**
+             * Format: date
+             * @description 보호 기간 끝 — 월말
+             */
+            rangeEnd: string;
+            closedBy: components["schemas"]["EmployeeRef"];
+            /**
+             * Format: date-time
+             * @description UTC
+             */
+            closedAt: string;
+            note?: string | null;
+        };
+        /** @enum {string} */
+        ClosingBlocker: "MONTH_NOT_ENDED" | "ALREADY_CLOSED" | "UNCLOSED_COMMUTES" | "PENDING_CORRECTIONS" | "DELIVERY_UNCERTAIN" | "PREVIOUS_LEGACY_MONTH_PENDING";
+        UnresolvedCommute: {
+            /** Format: int64 */
+            commuteHistoryId: number;
+            employee: components["schemas"]["EmployeeRef"];
+            /** Format: date */
+            workDate: string;
+        };
+        PendingCorrectionSummary: {
+            /** Format: int64 */
+            requestId: number;
+            /** Format: int64 */
+            commuteHistoryId: number;
+            requester: components["schemas"]["EmployeeRef"];
+            /** Format: date */
+            workDate: string;
+        };
+        MonthlyClosingStatusResponse: {
+            /** @example 2026-09 */
+            yearMonth: string;
+            /** Format: date */
+            rangeStart: string;
+            /** Format: date */
+            rangeEnd: string;
+            /** @description blockers 가 비었는가 */
+            closable: boolean;
+            /** @description 마감 정보. 미마감이면 생략. */
+            closing?: components["schemas"]["MonthlyClosingResponse"] | null;
+            /** @description 마감 없이 원본 보고서가 이미 발송(SENT)된 기능 도입 전 월 — 마감 시 legacyResolution 필수 */
+            legacyDispatch: boolean;
+            blockers: components["schemas"]["ClosingBlocker"][];
+            /** @description 입력 기간의 미퇴근 기록 */
+            unclosedCommutes: components["schemas"]["UnresolvedCommute"][];
+            /** @description 입력 기간 기록에 대한 승인 대기 요청 */
+            pendingCorrections: components["schemas"]["PendingCorrectionSummary"][];
+            /** @description 이 월의 발송 이력(ORIGINAL, CORRECTION) */
+            dispatches: components["schemas"]["OverTimeReportDispatchResponse"][];
+        };
+        MonthlyClosingCreateResponse: {
+            closing: components["schemas"]["MonthlyClosingResponse"];
+            /** @description 마감 커밋 후 시도한 발송 결과. LEGACY_CONFIRMED 는 발송하지 않으므로 생략. */
+            dispatch?: components["schemas"]["OverTimeReportDispatchResponse"] | null;
+        };
+        /**
+         * @description ORIGINAL = 해당 월 최초 보고서, CORRECTION = 기능 도입 전 발송 월의 정정본(원본과 별도 식별·파일·발송 이력)
+         * @enum {string}
+         */
+        ReportKind: "ORIGINAL" | "CORRECTION";
+        /**
+         * @description IN_PROGRESS = 다른 실행이 선점 중,
+         *     DELIVERY_COMMITTED = SMTP 호출을 시작했으나 결과 미기록 — 수신 여부 불명, 자동 재발송 안 함(운영자 확인 필요),
+         *     SENT = 대표에게 발송 완료(종착),
+         *     FAILED = 시도했으나 실패 — 재시도 창(1~3일) 안이면 다음 시도가 다시 집어간다
+         * @enum {string}
+         */
+        DispatchStatus: "IN_PROGRESS" | "DELIVERY_COMMITTED" | "SENT" | "FAILED";
+        /** @enum {string} */
+        DispatchConfirmationOutcome: "DELIVERED" | "NOT_DELIVERED";
+        DispatchConfirmationRequest: {
+            /** @example 2026-08 */
+            yearMonth: string;
+            kind: components["schemas"]["ReportKind"];
+            outcome: components["schemas"]["DispatchConfirmationOutcome"];
+            /** @description 확인 근거(필수) */
+            note: string;
         };
         OverTimeReportDispatchResponse: {
             /**
@@ -1048,12 +2241,8 @@ export interface components {
              * @example 2026-07
              */
             yearMonth: string;
-            /**
-             * @description IN_PROGRESS = 다른 실행이 선점 중, SENT = 대표에게 발송 완료(종착),
-             *     FAILED = 시도했으나 실패 — 재시도 창(1~3일) 안이면 다음 시도가 다시 집어간다
-             * @enum {string}
-             */
-            status: "IN_PROGRESS" | "SENT" | "FAILED";
+            kind: components["schemas"]["ReportKind"];
+            status: components["schemas"]["DispatchStatus"];
             /**
              * Format: int32
              * @description 결과가 기록된 시도 횟수
@@ -1061,14 +2250,27 @@ export interface components {
             attemptCount: number;
             /**
              * Format: date-time
+             * @description UTC
+             */
+            lastAttemptedAt: string;
+            /**
+             * Format: date-time
              * @description 발송 완료 시각(SENT 일 때만)
              */
             sentAt?: string | null;
             /**
-             * @description "분류: 상세" 형식. 분류는 UNCLOSED_COMMUTES / HOLIDAY_DATA_UNAVAILABLE /
-             *     MAIL_SEND_FAILED / UNEXPECTED
+             * @description "분류: 상세" 형식. 분류는 MONTH_NOT_CLOSED / UNCLOSED_COMMUTES / HOLIDAY_DATA_UNAVAILABLE /
+             *     MAIL_SEND_FAILED / UNEXPECTED. 파일 보관 실패는 UNEXPECTED 로 기록되며 발송하지 않는다.
+             *     MONTH_NOT_CLOSED 는 장애가 아니라 "월 마감 전이라 보류" 상태다.
              */
             lastFailureReason?: string | null;
+            /** @description 보관된 확정본 파일이 있는가(final-excel 다운로드 가능) */
+            finalFileAvailable: boolean;
+            /** @description DELIVERY_COMMITTED 를 운영자가 확인한 경우의 확인자 */
+            deliveryConfirmedBy?: components["schemas"]["EmployeeRef"] | null;
+            /** Format: date-time */
+            deliveryConfirmedAt?: string | null;
+            deliveryConfirmationNote?: string | null;
         };
         OverTimeCalculateResponse: {
             /** Format: int64 */
@@ -1132,6 +2334,10 @@ export interface components {
         };
     };
     parameters: {
+        EmployeeIdPath: number;
+        CorrectionRequestIdPath: number;
+        /** @description 지정 시 해당 상태만 */
+        CorrectionStatusQuery: components["schemas"]["CorrectionStatus"];
         /** @description ISO yyyy-MM */
         YearMonthQuery: string;
     };

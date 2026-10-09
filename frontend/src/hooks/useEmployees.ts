@@ -21,6 +21,22 @@ export function useCreateEmployee() {
   });
 }
 
+export function useAssignCorrectionApprover() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { employeeId: number; approverId: number | null }) =>
+      unwrap(await api.PUT('/api/employee/{employeeId}/correction-approver', {
+        params: { path: { employeeId: vars.employeeId } },
+        body: { approverId: vars.approverId },
+      })),
+    // 본인의 지정 승인자가 바뀌었을 수 있으므로 /me 도 다시 읽는다
+    onSuccess: () => Promise.all([
+      qc.invalidateQueries({ queryKey: KEY }),
+      qc.invalidateQueries({ queryKey: ['auth', 'me'] }),
+    ]),
+  });
+}
+
 export function useChangeEmployeeTeam() {
   const qc = useQueryClient();
   return useMutation({

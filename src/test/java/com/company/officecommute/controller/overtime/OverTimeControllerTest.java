@@ -1,11 +1,15 @@
 package com.company.officecommute.controller.overtime;
 
+import com.company.officecommute.auth.SessionRoleFixture;
+import com.company.officecommute.repository.employee.EmployeeRepository;
+import org.junit.jupiter.api.BeforeEach;
 import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.dto.overtime.response.OverTimeCalculateResponse;
 import com.company.officecommute.dto.overtime.response.OverTimeReport;
 import com.company.officecommute.dto.overtime.response.OverTimeReportData;
 import com.company.officecommute.dto.report.response.OverTimeReportDispatchResponse;
 import com.company.officecommute.domain.report.DispatchStatus;
+import com.company.officecommute.domain.report.ReportKind;
 import com.company.officecommute.global.exception.HolidayDataUnavailableException;
 import com.company.officecommute.service.overtime.OverTimeReportService;
 import com.company.officecommute.service.overtime.OverTimeService;
@@ -43,6 +47,14 @@ class OverTimeControllerTest {
 
     @Autowired
     private MockMvcTester mockMvcTester;
+
+    @MockitoBean
+    private EmployeeRepository employeeRepository;
+
+    @BeforeEach
+    void stubSessionRoles() {
+        SessionRoleFixture.stubSessionRoles(employeeRepository);
+    }
 
     @MockitoBean
     private OverTimeService overTimeService;
@@ -187,7 +199,7 @@ class OverTimeControllerTest {
                         String cd = headers.getFirst("Content-Disposition");
                         assertThat(cd).startsWith("attachment");
                         assertThat(cd).contains("filename*=");
-                        String fileName = "2024년8월_초과근무보고서.xlsx";
+                        String fileName = "2024년8월_초과근무보고서_참고용.xlsx";
                         String encoded = URLEncoder.encode(fileName, StandardCharsets.UTF_8).replace("+", "%20");
                         assertThat(cd).contains(encoded);
                     });
@@ -261,8 +273,9 @@ class OverTimeControllerTest {
         void dispatch_returnsCurrentStatus() {
             given(overTimeReportDispatchService.dispatchAndDescribe(YearMonth.of(2026, 7)))
                     .willReturn(new OverTimeReportDispatchResponse(
-                            YearMonth.of(2026, 7), DispatchStatus.SENT, 1,
-                            Instant.parse("2026-08-01T06:00:00Z"), null));
+                            YearMonth.of(2026, 7), ReportKind.ORIGINAL, DispatchStatus.SENT, 1,
+                            Instant.parse("2026-08-01T06:00:00Z"), Instant.parse("2026-08-01T06:00:00Z"), null,
+                            true, null, null, null));
 
             assertThat(mockMvcTester
                     .post()
@@ -273,8 +286,10 @@ class OverTimeControllerTest {
                     .isLenientlyEqualTo("""
                             {
                                 "yearMonth": "2026-07",
+                                "kind": "ORIGINAL",
                                 "status": "SENT",
-                                "attemptCount": 1
+                                "attemptCount": 1,
+                                "finalFileAvailable": true
                             }
                             """);
         }
@@ -284,8 +299,9 @@ class OverTimeControllerTest {
         void dispatch_exposesFailureReason() {
             given(overTimeReportDispatchService.dispatchAndDescribe(YearMonth.of(2026, 7)))
                     .willReturn(new OverTimeReportDispatchResponse(
-                            YearMonth.of(2026, 7), DispatchStatus.FAILED, 2, null,
-                            "UNCLOSED_COMMUTES: 미마감 3건"));
+                            YearMonth.of(2026, 7), ReportKind.ORIGINAL, DispatchStatus.FAILED, 2,
+                            Instant.parse("2026-08-01T06:00:00Z"), null, "UNCLOSED_COMMUTES: 미마감 3건",
+                            false, null, null, null));
 
             assertThat(mockMvcTester
                     .post()

@@ -1,14 +1,20 @@
 package com.company.officecommute.service.commute;
 
 import com.company.officecommute.domain.annual_leave.AnnualLeave;
+import com.company.officecommute.domain.closing.ClosingException;
+import com.company.officecommute.domain.closing.CommuteLockReason;
 import com.company.officecommute.domain.commute.CommuteAlreadyEndedException;
+import com.company.officecommute.domain.commute.CommuteEndWindowExpiredException;
 import com.company.officecommute.domain.commute.CommuteHistory;
 import com.company.officecommute.domain.commute.CommuteHistoryFixture;
 import com.company.officecommute.domain.commute.DuplicateWorkOnDateException;
 import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.domain.employee.EmployeeBuilder;
 import com.company.officecommute.repository.commute.CommuteHistoryRepository;
+import com.company.officecommute.repository.correction.CommuteCorrectionRequestRepository;
 import com.company.officecommute.repository.employee.EmployeeRepository;
+import com.company.officecommute.service.closing.CommutePeriodGuard;
+import com.company.officecommute.service.closing.ProtectedPeriods;
 import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -27,6 +33,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static com.company.officecommute.domain.employee.Role.MEMBER;
 import static com.company.officecommute.service.employee.Employees.employee;
@@ -50,6 +57,14 @@ class CommuteHistoryServiceTest {
     @Mock
     private EmployeeRepository employeeRepository;
 
+    @Mock
+    private CommuteCorrectionRequestRepository correctionRequestRepository;
+
+    @Mock
+    private CommuteWriteLock commuteWriteLock;
+
+    @Mock
+    private CommutePeriodGuard commutePeriodGuard;
 
     private ZonedDateTime workStartTime;
 
@@ -60,16 +75,18 @@ class CommuteHistoryServiceTest {
         workStartTime = ZonedDateTime.of(2024, 1, 1, 8, 0, 0, 0, ZoneId.of("Asia/Seoul"));
         workEndTime = ZonedDateTime.of(2024, 1, 1, 18, 0, 0, 0, ZoneId.of("Asia/Seoul"));
         Clock fixedClock = Clock.fixed(workEndTime.toInstant(), ZoneId.of("UTC"));
-        commuteHistoryService = new CommuteHistoryService(commuteHistoryRepository, employeeRepository, fixedClock);
+        commuteHistoryService = newService(fixedClock);
+    }
+
+    private CommuteHistoryService newService(Clock clock) {
+        return new CommuteHistoryService(commuteHistoryRepository, employeeRepository, correctionRequestRepository,
+                commuteWriteLock, commutePeriodGuard, clock);
     }
 
     @Test
     void testRegisterWorkStartTime() {
         BDDMockito.given(employeeRepository.findById(1L))
                 .willReturn(Optional.of(employee));
-        BDDMockito.given(commuteHistoryRepository
-                        .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(1L))
-                .willReturn(Optional.empty());
 
         commuteHistoryService.registerWorkStartTime(1L);
 
@@ -83,7 +100,7 @@ class CommuteHistoryServiceTest {
         BDDMockito.given(employeeRepository.findById(1L))
                 .willReturn(Optional.of(employee));
         BDDMockito.given(commuteHistoryRepository
-                        .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(1L))
+                        .findFirstByEmployeeIdAndUsingDayOffFalseOrderByWorkStartTimeDesc(1L))
                 .willReturn(Optional.of(CommuteHistoryFixture.open(1L, 1L, workStartTime)));
         BDDMockito.given(commuteHistoryRepository.updateWorkEndTimeIfOpen(eq(1L), any(Instant.class), eq(10L * 60)))
                 .willReturn(1);
@@ -105,7 +122,7 @@ class CommuteHistoryServiceTest {
         BDDMockito.given(employeeRepository.findById(1L))
                 .willReturn(Optional.of(employee));
         BDDMockito.given(commuteHistoryRepository
-                        .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(1L))
+                        .findFirstByEmployeeIdAndUsingDayOffFalseOrderByWorkStartTimeDesc(1L))
                 .willReturn(Optional.of(CommuteHistoryFixture.open(1L, 1L, workStartTime)));
         BDDMockito.given(commuteHistoryRepository.updateWorkEndTimeIfOpen(eq(1L), any(Instant.class), eq(10L * 60)))
                 .willReturn(0);
@@ -121,7 +138,7 @@ class CommuteHistoryServiceTest {
         // 2026-01-15 08:00 KST = 2026-01-14 23:00 UTC
         ZonedDateTime nowUtc = ZonedDateTime.of(2026, 1, 14, 23, 0, 0, 0, ZoneId.of("UTC"));
         Clock fixed = Clock.fixed(nowUtc.toInstant(), ZoneId.of("UTC"));
-        commuteHistoryService = new CommuteHistoryService(commuteHistoryRepository, employeeRepository, fixed);
+        commuteHistoryService = newService(fixed);
 
         Employee seoulEmployee = new EmployeeBuilder().withId(10L).withName("seoul").withRole(MEMBER)
                 .withBirthday(LocalDate.of(1990, 1, 1)).withStartDate(LocalDate.of(2024, 1, 1))
@@ -129,9 +146,6 @@ class CommuteHistoryServiceTest {
                 .withTimezone("Asia/Seoul").build();
 
         BDDMockito.given(employeeRepository.findById(10L)).willReturn(Optional.of(seoulEmployee));
-        BDDMockito.given(commuteHistoryRepository
-                .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(10L))
-                .willReturn(Optional.empty());
 
         commuteHistoryService.registerWorkStartTime(10L);
 
@@ -147,7 +161,7 @@ class CommuteHistoryServiceTest {
         // 2026-01-15 08:00 KST = 2026-01-14 23:00 UTC = 2026-01-14 15:00 PST
         ZonedDateTime nowUtc = ZonedDateTime.of(2026, 1, 14, 23, 0, 0, 0, ZoneId.of("UTC"));
         Clock fixed = Clock.fixed(nowUtc.toInstant(), ZoneId.of("UTC"));
-        commuteHistoryService = new CommuteHistoryService(commuteHistoryRepository, employeeRepository, fixed);
+        commuteHistoryService = newService(fixed);
 
         Employee laEmployee = new EmployeeBuilder().withId(20L).withName("la").withRole(MEMBER)
                 .withBirthday(LocalDate.of(1990, 1, 1)).withStartDate(LocalDate.of(2024, 1, 1))
@@ -155,9 +169,6 @@ class CommuteHistoryServiceTest {
                 .withTimezone("America/Los_Angeles").build();
 
         BDDMockito.given(employeeRepository.findById(20L)).willReturn(Optional.of(laEmployee));
-        BDDMockito.given(commuteHistoryRepository
-                .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(20L))
-                .willReturn(Optional.empty());
 
         commuteHistoryService.registerWorkStartTime(20L);
 
@@ -170,7 +181,7 @@ class CommuteHistoryServiceTest {
     }
 
     @Test
-    @DisplayName("registerWorkStartTime — 같은 employee+workDate 기록이 있으면 미완료 근무 검증보다 먼저 DuplicateWorkOnDateException")
+    @DisplayName("registerWorkStartTime — 같은 employee+workDate 기록이 있으면 DuplicateWorkOnDateException")
     void registerWorkStartTime_throwsDuplicate_whenPriorRecordExistsOnSameDate() {
         // given
         BDDMockito.given(employeeRepository.findById(1L))
@@ -183,8 +194,6 @@ class CommuteHistoryServiceTest {
                 .isInstanceOf(DuplicateWorkOnDateException.class)
                 .hasMessageContaining("이미 출근 기록이 존재");
 
-        then(commuteHistoryRepository).should(never())
-                .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(1L);
         then(commuteHistoryRepository).should(never()).saveAndFlush(any(CommuteHistory.class));
     }
 
@@ -198,9 +207,6 @@ class CommuteHistoryServiceTest {
         );
         BDDMockito.given(employeeRepository.findById(1L))
                 .willReturn(Optional.of(employee));
-        BDDMockito.given(commuteHistoryRepository
-                        .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(1L))
-                .willReturn(Optional.empty());
         BDDMockito.given(commuteHistoryRepository.existsByEmployeeIdAndWorkDate(eq(1L), any(LocalDate.class)))
                 .willReturn(false);
         BDDMockito.given(commuteHistoryRepository.saveAndFlush(any(CommuteHistory.class)))
@@ -222,9 +228,6 @@ class CommuteHistoryServiceTest {
         );
         BDDMockito.given(employeeRepository.findById(1L))
                 .willReturn(Optional.of(employee));
-        BDDMockito.given(commuteHistoryRepository
-                        .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(1L))
-                .willReturn(Optional.empty());
         BDDMockito.given(commuteHistoryRepository.existsByEmployeeIdAndWorkDate(eq(1L), any(LocalDate.class)))
                 .willReturn(false);
         BDDMockito.given(commuteHistoryRepository.saveAndFlush(any(CommuteHistory.class)))
@@ -237,55 +240,35 @@ class CommuteHistoryServiceTest {
     }
 
     @Test
-    @DisplayName("registerWorkStartTime — race로 existsBy 직후 같은 날 open commute가 생겼다면 Duplicate로 던진다")
-    void registerWorkStartTime_translatesSameDayOpenCommuteRaceToDuplicate() {
-        // given — existsBy=false 통과 후 다른 thread가 막 commit한 상황을 시뮬레이션.
-        // fixed clock(2024-01-01 18:00 KST)과 같은 날짜로 open commute를 만든다.
-        ZoneId zone = ZoneId.of("Asia/Seoul");
-        CommuteHistory openTodayCommute = CommuteHistoryFixture.open(
-                null, 1L,
-                ZonedDateTime.of(2024, 1, 1, 8, 0, 0, 0, zone),
-                zone
-        );
+    @DisplayName("registerWorkStartTime — 출근 전에 직원 행을 잠그고, 근무일이 보호 기간이면 저장하지 않는다")
+    void registerWorkStartTime_locksEmployeeAndRejectsProtectedWorkDate() {
+        // given
         BDDMockito.given(employeeRepository.findById(1L))
                 .willReturn(Optional.of(employee));
-        BDDMockito.given(commuteHistoryRepository.existsByEmployeeIdAndWorkDate(eq(1L), any(LocalDate.class)))
-                .willReturn(false);
-        BDDMockito.given(commuteHistoryRepository
-                        .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(1L))
-                .willReturn(Optional.of(openTodayCommute));
+        BDDMockito.willThrow(CommuteLockReason.MONTH_CLOSED.toException())
+                .given(commutePeriodGuard).assertWritable(LocalDate.of(2024, 1, 1));
 
         // when / then
         assertThatThrownBy(() -> commuteHistoryService.registerWorkStartTime(1L))
-                .isInstanceOf(DuplicateWorkOnDateException.class)
-                .hasMessageContaining("이미 출근 기록이 존재");
-
+                .isInstanceOf(ClosingException.class);
+        then(commuteWriteLock).should().lockEmployee(1L);
         then(commuteHistoryRepository).should(never()).saveAndFlush(any(CommuteHistory.class));
     }
 
     @Test
-    @DisplayName("registerWorkStartTime — 다른 날 open commute가 있으면 PreviousCommuteNotEndedException")
-    void registerWorkStartTime_throwsPreviousCommuteNotEnded_whenOpenCommuteOnDifferentDate() {
-        // given — fixed clock(2024-01-01) 기준 어제 미완료 근무가 남아있는 상태
-        ZoneId zone = ZoneId.of("Asia/Seoul");
-        CommuteHistory openYesterdayCommute = CommuteHistoryFixture.open(
-                null, 1L,
-                ZonedDateTime.of(2023, 12, 31, 9, 0, 0, 0, zone),
-                zone
-        );
+    @DisplayName("registerWorkEndTime — 출근 후 24시간을 넘긴 최신 근무는 일반 퇴근하지 않는다")
+    void registerWorkEndTime_rejectsAfter24Hours() {
+        // given — 고정 시각(2024-01-01 18:00 KST)보다 24시간 1분 전 출근
         BDDMockito.given(employeeRepository.findById(1L))
                 .willReturn(Optional.of(employee));
-        BDDMockito.given(commuteHistoryRepository.existsByEmployeeIdAndWorkDate(eq(1L), any(LocalDate.class)))
-                .willReturn(false);
-        BDDMockito.given(commuteHistoryRepository
-                        .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(1L))
-                .willReturn(Optional.of(openYesterdayCommute));
+        BDDMockito.given(commuteHistoryRepository.findFirstByEmployeeIdAndUsingDayOffFalseOrderByWorkStartTimeDesc(1L))
+                .willReturn(Optional.of(CommuteHistoryFixture.open(1L, 1L, workEndTime.minusHours(24).minusMinutes(1))));
 
         // when / then
-        assertThatThrownBy(() -> commuteHistoryService.registerWorkStartTime(1L))
-                .isInstanceOf(com.company.officecommute.domain.commute.PreviousCommuteNotEndedException.class);
-
-        then(commuteHistoryRepository).should(never()).saveAndFlush(any(CommuteHistory.class));
+        assertThatThrownBy(() -> commuteHistoryService.registerWorkEndTime(1L))
+                .isInstanceOf(CommuteEndWindowExpiredException.class);
+        then(commuteHistoryRepository).should(never())
+                .updateWorkEndTimeIfOpen(any(), any(), org.mockito.ArgumentMatchers.anyLong());
     }
 
     @Test
@@ -300,9 +283,6 @@ class CommuteHistoryServiceTest {
                 .willReturn(Optional.of(employee));
         BDDMockito.given(commuteHistoryRepository.existsByEmployeeIdAndWorkDate(eq(1L), any(LocalDate.class)))
                 .willReturn(false);
-        BDDMockito.given(commuteHistoryRepository
-                        .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(1L))
-                .willReturn(Optional.empty());
         BDDMockito.given(commuteHistoryRepository.saveAndFlush(any(CommuteHistory.class)))
                 .willThrow(violation);
 
@@ -323,9 +303,6 @@ class CommuteHistoryServiceTest {
                 .willReturn(Optional.of(employee));
         BDDMockito.given(commuteHistoryRepository.existsByEmployeeIdAndWorkDate(eq(1L), any(LocalDate.class)))
                 .willReturn(false);
-        BDDMockito.given(commuteHistoryRepository
-                        .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(1L))
-                .willReturn(Optional.empty());
         BDDMockito.given(commuteHistoryRepository.saveAndFlush(any(CommuteHistory.class)))
                 .willThrow(violation);
 
@@ -347,9 +324,6 @@ class CommuteHistoryServiceTest {
                 .willReturn(Optional.of(employee));
         BDDMockito.given(commuteHistoryRepository.existsByEmployeeIdAndWorkDate(eq(1L), any(LocalDate.class)))
                 .willReturn(false);
-        BDDMockito.given(commuteHistoryRepository
-                        .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(1L))
-                .willReturn(Optional.empty());
         BDDMockito.given(commuteHistoryRepository.saveAndFlush(any(CommuteHistory.class)))
                 .willThrow(violation);
 
@@ -363,6 +337,7 @@ class CommuteHistoryServiceTest {
     @DisplayName("registerDayOffs — 신청 일자마다 연차 기록을 저장한다")
     void registerDayOffs_savesDayOffPerDate() {
         // given
+        BDDMockito.given(commutePeriodGuard.load()).willReturn(new ProtectedPeriods(List.of(), Set.of()));
         ZoneId zone = ZoneId.of("Asia/Seoul");
         List<AnnualLeave> savedLeaves = List.of(
                 new AnnualLeave(1L, 1L, LocalDate.now().plusDays(10)),
@@ -404,6 +379,7 @@ class CommuteHistoryServiceTest {
     @DisplayName("registerDayOffs — existsBy 통과 후 race로 중복 제약에 걸리면 Duplicate로 재던진다")
     void registerDayOffs_translatesDataIntegrityViolationRace() {
         // given
+        BDDMockito.given(commutePeriodGuard.load()).willReturn(new ProtectedPeriods(List.of(), Set.of()));
         ZoneId zone = ZoneId.of("Asia/Seoul");
         List<AnnualLeave> savedLeaves = List.of(new AnnualLeave(1L, 1L, LocalDate.now().plusDays(10)));
         DataIntegrityViolationException violation = new DataIntegrityViolationException(
@@ -433,9 +409,6 @@ class CommuteHistoryServiceTest {
                 .willReturn(Optional.of(employee));
         BDDMockito.given(commuteHistoryRepository.existsByEmployeeIdAndWorkDate(eq(1L), any(LocalDate.class)))
                 .willReturn(false);
-        BDDMockito.given(commuteHistoryRepository
-                        .findFirstByEmployeeIdAndUsingDayOffFalseAndWorkEndTimeIsNullOrderByWorkStartTimeDesc(1L))
-                .willReturn(Optional.empty());
         BDDMockito.given(commuteHistoryRepository.saveAndFlush(any(CommuteHistory.class)))
                 .willThrow(violation);
 

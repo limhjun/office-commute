@@ -6,8 +6,8 @@ import com.company.officecommute.domain.commute.DailyWorkDurations;
 import com.company.officecommute.dto.commute.response.CommuteDetailResponse;
 import com.company.officecommute.dto.commute.response.WorkDurationPerDateResponse;
 
-import java.time.Instant;
 import java.util.List;
+import java.util.function.Function;
 
 public class CommuteHistories {
 
@@ -17,15 +17,23 @@ public class CommuteHistories {
         this.commuteHistories = commuteHistories;
     }
 
-    public WorkDurationPerDateResponse toWorkDurationPerDateResponse(Instant now) {
+    public WorkDurationPerDateResponse toWorkDurationPerDateResponse(
+            Function<CommuteHistory, CommuteDetailResponse> toDetail
+    ) {
         long sumWorkingMinutes = new DailyWorkDurations(toDailyWorkDurations()).sumWorkingMinutes();
-        return new WorkDurationPerDateResponse(toDetails(now), sumWorkingMinutes);
+        return new WorkDurationPerDateResponse(toDetails(toDetail), sumWorkingMinutes);
     }
 
-    private List<CommuteDetailResponse> toDetails(Instant now) {
+    private List<CommuteDetailResponse> toDetails(Function<CommuteHistory, CommuteDetailResponse> toDetail) {
         return commuteHistories
                 .stream()
-                .map(commuteHistory -> CommuteDetailResponse.from(commuteHistory, now))
+                .map(toDetail)
+                .toList();
+    }
+
+    public List<Long> commuteHistoryIds() {
+        return commuteHistories.stream()
+                .map(CommuteHistory::getCommuteHistoryId)
                 .toList();
     }
 

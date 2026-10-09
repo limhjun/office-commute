@@ -7,6 +7,9 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Version;
+import com.company.officecommute.domain.correction.CorrectionErrorCode;
+import com.company.officecommute.domain.correction.CorrectionException;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -20,9 +23,18 @@ import java.util.Objects;
         @UniqueConstraint(name = "uk_commute_history_employee_date", columnNames = {"employee_id", "work_date"})
 })
 public class CommuteHistory {
+    /** 일반 퇴근 허용 시간. 출근부터 정확히 24시간까지 허용하고 초과하면 정정 승인이 필요하다. */
+    private static final Duration REGULAR_END_WINDOW = Duration.ofHours(24);
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long commuteHistoryId;
+
+    // 정정 요청이 신청 당시 원본을 가리키는 근거. 조건부 bulk UPDATE 는 @Version 을 자동 증가시키지 않으므로
+    // 저장소의 쓰기 쿼리가 직접 1 올린다.
+    @Version
+    @Column(nullable = false)
+    private long version;
 
     private Long employeeId;
 
@@ -108,6 +120,43 @@ public class CommuteHistory {
         return validatedWorkingMinutes.getWorkingMinutes();
     }
 
+    /**
+     * 일반 퇴근. 정정 승인과 달리 24시간 제한을 둔다 — 그보다 긴 근무는 사유와 승인으로만 기록한다.
+     * {@link #calculateWorkingMinutes}와 마찬가지로 상태를 바꾸지 않는다.
+     */
+    public long calculateRegularEndMinutes(Instant now) {
+        if (this.workEndTime != null) {
+            throw new CommuteAlreadyEndedException();
+        }
+        if (now.isAfter(this.workStartTime.plus(REGULAR_END_WINDOW))) {
+            throw new CommuteEndWindowExpiredException();
+        }
+        return calculateWorkingMinutes(now);
+    }
+
+    /**
+     * 정정 종료 시각 검증과 근무 분 계산. 신청과 승인 시점 모두 같은 규칙으로 부른다.
+     * 24시간 제한은 적용하지 않는다. {@code nextActualWorkStart}는 후속 실제 근무의 출근 시각(없으면 null)이다.
+     */
+    public long calculateCorrectedWorkingMinutes(Instant requestedEnd, Instant now, Instant nextActualWorkStart) {
+        if (isAnnualLeaveDate()) {
+            throw new CorrectionException(CorrectionErrorCode.CORRECTION_TARGET_DAY_OFF);
+        }
+        if (requestedEnd.isBefore(this.workStartTime)) {
+            throw new CorrectionException(CorrectionErrorCode.CORRECTION_END_BEFORE_START);
+        }
+        if (requestedEnd.isAfter(now)) {
+            throw new CorrectionException(CorrectionErrorCode.CORRECTION_END_IN_FUTURE);
+        }
+        if (nextActualWorkStart != null && requestedEnd.isAfter(nextActualWorkStart)) {
+            throw new CorrectionException(CorrectionErrorCode.CORRECTION_OVERLAPS_NEXT_WORK);
+        }
+        if (requestedEnd.equals(this.workEndTime)) {
+            throw new CorrectionException(CorrectionErrorCode.CORRECTION_NO_CHANGE);
+        }
+        return Duration.between(this.workStartTime, requestedEnd).toMinutes();
+    }
+
     public DailyWorkDuration toDailyWorkDuration() {
         if (isAnnualLeaveDate()) {
             return new DailyWorkDuration(this.workDate, ANNUAL_LEAVE_TIME, this.usingDayOff);
@@ -115,18 +164,21 @@ public class CommuteHistory {
         return new DailyWorkDuration(this.workDate, this.workingMinutes, this.usingDayOff);
     }
 
-    // "오늘"은 기록 자신의 workZone 으로 판정한다 — workDate 도 같은 zone 에서 파생됐으므로
-    // 양변이 같은 달력 위에 놓인다. 호출자(브라우저·JVM)의 기본 타임존은 개입하지 않는다.
-    public CommuteStatus status(Instant now) {
+    /**
+     * 파생 상태. 저장 컬럼이나 시간 경과용 스케줄러 없이 조회 시점에 계산한다.
+     * {@code latestActualWorkStart}는 같은 직원의 가장 최근 실제 근무 출근 시각으로, 조회 월 밖의 후속 근무도
+     * 반영하려고 호출자가 따로 넘긴다(없으면 null).
+     */
+    public CommuteStatus status(Instant now, Instant latestActualWorkStart) {
         if (isAnnualLeaveDate()) {
             return CommuteStatus.DAY_OFF;
         }
         if (this.workEndTime != null) {
             return CommuteStatus.COMPLETED;
         }
-        LocalDate todayInWorkZone = now.atZone(ZoneId.of(this.workZone)).toLocalDate();
-        if (this.workDate.isBefore(todayInWorkZone)) {
-            return CommuteStatus.UNCLOSED;
+        boolean hasLaterWork = latestActualWorkStart != null && latestActualWorkStart.isAfter(this.workStartTime);
+        if (hasLaterWork || now.isAfter(this.workStartTime.plus(REGULAR_END_WINDOW))) {
+            return CommuteStatus.CORRECTION_REQUIRED;
         }
         return CommuteStatus.IN_PROGRESS;
     }
@@ -156,6 +208,18 @@ public class CommuteHistory {
 
     public Long getCommuteHistoryId() {
         return commuteHistoryId;
+    }
+
+    public Long getEmployeeId() {
+        return employeeId;
+    }
+
+    public long getVersion() {
+        return version;
+    }
+
+    public Instant getWorkStartTime() {
+        return workStartTime;
     }
 
     public LocalDate getWorkDate() {

@@ -1,5 +1,9 @@
 package com.company.officecommute.controller.commute;
 
+import com.company.officecommute.auth.SessionRoleFixture;
+import com.company.officecommute.repository.employee.EmployeeRepository;
+import org.junit.jupiter.api.BeforeEach;
+import com.company.officecommute.domain.closing.CommuteLockReason;
 import com.company.officecommute.domain.commute.CommuteStatus;
 import com.company.officecommute.domain.commute.DuplicateWorkOnDateException;
 import com.company.officecommute.domain.employee.Role;
@@ -35,6 +39,14 @@ class CommuteHistoryControllerTest {
     private MockMvcTester mockMvcTester;
 
     @MockitoBean
+    private EmployeeRepository employeeRepository;
+
+    @BeforeEach
+    void stubSessionRoles() {
+        SessionRoleFixture.stubSessionRoles(employeeRepository);
+    }
+
+    @MockitoBean
     private CommuteHistoryService commuteHistoryService;
 
     @Test
@@ -66,15 +78,20 @@ class CommuteHistoryControllerTest {
                 .willReturn(new WorkDurationPerDateResponse(
                         List.of(
                                 new CommuteDetailResponse(
+                                        11L,
+                                        1L,
                                         LocalDate.of(2026, 7, 1),
+                                        "Asia/Seoul",
                                         OffsetDateTime.of(2026, 7, 1, 9, 3, 0, 0, kst),
                                         OffsetDateTime.of(2026, 7, 1, 18, 58, 0, 0, kst),
                                         595L,
                                         false,
-                                        CommuteStatus.COMPLETED),
+                                        CommuteStatus.COMPLETED,
+                                        null,
+                                        CommuteLockReason.MONTH_CLOSED),
                                 new CommuteDetailResponse(
-                                        LocalDate.of(2026, 7, 2), null, null, 0L, true,
-                                        CommuteStatus.DAY_OFF)),
+                                        12L, 0L, LocalDate.of(2026, 7, 2), "Asia/Seoul", null, null, 0L, true,
+                                        CommuteStatus.DAY_OFF, null, null)),
                         595L));
 
         // when / then — 미퇴근·연차의 null 시각은 non_null 직렬화 정책상 필드 자체가 빠진다
@@ -88,14 +105,19 @@ class CommuteHistoryControllerTest {
                         {
                             "details": [
                                 {
+                                    "commuteHistoryId": 11,
+                                    "version": 1,
                                     "date": "2026-07-01",
+                                    "workZone": "Asia/Seoul",
                                     "workStartTime": "2026-07-01T09:03:00+09:00",
                                     "workEndTime": "2026-07-01T18:58:00+09:00",
                                     "workingMinutes": 595,
                                     "usingDayOff": false,
-                                    "status": "COMPLETED"
+                                    "status": "COMPLETED",
+                                    "lockReason": "MONTH_CLOSED"
                                 },
                                 {
+                                    "commuteHistoryId": 12,
                                     "date": "2026-07-02",
                                     "workingMinutes": 0,
                                     "usingDayOff": true,

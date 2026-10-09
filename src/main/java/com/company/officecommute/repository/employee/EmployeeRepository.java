@@ -1,6 +1,7 @@
 package com.company.officecommute.repository.employee;
 
 import com.company.officecommute.domain.employee.Employee;
+import com.company.officecommute.domain.employee.Role;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,6 +15,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
             SELECT e
             FROM Employee e
             LEFT JOIN FETCH e.team
+            LEFT JOIN FETCH e.correctionApprover
             """)
     List<Employee> findAllWithTeam();
 
@@ -45,9 +47,32 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
             SELECT e
             FROM Employee e
             LEFT JOIN FETCH e.team
+            LEFT JOIN FETCH e.correctionApprover
             WHERE e.employeeId = :employeeId
             """)
     Optional<Employee> findByEmployeeIdWithTeam(@Param("employeeId") Long employeeId);
+
+    /** 매 요청의 권한 판정용. 엔티티를 영속성 컨텍스트에 올리지 않도록 역할 값만 읽는다. */
+    @Query("""
+            SELECT e.role
+            FROM Employee e
+            WHERE e.employeeId = :employeeId
+            """)
+    Optional<Role> findRoleById(@Param("employeeId") Long employeeId);
+
+    /**
+     * 근태 쓰기 잠금 — 한 직원의 출퇴근·정정·연차 쓰기를 직렬화한다.
+     * 트랜잭션의 첫 문장으로 불러야 이후 일관 읽기가 잠금 획득 뒤의 커밋을 본다.
+     * 엔티티가 아닌 ID 만 읽어, 이미 관리 중인 엔티티의 낡은 상태를 돌려받는 일이 없게 한다.
+     */
+    @Query(value = "SELECT employee_id FROM employee WHERE employee_id = :employeeId FOR UPDATE", nativeQuery = true)
+    Optional<Long> lockById(@Param("employeeId") Long employeeId);
+
+    /**
+     * 전체 근태 쓰기 잠금 — 월 마감·퇴사·담당자 지정. 한 행만 잠그는 쓰기와 교착하지 않도록 항상 ID 오름차순이다.
+     */
+    @Query(value = "SELECT employee_id FROM employee ORDER BY employee_id FOR UPDATE", nativeQuery = true)
+    List<Long> lockAll();
 
     @Query("""
             SELECT e.team.teamId, COUNT(e)

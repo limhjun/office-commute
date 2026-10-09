@@ -1,5 +1,8 @@
 package com.company.officecommute.controller.employee;
 
+import com.company.officecommute.auth.SessionRoleFixture;
+import com.company.officecommute.repository.employee.EmployeeRepository;
+import org.junit.jupiter.api.BeforeEach;
 import com.company.officecommute.domain.employee.EmployeeAlreadyExistsException;
 import com.company.officecommute.domain.employee.EmployeeNotFoundException;
 import com.company.officecommute.domain.employee.InvalidRetirementDateException;
@@ -38,6 +41,14 @@ class EmployeeControllerTest {
 
     @Autowired
     private MockMvcTester mockMvcTester;
+
+    @MockitoBean
+    private EmployeeRepository employeeRepository;
+
+    @BeforeEach
+    void stubSessionRoles() {
+        SessionRoleFixture.stubSessionRoles(employeeRepository);
+    }
 
     @MockitoBean
     private EmployeeService employeeService;
@@ -293,10 +304,10 @@ class EmployeeControllerTest {
         void responseShape() {
             BDDMockito.given(employeeService.findAllEmployee()).willReturn(List.of(
                     new EmployeeFindResponse(1L, 10L, "백엔드팀", "임형준", "ABC123", "hj@company.com", "MEMBER",
-                            LocalDate.of(1998, 8, 18), LocalDate.of(2024, 1, 1), null, "Asia/Seoul"),
+                            LocalDate.of(1998, 8, 18), LocalDate.of(2024, 1, 1), null, "Asia/Seoul", null),
                     new EmployeeFindResponse(2L, null, null, "미배정직원", "XYZ789", "unassigned@company.com", "MEMBER",
                             LocalDate.of(1990, 1, 1), LocalDate.of(2024, 3, 1), LocalDate.of(2026, 7, 31),
-                            "America/Los_Angeles")
+                            "America/Los_Angeles", null)
             ));
 
             assertThat(mockMvcTester.get().uri("/api/employee").session(managerSession()))

@@ -14,7 +14,8 @@ export function useClockIn() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async () => unwrap(await api.POST('/api/commute', {})),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['commute'] }),
+    // 409(이미 퇴근·중복 출근 등)도 화면 값이 낡았다는 뜻이므로 성공·실패 모두 다시 읽는다.
+    onSettled: () => qc.invalidateQueries({ queryKey: ['commute'] }),
   });
 }
 
@@ -22,6 +23,6 @@ export function useClockOut() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async () => unwrap(await api.PUT('/api/commute', {})),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['commute'] }),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['commute'] }),
   });
 }

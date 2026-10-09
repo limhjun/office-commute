@@ -27,6 +27,14 @@ export function formatZonedTime(isoDateTime: string | null | undefined): string 
   return isoDateTime.slice(11, 16);
 }
 
+// 신청·처리·마감 시각(requestedAt 등)은 UTC 로 내려온다. 근무 시각이 아니라 처리 기록이므로 보는 사람의 시간대로 표시한다.
+export function formatInstant(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('ko-KR', {
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false,
+  });
+}
+
 export function zonedDatePart(isoDateTime: string | null | undefined): string | null {
   if (!isoDateTime) return null;
   return isoDateTime.slice(0, 10);

@@ -60,7 +60,8 @@ function ConfirmBody({ protectedFrom, protectedTo, legacyDispatch, onClose, onCo
       <Alert color="orange" variant="light" icon={<IconLock size={16} />}>
         마감은 해제할 수 없습니다.
       </Alert>
-      <List size="sm" spacing={4}>
+      {/* Mantine List.Item 은 nowrap + inline-flex 라 긴 문장이 불릿 폭만큼 모달 밖으로 밀린다 */}
+      <List size="sm" spacing={4} styles={{ itemWrapper: { display: 'inline' } }}>
         <List.Item>
           {protectedFrom && protectedTo
             ? <>보고서 집계 기간 <Text span fw={600}>{protectedFrom} ~ {protectedTo}</Text>의 근태가 잠깁니다.</>

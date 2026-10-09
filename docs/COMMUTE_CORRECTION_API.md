@@ -11,13 +11,17 @@
 | --- | --- | --- | --- |
 | 본인 출퇴근·근태 조회 (`/api/commute`) | O | O | O |
 | 본인 연차 (`/api/annual-leave`) | O | O | O |
-| 정정 신청·내 이력·취소 | O | O (지정 승인자 필요) | O (지정 승인자 필요) |
+| 정정 신청·내 이력·취소 | O | O (지정 승인자 없어도 신청 가능, 처리는 불가) | O (지정 승인자 없어도 신청 가능, 처리는 불가) |
 | 정정 처리 목록 (`/review`) | 403 | MEMBER 요청 전체 + 본인 지정 요청 | 본인 지정 요청만 |
 | 승인·반려 | 403 | MEMBER 요청, 본인이 지정된 COMMUTE_APPROVER 요청 | 본인이 지정된 MANAGER 요청 |
 | 직원·팀·초과근무·Excel·발송·월 마감 | 403 | O | 403 |
 | 승인 담당자 지정 | 403 | O | 403 |
 
 - 자기 승인은 항상 금지 (`403 CORRECTION_SELF_APPROVAL`).
+- 지정 승인자가 없는 MANAGER·COMMUTE_APPROVER도 신청할 수 있다(계획 1.3 "담당자가 없으면 승인할 수 없다").
+  - 그 요청은 담당자가 없는 동안 누구도 승인·반려할 수 없다(409 `CORRECTION_APPROVER_NOT_ASSIGNED`, `actions.canReview` 항상 false, `/review` 목록에도 나오지 않음).
+  - 대기 중에는 담당자를 지정·변경할 수 없으므로 처리하려면 취소 → 담당자 지정 → 재신청 순서를 따른다.
+  - 승인 대기 요청이므로 그 기간의 월 마감을 막는다.
 - 역할은 **매 요청마다 DB에서 다시 읽는다**. 세션 생성 이후 바뀐 역할로 즉시 판정한다. `/api/auth/me` 응답의 `role`도 현재 DB 값이다.
 - 라우팅 권장: COMMUTE_APPROVER는 본인 근태·연차와 정정 처리 화면만 연다. 기존 관리자 화면(직원·팀·초과근무)은 열지 않는다.
 
@@ -60,7 +64,15 @@
       "lockReason": "MONTH_CLOSED"
     }
   ],
-  "sumWorkingMinutes": 570
+  "sumWorkingMinutes": 570,
+  "regularEndTarget": {
+    "commuteHistoryId": 43,
+    "version": 0,
+    "workDate": "2026-09-30",
+    "workZone": "Asia/Seoul",
+    "workStartTime": "2026-09-30T22:00:00+09:00",
+    "endableUntil": "2026-10-01T22:00:00+09:00"
+  }
 }
 ```
 
@@ -68,6 +80,13 @@
   - `CORRECTION_REQUIRED` = 미퇴근이면서 출근 후 24시간이 지났거나 후속 실제 근무가 있음. 조회 월 밖의 후속 근무도 반영한다. 일반 퇴근이 불가하다는 뜻이며 신청 여부와는 무관하다.
   - 완료 기록에 대기 정정이 있어도 `COMPLETED`이다. 요청 상태는 `pendingCorrectionRequestId`로 함께 표시한다.
 - `lockReason` (생략 가능): `MONTH_CLOSED`(마감 보호 기간), `DELIVERY_UNCERTAIN`(수신 미확인 보고서의 입력 기간). 값이 있으면 정정 신청 버튼을 비활성화한다.
+- `regularEndTarget` (생략 가능, 후속 보완에서 추가): 지금 `PUT /api/commute`를 부르면 종료되는 기록이다.
+  - 가장 최근에 시작한 실제 근무가 미퇴근이고 출근 후 24시간 이내일 때만 내려간다. 조회 월과 무관하게 같은 값이다.
+  - 9/30 22:00에 시작한 야간근무는 10월 조회의 `details`에 없어도 이 필드로 식별된다.
+  - 퇴근 버튼 활성화와 대상 표시는 이 필드로 한다. 없으면 버튼을 비활성화한다.
+  - `details`에 같은 `commuteHistoryId`가 있으면 그 행이 퇴근 대상이다.
+  - `endableUntil`이 지나면 대상이 사라지고 그 기록은 `CORRECTION_REQUIRED`가 된다.
+  - `lockReason`이 있으면 퇴근해도 보호 기간 409가 난다.
 - null 필드는 응답에서 **생략**된다 (`non_null` 직렬화).
 - 미퇴근 기록의 `workingMinutes: 0`은 확정값이 아니다. 화면에서 "미확정"으로 표시하는 것을 권장한다.
 
@@ -209,7 +228,7 @@
 | `CORRECTION_ALREADY_PENDING` | 409 | 이 기록에 승인 대기 중인 요청이 있습니다. (재조회) |
 | `CORRECTION_VERSION_CONFLICT` | 409 | 기록이 변경됐습니다. 최신 내용을 확인해 주세요. (근태·요청 재조회, 반려 아님) |
 | `CORRECTION_ALREADY_PROCESSED` | 409 | 이미 처리된 요청입니다. (재조회) |
-| `CORRECTION_APPROVER_NOT_ASSIGNED` | 409 | 승인 담당자가 지정되지 않았습니다. 근태 관리자에게 문의하세요. |
+| `CORRECTION_APPROVER_NOT_ASSIGNED` | 409 | (승인·반려 시) 신청자에게 지정된 승인 담당자가 없어 처리할 수 없습니다. 신청 자체는 거부되지 않는다. |
 | `CORRECTION_SELF_APPROVAL` | 403 | 본인 요청은 처리할 수 없습니다. |
 | `CORRECTION_REQUEST_NOT_FOUND` | 404 | 요청을 찾을 수 없습니다. |
 | `INVALID_CORRECTION_APPROVER` | 400 | 지정할 수 없는 승인 담당자입니다. |

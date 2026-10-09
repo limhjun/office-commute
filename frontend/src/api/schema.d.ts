@@ -685,7 +685,10 @@ export interface paths {
          *     4. 연차 기록이 아님
          *     일반 퇴근의 24시간 제한은 적용하지 않는다.
          *
-         *     MANAGER·COMMUTE_APPROVER 의 신청은 지정 승인 담당자가 있어야 한다.
+         *     MANAGER·COMMUTE_APPROVER 는 지정 승인 담당자가 없어도 신청할 수 있다. 그 요청은 담당자가 없는 동안
+         *     누구도 승인·반려할 수 없다(`assignedApprover` 생략, `actions.canReview` 항상 false).
+         *     대기 중에는 담당자를 지정·변경할 수 없으므로 처리하려면 취소 → 담당자 지정 → 재신청 순서를 따른다.
+         *     승인 대기 요청이므로 해당 기간의 월 마감도 막는다.
          */
         post: {
             parameters: {
@@ -748,7 +751,6 @@ export interface paths {
                  * @description - CORRECTION_VERSION_CONFLICT: commuteVersion 이 현재 원본 버전과 다름 → 재조회 필요
                  *     - CORRECTION_ALREADY_PENDING: 이 기록에 승인 대기 요청이 이미 있음
                  *     - CORRECTION_OVERLAPS_NEXT_WORK: 후속 실제 근무의 출근 시각보다 늦음
-                 *     - CORRECTION_APPROVER_NOT_ASSIGNED: MANAGER/COMMUTE_APPROVER 인데 지정 승인자가 없음
                  *     - CLOSING_PERIOD_LOCKED: 마감된 보고서의 입력 기간
                  *     - REPORT_DELIVERY_UNCERTAIN: 수신 여부 미확인 보고서의 입력 기간
                  */
@@ -1059,7 +1061,7 @@ export interface paths {
                  * @description - CORRECTION_ALREADY_PROCESSED: PENDING 이 아님
                  *     - CORRECTION_VERSION_CONFLICT: 신청 이후 원본 기록이 바뀜
                  *     - CORRECTION_OVERLAPS_NEXT_WORK: 신청 이후 생긴 후속 출근과 겹침
-                 *     - CORRECTION_APPROVER_NOT_ASSIGNED: 지정 승인자 없음
+                 *     - CORRECTION_APPROVER_NOT_ASSIGNED: MANAGER·COMMUTE_APPROVER 요청인데 지정 승인자가 없음(승인 불가)
                  *     - CLOSING_PERIOD_LOCKED / REPORT_DELIVERY_UNCERTAIN
                  */
                 409: {
@@ -1135,7 +1137,10 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResult"];
                     };
                 };
-                /** @description CORRECTION_ALREADY_PROCESSED */
+                /**
+                 * @description - CORRECTION_ALREADY_PROCESSED
+                 *     - CORRECTION_APPROVER_NOT_ASSIGNED: 지정 승인자가 없는 MANAGER·COMMUTE_APPROVER 요청(반려도 불가)
+                 */
                 409: {
                     headers: {
                         [name: string]: unknown;
@@ -1773,7 +1778,8 @@ export interface components {
             teamName?: string | null;
             /**
              * @description 본인 정정 요청의 지정 승인자. MEMBER 는 항상 없음(모든 MANAGER 가 처리).
-             *     MANAGER·COMMUTE_APPROVER 인데 없으면 정정 신청이 CORRECTION_APPROVER_NOT_ASSIGNED 로 거부된다.
+             *     MANAGER·COMMUTE_APPROVER 인데 없으면 신청은 되지만 그 요청은 승인·반려할 수 없다
+             *     (처리 시 409 CORRECTION_APPROVER_NOT_ASSIGNED). 담당자 지정 후 재신청해야 처리된다.
              */
             correctionApprover?: components["schemas"]["EmployeeRef"] | null;
         };
@@ -1983,10 +1989,45 @@ export interface components {
             /** @description 값이 있으면 이 기록은 정정·퇴근 등 모든 쓰기가 막혀 있다. */
             lockReason?: components["schemas"]["CommuteLockReason"] | null;
         };
+        /**
+         * @description 지금 `PUT /api/commute`(일반 퇴근)를 부르면 종료되는 기록. 가장 최근에 시작한 실제 근무(연차 제외)가
+         *     미퇴근이고 출근 후 24시간 이내일 때만 내려간다. 조회 월과 무관하게 같은 값이다 —
+         *     9/30 22:00 에 시작한 야간근무는 10월을 조회해도 이 필드로 식별된다(details 에는 없다).
+         */
+        RegularEndTarget: {
+            /** Format: int64 */
+            commuteHistoryId: number;
+            /** Format: int64 */
+            version: number;
+            /**
+             * Format: date
+             * @description 근무일 — 조회 월과 다를 수 있다
+             */
+            workDate: string;
+            /** @example Asia/Seoul */
+            workZone: string;
+            /**
+             * Format: date-time
+             * @description workZone 오프셋
+             */
+            workStartTime: string;
+            /**
+             * Format: date-time
+             * @description 일반 퇴근 마감 시각(출근 + 정확히 24시간, workZone 오프셋). 이후에는 정정 신청 대상이다.
+             */
+            endableUntil: string;
+            /** @description 값이 있으면 퇴근해도 보호 기간 오류(409)가 난다. 드문 경우(다른 시간대 근무일이 마감 월)다. */
+            lockReason?: components["schemas"]["CommuteLockReason"] | null;
+        };
         WorkDurationPerDateResponse: {
             details: components["schemas"]["CommuteDetail"][];
             /** Format: int64 */
             sumWorkingMinutes: number;
+            /**
+             * @description 일반 퇴근 대상. 없으면 생략 — 퇴근 버튼을 비활성화한다(최신 근무가 이미 끝났거나, 24시간이 지났거나,
+             *     실제 근무 기록이 없음). details 의 같은 commuteHistoryId 행이 퇴근 대상이다.
+             */
+            regularEndTarget?: components["schemas"]["RegularEndTarget"] | null;
         };
         /**
          * @description 정정 요청 상태. PENDING 에서 한 번만 전이하며 종착 상태는 변경되지 않는다.

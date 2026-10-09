@@ -9,6 +9,7 @@ import { useEmployees, useCreateEmployee, useChangeEmployeeTeam } from '@/hooks/
 import { useTeams } from '@/hooks/useTeams';
 import { ApiError } from '@/lib/errors';
 import { notifyError, notifySuccess } from '@/lib/notify';
+import { roleLabel } from '@/lib/roles';
 import type { schemas } from '@/api/types';
 
 function toIsoDate(d: Date | null): string {
@@ -99,9 +100,7 @@ export function EmployeesPage() {
                 <Table.Td>{e.name}</Table.Td>
                 <Table.Td>{e.employeeCode}</Table.Td>
                 <Table.Td>
-                  <Badge variant="light" color={e.role === 'MANAGER' ? 'indigo' : 'gray'}>
-                    {e.role === 'MANAGER' ? '매니저' : '멤버'}
-                  </Badge>
+                  <Badge variant="light" color={roleLabel(e.role).color}>{roleLabel(e.role).label}</Badge>
                 </Table.Td>
                 <Table.Td>{e.email}</Table.Td>
                 <Table.Td>

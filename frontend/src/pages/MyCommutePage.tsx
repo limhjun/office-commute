@@ -6,8 +6,9 @@ import { MonthPickerInput } from '@mantine/dates';
 import { IconLogin2, IconLogout2 } from '@tabler/icons-react';
 import { useWorkDuration, useClockIn, useClockOut } from '@/hooks/useCommute';
 import {
-  currentYearMonth, toYearMonth, fromYearMonth, formatMinutes, formatZonedTime, zonedDatePart,
+  currentYearMonth, toYearMonth, fromYearMonth, formatMinutes, formatZonedTime,
 } from '@/lib/month';
+import { ZonedTimeText } from '@/components/ZonedTimeText';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import type { schemas } from '@/api/types';
 
@@ -23,13 +24,8 @@ function CheckOutCell({ detail }: { detail: schemas['CommuteDetail'] }) {
       return <Badge color="orange" variant="light">미퇴근</Badge>;
     case 'DAY_OFF':
       return DASH;
-    default: {
-      const endTime = formatZonedTime(detail.workEndTime);
-      if (!endTime) return DASH;
-      // 자정을 넘긴 근무는 퇴근 날짜가 근무일과 다르다 — 시각만 보이면 8h가 -16h로 읽힌다.
-      const overnight = zonedDatePart(detail.workEndTime) !== detail.date;
-      return <Text span>{endTime}{overnight && <Text c="dimmed" span> (익일)</Text>}</Text>;
-    }
+    default:
+      return <ZonedTimeText iso={detail.workEndTime} workDate={detail.date} />;
   }
 }
 

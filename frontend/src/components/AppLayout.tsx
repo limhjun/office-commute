@@ -5,24 +5,27 @@ import {
   IconUsersGroup, IconUser, IconClockHour4, IconCalendarStats, IconReportAnalytics, IconLogout,
 } from '@tabler/icons-react';
 import { useAuth } from '@/auth/AuthContext';
+import { roleLabel, type Role } from '@/lib/roles';
 
-interface NavItem { label: string; to: string; icon: React.ReactNode; managerOnly?: boolean }
+// roles 가 없으면 모든 역할에 노출한다.
+interface NavItem { label: string; to: string; icon: React.ReactNode; roles?: Role[] }
 
 const NAV: NavItem[] = [
-  { label: '팀', to: '/teams', icon: <IconUsersGroup size={18} />, managerOnly: true },
-  { label: '직원', to: '/employees', icon: <IconUser size={18} />, managerOnly: true },
-  { label: '초과근무·리포트', to: '/overtime', icon: <IconReportAnalytics size={18} />, managerOnly: true },
+  { label: '팀', to: '/teams', icon: <IconUsersGroup size={18} />, roles: ['MANAGER'] },
+  { label: '직원', to: '/employees', icon: <IconUser size={18} />, roles: ['MANAGER'] },
+  { label: '초과근무·리포트', to: '/overtime', icon: <IconReportAnalytics size={18} />, roles: ['MANAGER'] },
   { label: '내 근태', to: '/me/commute', icon: <IconClockHour4 size={18} /> },
   { label: '내 연차', to: '/me/annual-leave', icon: <IconCalendarStats size={18} /> },
 ];
 
 export function AppLayout() {
   const [opened, { toggle }] = useDisclosure();
-  const { user, isManager, logout } = useAuth();
+  const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
-  const items = NAV.filter((n) => !n.managerOnly || isManager);
+  const items = NAV.filter((n) => !n.roles || (user && n.roles.includes(user.role)));
+  const badge = user ? roleLabel(user.role) : null;
 
   async function handleLogout() {
     await logout();
@@ -43,9 +46,7 @@ export function AppLayout() {
           </Group>
           <Group gap="sm">
             <Text size="sm" c="dimmed">{user?.name}</Text>
-            <Badge variant="light" color={isManager ? 'indigo' : 'gray'}>
-              {isManager ? '매니저' : '멤버'}
-            </Badge>
+            {badge && <Badge variant="light" color={badge.color}>{badge.label}</Badge>}
             <Button size="xs" variant="subtle" leftSection={<IconLogout size={16} />} onClick={handleLogout}>
               로그아웃
             </Button>

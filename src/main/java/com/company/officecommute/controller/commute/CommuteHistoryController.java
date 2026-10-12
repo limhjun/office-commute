@@ -1,5 +1,6 @@
 package com.company.officecommute.controller.commute;
 
+import com.company.officecommute.auth.AuthAttributes;
 import com.company.officecommute.dto.commute.response.WorkDurationPerDateResponse;
 import com.company.officecommute.service.commute.CommuteHistoryService;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,18 +24,18 @@ public class CommuteHistoryController {
     }
 
     @PostMapping("/commute")
-    public void registerWorkStartTime(@RequestAttribute("currentEmployeeId") Long employeeId) {
+    public void registerWorkStartTime(@RequestAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID) Long employeeId) {
         commuteHistoryService.registerWorkStartTime(employeeId);
     }
 
     @PutMapping("/commute")
-    public void registerWorkEndTime(@RequestAttribute("currentEmployeeId") Long employeeId) {
+    public void registerWorkEndTime(@RequestAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID) Long employeeId) {
         commuteHistoryService.registerWorkEndTime(employeeId);
     }
 
     @GetMapping("/commute")
     public WorkDurationPerDateResponse getWorkDurationPerDate(
-            @RequestAttribute("currentEmployeeId") Long employeeId,
+            @RequestAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID) Long employeeId,
             @RequestParam YearMonth yearMonth) {
         return commuteHistoryService.getWorkDurationPerDate(employeeId, yearMonth);
     }

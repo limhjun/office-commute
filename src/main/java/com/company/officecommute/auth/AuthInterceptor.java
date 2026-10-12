@@ -23,8 +23,8 @@ public class AuthInterceptor implements HandlerInterceptor {
             throw new AuthenticationFailedException();
         }
 
-        Long employeeId = (Long) session.getAttribute("currentEmployeeId");
-        if (employeeId == null || session.getAttribute("currentRole") == null) {
+        Long employeeId = (Long) session.getAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID);
+        if (employeeId == null || session.getAttribute(AuthAttributes.CURRENT_ROLE) == null) {
             throw new AuthenticationFailedException();
         }
 
@@ -32,12 +32,12 @@ public class AuthInterceptor implements HandlerInterceptor {
         // 우회를 막는다. 직원이 사라졌으면 세션도 더는 유효하지 않다.
         Role role = employeeRepository.findRoleById(employeeId)
                 .orElseThrow(AuthenticationFailedException::new);
-        if (session.getAttribute("currentRole") != role) {
-            session.setAttribute("currentRole", role);
+        if (session.getAttribute(AuthAttributes.CURRENT_ROLE) != role) {
+            session.setAttribute(AuthAttributes.CURRENT_ROLE, role);
         }
 
-        request.setAttribute("currentEmployeeId", employeeId);
-        request.setAttribute("currentRole", role);
+        request.setAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID, employeeId);
+        request.setAttribute(AuthAttributes.CURRENT_ROLE, role);
 
         if (handler instanceof HandlerMethod handlerMethod) {
             ManagerOnly managerOnly = handlerMethod.getMethodAnnotation(ManagerOnly.class);

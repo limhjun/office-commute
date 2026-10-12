@@ -1,5 +1,6 @@
 package com.company.officecommute.controller.annual_leave;
 
+import com.company.officecommute.auth.AuthAttributes;
 import com.company.officecommute.dto.annual_leave.request.AnnualLeaveEnrollRequest;
 import com.company.officecommute.dto.annual_leave.response.AnnualLeaveEnrollmentResponse;
 import com.company.officecommute.dto.annual_leave.response.AnnualLeaveGetRemainingResponse;
@@ -26,14 +27,14 @@ public class AnnualLeaveController {
 
     @PostMapping("/annual-leave")
     public List<AnnualLeaveEnrollmentResponse> enrollAnnualLeave(
-            @RequestAttribute("currentEmployeeId") Long employeeId,
+            @RequestAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID) Long employeeId,
             @Valid @RequestBody AnnualLeaveEnrollRequest enrollRequest
     ) {
         return annualLeaveService.enrollAnnualLeave(employeeId, enrollRequest.wantedDates());
     }
 
     @GetMapping("/annual-leave")
-    public AnnualLeaveGetRemainingResponse getRemainingAnnualLeaves(@RequestAttribute("currentEmployeeId") Long employeeId) {
+    public AnnualLeaveGetRemainingResponse getRemainingAnnualLeaves(@RequestAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID) Long employeeId) {
         return annualLeaveService.getRemainingAnnualLeaves(employeeId);
     }
 }

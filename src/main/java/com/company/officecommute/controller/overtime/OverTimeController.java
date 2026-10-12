@@ -1,5 +1,6 @@
 package com.company.officecommute.controller.overtime;
 
+import com.company.officecommute.auth.AuthAttributes;
 import com.company.officecommute.auth.ManagerOnly;
 import com.company.officecommute.domain.report.ReportFile;
 import com.company.officecommute.domain.report.ReportFinality;
@@ -68,7 +69,7 @@ public class OverTimeController {
     @ManagerOnly
     @PostMapping("/overtime/report/dispatch/confirmation")
     public OverTimeReportDispatchResponse confirmDelivery(
-            @RequestAttribute("currentEmployeeId") Long employeeId,
+            @RequestAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID) Long employeeId,
             @Valid @RequestBody DispatchConfirmationRequest request
     ) {
         return overTimeReportDispatchService.confirmDelivery(

@@ -1,5 +1,6 @@
 package com.company.officecommute.controller.correction;
 
+import com.company.officecommute.auth.AuthAttributes;
 import com.company.officecommute.auth.SessionRoleFixture;
 import com.company.officecommute.domain.correction.CorrectionErrorCode;
 import com.company.officecommute.domain.correction.CorrectionException;
@@ -218,8 +219,8 @@ class CommuteCorrectionControllerTest {
 
     private static MockHttpSession session(long employeeId, Role role) {
         MockHttpSession session = new MockHttpSession();
-        session.setAttribute("currentEmployeeId", employeeId);
-        session.setAttribute("currentRole", role);
+        session.setAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID, employeeId);
+        session.setAttribute(AuthAttributes.CURRENT_ROLE, role);
         return session;
     }
 

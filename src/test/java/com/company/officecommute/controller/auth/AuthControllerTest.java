@@ -1,5 +1,6 @@
 package com.company.officecommute.controller.auth;
 
+import com.company.officecommute.auth.AuthAttributes;
 import com.company.officecommute.auth.SessionRoleFixture;
 import com.company.officecommute.repository.employee.EmployeeRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -87,8 +88,8 @@ class AuthControllerTest {
         HttpSession newSession = result.getRequest().getSession(false);
         assertThat(newSession).isNotNull();
         assertThat(newSession.getId()).isNotEqualTo(existingSessionId);
-        assertThat(newSession.getAttribute("currentEmployeeId")).isEqualTo(1L);
-        assertThat(newSession.getAttribute("currentRole")).isEqualTo(Role.MANAGER);
+        assertThat(newSession.getAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID)).isEqualTo(1L);
+        assertThat(newSession.getAttribute(AuthAttributes.CURRENT_ROLE)).isEqualTo(Role.MANAGER);
     }
 
     @Test
@@ -134,8 +135,8 @@ class AuthControllerTest {
                 .willReturn(new CurrentUserResponse(1L, "관리자", "admin@company.com", "MANAGER", null, null, null));
 
         MockHttpSession session = new MockHttpSession();
-        session.setAttribute("currentEmployeeId", 1L);
-        session.setAttribute("currentRole", Role.MANAGER);
+        session.setAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID, 1L);
+        session.setAttribute(AuthAttributes.CURRENT_ROLE, Role.MANAGER);
 
         // when & then
         assertThat(mockMvcTester
@@ -160,8 +161,8 @@ class AuthControllerTest {
     @DisplayName("로그아웃 시 세션이 무효화된다")
     void logout_invalidatesSession() {
         MockHttpSession session = new MockHttpSession();
-        session.setAttribute("currentEmployeeId", 1L);
-        session.setAttribute("currentRole", Role.MANAGER);
+        session.setAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID, 1L);
+        session.setAttribute(AuthAttributes.CURRENT_ROLE, Role.MANAGER);
 
         assertThat(mockMvcTester
                 .post()

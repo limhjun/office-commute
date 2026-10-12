@@ -4,7 +4,6 @@ import com.company.officecommute.auth.AuthAttributes;
 import com.company.officecommute.auth.SessionRoleFixture;
 import com.company.officecommute.repository.employee.EmployeeRepository;
 import org.junit.jupiter.api.BeforeEach;
-import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.dto.annual_leave.response.AnnualLeaveEnrollmentResponse;
 import com.company.officecommute.dto.annual_leave.response.AnnualLeaveGetRemainingResponse;
 import com.company.officecommute.dto.annual_leave.response.AnnualLeaveGetRemainingResponse.RemainingLeave;
@@ -211,7 +210,6 @@ class AnnualLeaveControllerTest {
     private MockHttpSession memberSession() {
         MockHttpSession session = new MockHttpSession();
         session.setAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID, 2L);
-        session.setAttribute(AuthAttributes.CURRENT_ROLE, Role.MEMBER);
         return session;
     }
 }

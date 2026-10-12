@@ -35,7 +35,6 @@ public class AuthController {
         }
         HttpSession newSession = httpRequest.getSession(true);
         newSession.setAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID, employee.getEmployeeId());
-        newSession.setAttribute(AuthAttributes.CURRENT_ROLE, employee.getRole());
     }
 
     @GetMapping("/me")

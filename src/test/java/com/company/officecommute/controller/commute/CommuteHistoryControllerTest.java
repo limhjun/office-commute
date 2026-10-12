@@ -7,7 +7,6 @@ import org.junit.jupiter.api.BeforeEach;
 import com.company.officecommute.domain.closing.CommuteLockReason;
 import com.company.officecommute.domain.commute.CommuteStatus;
 import com.company.officecommute.domain.commute.DuplicateWorkOnDateException;
-import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.dto.commute.response.CommuteDetailResponse;
 import com.company.officecommute.dto.commute.response.RegularEndTargetResponse;
 import com.company.officecommute.dto.commute.response.WorkDurationPerDateResponse;
@@ -207,7 +206,6 @@ class CommuteHistoryControllerTest {
     private MockHttpSession memberSession() {
         MockHttpSession session = new MockHttpSession();
         session.setAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID, 2L);
-        session.setAttribute(AuthAttributes.CURRENT_ROLE, Role.MEMBER);
         return session;
     }
 }

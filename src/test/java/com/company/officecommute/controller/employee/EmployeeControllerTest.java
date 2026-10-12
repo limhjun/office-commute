@@ -7,7 +7,6 @@ import org.junit.jupiter.api.BeforeEach;
 import com.company.officecommute.domain.employee.EmployeeAlreadyExistsException;
 import com.company.officecommute.domain.employee.EmployeeNotFoundException;
 import com.company.officecommute.domain.employee.InvalidRetirementDateException;
-import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.domain.team.TeamNotFoundException;
 import com.company.officecommute.dto.employee.response.EmployeeFindResponse;
 import com.company.officecommute.dto.employee.response.EmployeeRegisterResponse;
@@ -477,14 +476,12 @@ class EmployeeControllerTest {
     private MockHttpSession managerSession() {
         MockHttpSession session = new MockHttpSession();
         session.setAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID, 1L);
-        session.setAttribute(AuthAttributes.CURRENT_ROLE, Role.MANAGER);
         return session;
     }
 
     private MockHttpSession memberSession() {
         MockHttpSession session = new MockHttpSession();
         session.setAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID, 2L);
-        session.setAttribute(AuthAttributes.CURRENT_ROLE, Role.MEMBER);
         return session;
     }
 }

@@ -25,6 +25,7 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
 import jakarta.servlet.http.HttpSession;
 
 import java.time.LocalDate;
+import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
@@ -60,7 +61,7 @@ class AuthControllerTest {
             .build();
 
     @Test
-    @DisplayName("로그인 성공 시 기존 세션은 무효화되고 새 세션에 직원 정보가 저장된다")
+    @DisplayName("로그인 성공 시 기존 세션은 무효화되고 새 세션에는 직원 ID만 저장된다 — 역할은 매 요청 DB에서 읽는다")
     void login_success() {
         given(employeeService.authenticate("admin@company.com", "password123"))
                 .willReturn(managerEmployee);
@@ -89,7 +90,8 @@ class AuthControllerTest {
         assertThat(newSession).isNotNull();
         assertThat(newSession.getId()).isNotEqualTo(existingSessionId);
         assertThat(newSession.getAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID)).isEqualTo(1L);
-        assertThat(newSession.getAttribute(AuthAttributes.CURRENT_ROLE)).isEqualTo(Role.MANAGER);
+        assertThat(Collections.list(newSession.getAttributeNames()))
+                .containsExactly(AuthAttributes.CURRENT_EMPLOYEE_ID);
     }
 
     @Test
@@ -136,7 +138,6 @@ class AuthControllerTest {
 
         MockHttpSession session = new MockHttpSession();
         session.setAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID, 1L);
-        session.setAttribute(AuthAttributes.CURRENT_ROLE, Role.MANAGER);
 
         // when & then
         assertThat(mockMvcTester
@@ -162,7 +163,6 @@ class AuthControllerTest {
     void logout_invalidatesSession() {
         MockHttpSession session = new MockHttpSession();
         session.setAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID, 1L);
-        session.setAttribute(AuthAttributes.CURRENT_ROLE, Role.MANAGER);
 
         assertThat(mockMvcTester
                 .post()

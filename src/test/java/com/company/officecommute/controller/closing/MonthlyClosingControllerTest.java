@@ -72,7 +72,7 @@ class MonthlyClosingControllerTest {
 
         assertThat(mockMvcTester.post()
                 .uri("/api/monthly-closings")
-                .session(session(1L, Role.MANAGER))
+                .session(session(1L))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         { "yearMonth": "2026-09" }
@@ -94,7 +94,7 @@ class MonthlyClosingControllerTest {
 
         assertThat(mockMvcTester.post()
                 .uri("/api/monthly-closings")
-                .session(session(1L, Role.MANAGER))
+                .session(session(1L))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         { "yearMonth": "2026-09", "legacyResolution": "NO_CORRECTION_NEEDED", "note": "확인" }
@@ -111,7 +111,7 @@ class MonthlyClosingControllerTest {
 
         assertThat(mockMvcTester.post()
                 .uri("/api/monthly-closings")
-                .session(session(1L, Role.MANAGER))
+                .session(session(1L))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         { "yearMonth": "2026-09" }
@@ -129,26 +129,26 @@ class MonthlyClosingControllerTest {
     void approverCannotUseManagerFeatures() {
         assertThat(mockMvcTester.post()
                 .uri("/api/monthly-closings")
-                .session(session(3L, Role.COMMUTE_APPROVER))
+                .session(session(3L))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         { "yearMonth": "2026-09" }
                         """))
                 .hasStatus(HttpStatus.FORBIDDEN);
-        assertThat(mockMvcTester.get().uri("/api/overtime?yearMonth=2026-09").session(session(3L, Role.COMMUTE_APPROVER)))
+        assertThat(mockMvcTester.get().uri("/api/overtime?yearMonth=2026-09").session(session(3L)))
                 .hasStatus(HttpStatus.FORBIDDEN);
-        assertThat(mockMvcTester.get().uri("/api/employee").session(session(3L, Role.COMMUTE_APPROVER)))
+        assertThat(mockMvcTester.get().uri("/api/employee").session(session(3L)))
                 .hasStatus(HttpStatus.FORBIDDEN);
     }
 
     @Test
-    @DisplayName("세션의 역할이 아니라 현재 DB 역할로 판정한다 — 강등된 관리자의 이전 세션은 마감할 수 없다")
+    @DisplayName("역할은 현재 DB 기준으로 판정한다 — 강등된 관리자의 이전 세션은 마감할 수 없다")
     void staleSessionRoleIsNotTrusted() {
         given(employeeRepository.findRoleById(9L)).willReturn(Optional.of(Role.MEMBER));
 
         assertThat(mockMvcTester.post()
                 .uri("/api/monthly-closings")
-                .session(session(9L, Role.MANAGER))
+                .session(session(9L))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         { "yearMonth": "2026-09" }
@@ -162,7 +162,7 @@ class MonthlyClosingControllerTest {
     void sessionForDeletedEmployeeIsUnauthorized() {
         given(employeeRepository.findRoleById(99L)).willReturn(Optional.empty());
 
-        assertThat(mockMvcTester.get().uri("/api/monthly-closings").session(session(99L, Role.MANAGER)))
+        assertThat(mockMvcTester.get().uri("/api/monthly-closings").session(session(99L)))
                 .hasStatus(HttpStatus.UNAUTHORIZED);
     }
 
@@ -171,10 +171,9 @@ class MonthlyClosingControllerTest {
                 new EmployeeRef(1L, "관리자", "ADMIN001"), Instant.parse("2026-10-09T03:00:00Z"), null);
     }
 
-    private static MockHttpSession session(long employeeId, Role role) {
+    private static MockHttpSession session(long employeeId) {
         MockHttpSession session = new MockHttpSession();
         session.setAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID, employeeId);
-        session.setAttribute(AuthAttributes.CURRENT_ROLE, role);
         return session;
     }
 }

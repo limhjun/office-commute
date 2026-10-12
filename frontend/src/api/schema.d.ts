@@ -15,7 +15,7 @@ export interface paths {
         put?: never;
         /**
          * 로그인
-         * @description 성공 시 새 HTTP 세션을 생성하고 `currentEmployeeId`, `currentRole`을 저장한다.
+         * @description 성공 시 새 HTTP 세션을 생성하고 `currentEmployeeId`를 저장한다.
          *     기존 세션은 무효화된다(session fixation 방어).
          */
         post: {

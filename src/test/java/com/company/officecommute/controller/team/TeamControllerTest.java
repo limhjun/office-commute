@@ -4,7 +4,6 @@ import com.company.officecommute.auth.AuthAttributes;
 import com.company.officecommute.auth.SessionRoleFixture;
 import com.company.officecommute.repository.employee.EmployeeRepository;
 import org.junit.jupiter.api.BeforeEach;
-import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.domain.team.TeamAlreadyExistsException;
 import com.company.officecommute.dto.team.response.TeamFindResponse;
 import com.company.officecommute.dto.team.response.TeamRegisterResponse;
@@ -274,14 +273,12 @@ class TeamControllerTest {
     private MockHttpSession managerSession() {
         MockHttpSession session = new MockHttpSession();
         session.setAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID, 1L);
-        session.setAttribute(AuthAttributes.CURRENT_ROLE, Role.MANAGER);
         return session;
     }
 
     private MockHttpSession memberSession() {
         MockHttpSession session = new MockHttpSession();
         session.setAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID, 2L);
-        session.setAttribute(AuthAttributes.CURRENT_ROLE, Role.MEMBER);
         return session;
     }
 }

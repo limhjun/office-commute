@@ -1,5 +1,6 @@
 package com.company.officecommute.controller.correction;
 
+import com.company.officecommute.auth.AuthAttributes;
 import com.company.officecommute.auth.SessionRoleFixture;
 import com.company.officecommute.domain.correction.CorrectionErrorCode;
 import com.company.officecommute.domain.correction.CorrectionException;
@@ -57,7 +58,7 @@ class CommuteCorrectionControllerTest {
 
         assertThat(mockMvcTester.post()
                 .uri("/api/commute-corrections")
-                .session(session(2L, Role.MEMBER))
+                .session(session(2L))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         {
@@ -84,7 +85,7 @@ class CommuteCorrectionControllerTest {
     void submit_blankReasonReturnsFieldError() {
         assertThat(mockMvcTester.post()
                 .uri("/api/commute-corrections")
-                .session(session(2L, Role.MEMBER))
+                .session(session(2L))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         {
@@ -110,7 +111,7 @@ class CommuteCorrectionControllerTest {
     void submit_requiresOffset() {
         assertThat(mockMvcTester.post()
                 .uri("/api/commute-corrections")
-                .session(session(2L, Role.MEMBER))
+                .session(session(2L))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         {
@@ -135,7 +136,7 @@ class CommuteCorrectionControllerTest {
 
         assertThat(mockMvcTester.post()
                 .uri("/api/commute-corrections/7/approve")
-                .session(session(1L, Role.MANAGER)))
+                .session(session(1L)))
                 .hasStatus(HttpStatus.CONFLICT)
                 .bodyJson()
                 .isLenientlyEqualTo("""
@@ -154,7 +155,7 @@ class CommuteCorrectionControllerTest {
 
         assertThat(mockMvcTester.post()
                 .uri("/api/commute-corrections/7/approve")
-                .session(session(1L, Role.MANAGER))
+                .session(session(1L))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         { "comment": "ok" }
@@ -171,7 +172,7 @@ class CommuteCorrectionControllerTest {
     void reject_requiresReason() {
         assertThat(mockMvcTester.post()
                 .uri("/api/commute-corrections/7/reject")
-                .session(session(1L, Role.MANAGER))
+                .session(session(1L))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
                 .hasStatus(HttpStatus.BAD_REQUEST)
@@ -193,7 +194,7 @@ class CommuteCorrectionControllerTest {
     void crossOriginWriteRejected() {
         assertThat(mockMvcTester.post()
                 .uri("/api/commute-corrections/7/approve")
-                .session(session(1L, Role.MANAGER))
+                .session(session(1L))
                 .header("Origin", "https://evil.example.com"))
                 .hasStatus(HttpStatus.FORBIDDEN)
                 .bodyJson()
@@ -210,16 +211,15 @@ class CommuteCorrectionControllerTest {
 
         assertThat(mockMvcTester.post()
                 .uri("/api/commute-corrections/7/cancel")
-                .session(session(2L, Role.MEMBER))
+                .session(session(2L))
                 .header("Host", "office-commute.com")
                 .header("Origin", "https://office-commute.com"))
                 .hasStatus(HttpStatus.OK);
     }
 
-    private static MockHttpSession session(long employeeId, Role role) {
+    private static MockHttpSession session(long employeeId) {
         MockHttpSession session = new MockHttpSession();
-        session.setAttribute("currentEmployeeId", employeeId);
-        session.setAttribute("currentRole", role);
+        session.setAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID, employeeId);
         return session;
     }
 

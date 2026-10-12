@@ -1,5 +1,6 @@
 package com.company.officecommute.controller.correction;
 
+import com.company.officecommute.auth.AuthAttributes;
 import com.company.officecommute.domain.correction.CorrectionStatus;
 import com.company.officecommute.dto.correction.request.CorrectionApproveRequest;
 import com.company.officecommute.dto.correction.request.CorrectionCreateRequest;
@@ -36,7 +37,7 @@ public class CommuteCorrectionController {
 
     @PostMapping
     public ResponseEntity<CorrectionRequestResponse> submit(
-            @RequestAttribute("currentEmployeeId") Long employeeId,
+            @RequestAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID) Long employeeId,
             @Valid @RequestBody CorrectionCreateRequest request
     ) {
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -45,7 +46,7 @@ public class CommuteCorrectionController {
 
     @GetMapping("/mine")
     public List<CorrectionRequestResponse> findMine(
-            @RequestAttribute("currentEmployeeId") Long employeeId,
+            @RequestAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID) Long employeeId,
             @RequestParam(required = false) CorrectionStatus status
     ) {
         return commuteCorrectionService.findMine(employeeId, status);
@@ -53,7 +54,7 @@ public class CommuteCorrectionController {
 
     @GetMapping("/review")
     public List<CorrectionRequestResponse> findReviewScope(
-            @RequestAttribute("currentEmployeeId") Long employeeId,
+            @RequestAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID) Long employeeId,
             @RequestParam(required = false) CorrectionStatus status
     ) {
         return commuteCorrectionService.findReviewScope(employeeId, status);
@@ -61,7 +62,7 @@ public class CommuteCorrectionController {
 
     @GetMapping("/{requestId}")
     public CorrectionRequestResponse findOne(
-            @RequestAttribute("currentEmployeeId") Long employeeId,
+            @RequestAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID) Long employeeId,
             @PathVariable Long requestId
     ) {
         return commuteCorrectionService.findOne(employeeId, requestId);
@@ -69,7 +70,7 @@ public class CommuteCorrectionController {
 
     @PostMapping("/{requestId}/cancel")
     public CorrectionRequestResponse cancel(
-            @RequestAttribute("currentEmployeeId") Long employeeId,
+            @RequestAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID) Long employeeId,
             @PathVariable Long requestId
     ) {
         return commuteCorrectionService.cancel(employeeId, requestId);
@@ -77,7 +78,7 @@ public class CommuteCorrectionController {
 
     @PostMapping("/{requestId}/approve")
     public CorrectionRequestResponse approve(
-            @RequestAttribute("currentEmployeeId") Long employeeId,
+            @RequestAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID) Long employeeId,
             @PathVariable Long requestId,
             @Valid @RequestBody(required = false) CorrectionApproveRequest request
     ) {
@@ -87,7 +88,7 @@ public class CommuteCorrectionController {
 
     @PostMapping("/{requestId}/reject")
     public CorrectionRequestResponse reject(
-            @RequestAttribute("currentEmployeeId") Long employeeId,
+            @RequestAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID) Long employeeId,
             @PathVariable Long requestId,
             @Valid @RequestBody CorrectionRejectRequest request
     ) {

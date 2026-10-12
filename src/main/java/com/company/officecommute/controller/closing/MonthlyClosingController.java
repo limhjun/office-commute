@@ -1,5 +1,6 @@
 package com.company.officecommute.controller.closing;
 
+import com.company.officecommute.auth.AuthAttributes;
 import com.company.officecommute.auth.ManagerOnly;
 import com.company.officecommute.domain.closing.MonthlyClosingType;
 import com.company.officecommute.dto.closing.request.MonthlyClosingCreateRequest;
@@ -57,7 +58,7 @@ public class MonthlyClosingController {
     @ManagerOnly
     @PostMapping
     public ResponseEntity<MonthlyClosingCreateResponse> close(
-            @RequestAttribute("currentEmployeeId") Long employeeId,
+            @RequestAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID) Long employeeId,
             @Valid @RequestBody MonthlyClosingCreateRequest request
     ) {
         MonthlyClosingResponse closing = monthlyClosingService.close(employeeId, request);

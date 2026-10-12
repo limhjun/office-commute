@@ -1,5 +1,6 @@
 package com.company.officecommute.controller.auth;
 
+import com.company.officecommute.auth.AuthAttributes;
 import com.company.officecommute.auth.SessionRoleFixture;
 import com.company.officecommute.repository.employee.EmployeeRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,6 +25,7 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
 import jakarta.servlet.http.HttpSession;
 
 import java.time.LocalDate;
+import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
@@ -59,7 +61,7 @@ class AuthControllerTest {
             .build();
 
     @Test
-    @DisplayName("로그인 성공 시 기존 세션은 무효화되고 새 세션에 직원 정보가 저장된다")
+    @DisplayName("로그인 성공 시 기존 세션은 무효화되고 새 세션에는 직원 ID만 저장된다 — 역할은 매 요청 DB에서 읽는다")
     void login_success() {
         given(employeeService.authenticate("admin@company.com", "password123"))
                 .willReturn(managerEmployee);
@@ -87,8 +89,9 @@ class AuthControllerTest {
         HttpSession newSession = result.getRequest().getSession(false);
         assertThat(newSession).isNotNull();
         assertThat(newSession.getId()).isNotEqualTo(existingSessionId);
-        assertThat(newSession.getAttribute("currentEmployeeId")).isEqualTo(1L);
-        assertThat(newSession.getAttribute("currentRole")).isEqualTo(Role.MANAGER);
+        assertThat(newSession.getAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID)).isEqualTo(1L);
+        assertThat(Collections.list(newSession.getAttributeNames()))
+                .containsExactly(AuthAttributes.CURRENT_EMPLOYEE_ID);
     }
 
     @Test
@@ -134,8 +137,7 @@ class AuthControllerTest {
                 .willReturn(new CurrentUserResponse(1L, "관리자", "admin@company.com", "MANAGER", null, null, null));
 
         MockHttpSession session = new MockHttpSession();
-        session.setAttribute("currentEmployeeId", 1L);
-        session.setAttribute("currentRole", Role.MANAGER);
+        session.setAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID, 1L);
 
         // when & then
         assertThat(mockMvcTester
@@ -160,8 +162,7 @@ class AuthControllerTest {
     @DisplayName("로그아웃 시 세션이 무효화된다")
     void logout_invalidatesSession() {
         MockHttpSession session = new MockHttpSession();
-        session.setAttribute("currentEmployeeId", 1L);
-        session.setAttribute("currentRole", Role.MANAGER);
+        session.setAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID, 1L);
 
         assertThat(mockMvcTester
                 .post()

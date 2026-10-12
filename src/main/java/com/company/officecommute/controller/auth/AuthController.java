@@ -1,5 +1,6 @@
 package com.company.officecommute.controller.auth;
 
+import com.company.officecommute.auth.AuthAttributes;
 import com.company.officecommute.auth.AuthenticationFailedException;
 import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.dto.auth.request.LoginRequest;
@@ -33,8 +34,7 @@ public class AuthController {
             existingSession.invalidate();
         }
         HttpSession newSession = httpRequest.getSession(true);
-        newSession.setAttribute("currentEmployeeId", employee.getEmployeeId());
-        newSession.setAttribute("currentRole", employee.getRole());
+        newSession.setAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID, employee.getEmployeeId());
     }
 
     @GetMapping("/me")
@@ -43,7 +43,7 @@ public class AuthController {
         if (session == null) {
             throw new AuthenticationFailedException();
         }
-        Long employeeId = (Long) session.getAttribute("currentEmployeeId");
+        Long employeeId = (Long) session.getAttribute(AuthAttributes.CURRENT_EMPLOYEE_ID);
         if (employeeId == null) {
             throw new AuthenticationFailedException();
         }

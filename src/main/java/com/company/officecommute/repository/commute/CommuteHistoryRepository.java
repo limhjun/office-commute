@@ -15,8 +15,6 @@ import java.util.Optional;
 
 public interface CommuteHistoryRepository extends JpaRepository<CommuteHistory, Long> {
 
-    Optional<CommuteHistory> findFirstByEmployeeIdOrderByWorkStartTimeDesc(Long employeeId);
-
     /** 가장 최근에 시작한 실제 근무(연차 제외). 일반 퇴근의 유일한 대상이자 후속 근무 판정의 기준이다. */
     Optional<CommuteHistory> findFirstByEmployeeIdAndUsingDayOffFalseOrderByWorkStartTimeDesc(Long employeeId);
 

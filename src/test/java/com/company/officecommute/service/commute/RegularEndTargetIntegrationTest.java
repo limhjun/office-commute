@@ -5,7 +5,6 @@ import com.company.officecommute.config.MutableClockConfig;
 import com.company.officecommute.domain.commute.CommuteHistory;
 import com.company.officecommute.domain.commute.CommuteHistoryFixture;
 import com.company.officecommute.domain.commute.CommuteStatus;
-import com.company.officecommute.domain.employee.Employee;
 import com.company.officecommute.domain.employee.EmployeeBuilder;
 import com.company.officecommute.domain.employee.Role;
 import com.company.officecommute.dto.commute.response.CommuteDetailResponse;

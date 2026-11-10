@@ -77,7 +77,7 @@ export function OvertimePage() {
             {data?.map((r) => (
               <Table.Tr key={r.id}>
                 <Table.Td>{r.name}</Table.Td>
-                <Table.Td>{r.teamName ?? <Text c="dimmed" span>미배정</Text>}</Table.Td>
+                <Table.Td>{r.teamName}</Table.Td>
                 <Table.Td ta="right">
                   {r.overTimeMinutes > 0
                     ? formatMinutes(r.overTimeMinutes)

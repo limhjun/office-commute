@@ -39,7 +39,7 @@ sudo docker compose \
 
 ## 수동 재실행
 
-GitHub 저장소의 **Actions → Deploy → Run workflow**에서 `main`을 선택한다. workflow는 `main`이 아닌 ref의 수동 실행을 거부한다. ECR tag는 immutable이므로 동일 SHA의 backend image가 이미 존재하면 image push 단계가 실패한다. 이 경우 실패 원인을 확인한 뒤 새 커밋으로 실행하는 것이 원칙이다.
+GitHub 저장소의 **Actions → Deploy → Run workflow**에서 `main`을 선택한다. workflow는 `main`이 아닌 ref의 수동 실행을 거부한다. ECR tag는 immutable이므로 동일 SHA의 backend image가 이미 존재하면 workflow는 다시 빌드·push하지 않고 그 이미지를 그대로 재사용한다. 이미지 내용을 바꿔야 한다면 새 커밋으로 실행한다.
 
 ## 실패 시 판단
 

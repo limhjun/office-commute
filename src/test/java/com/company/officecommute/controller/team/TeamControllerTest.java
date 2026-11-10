@@ -236,7 +236,7 @@ class TeamControllerTest {
         }
 
         @Test
-        @DisplayName("응답에 teamId/name/managerName/annualLeaveCriteria/memberCount 모두 포함, 매니저 미배정은 null")
+        @DisplayName("응답에 teamId/name/managerName/annualLeaveCriteria/memberCount 모두 포함, 매니저 미배정은 필드 생략")
         void returnsAllFieldsIncludingNullManager() {
             given(teamService.findTeam()).willReturn(List.of(
                     new TeamFindResponse(1L, "개발팀", "홍길동", 2, 5),
@@ -252,9 +252,11 @@ class TeamControllerTest {
                     .isLenientlyEqualTo("""
                             [
                               { "teamId": 1, "name": "개발팀", "managerName": "홍길동", "annualLeaveCriteria": 2, "memberCount": 5 },
-                              { "teamId": 2, "name": "기획팀", "managerName": null,    "annualLeaveCriteria": 0, "memberCount": 3 }
+                              { "teamId": 2, "name": "기획팀", "annualLeaveCriteria": 0, "memberCount": 3 }
                             ]
-                            """);
+                            """)
+                    // non_null 직렬화 정책: null 값은 null 로 내려가지 않고 필드가 빠진다
+                    .doesNotHavePath("$[1].managerName");
         }
 
         @Test

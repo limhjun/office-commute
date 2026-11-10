@@ -3,7 +3,7 @@ import { Button, Card, Group, Stack, Title, Text, Table, Badge } from '@mantine/
 import { DatePickerInput } from '@mantine/dates';
 import { IconCalendarPlus } from '@tabler/icons-react';
 import { useRemainingLeaves, useEnrollLeaves } from '@/hooks/useAnnualLeave';
-import { ApiError } from '@/lib/errors';
+import { TableStateRow } from '@/components/TableStateRow';
 import { notifyError, notifySuccess } from '@/lib/notify';
 
 function toIsoDate(d: Date): string {
@@ -15,10 +15,12 @@ const LEAVE_ERROR_MESSAGES: Record<string, string> = {
   ANNUAL_LEAVE_PAST_DATE: '과거 날짜는 신청할 수 없습니다.',
   ANNUAL_LEAVE_DUPLICATE: '이미 신청한 날짜가 포함되어 있습니다.',
   EMPLOYEE_WITHOUT_TEAM: '팀에 배정되어야 연차를 신청할 수 있습니다. 관리자에게 문의하세요.',
+  // 공용 문구는 출근 버튼 기준("오늘은 이미 출근을 기록했습니다")이라 연차 신청에는 맞지 않는다
+  DUPLICATE_WORK: '선택한 날짜에 이미 근태 기록이 있습니다.',
 };
 
 export function MyAnnualLeavePage() {
-  const { data, isLoading } = useRemainingLeaves();
+  const { data, isLoading, error, refetch } = useRemainingLeaves();
   const enroll = useEnrollLeaves();
   const [dates, setDates] = useState<Date[]>([]);
 
@@ -29,8 +31,7 @@ export function MyAnnualLeavePage() {
       notifySuccess('연차를 신청했습니다.');
       setDates([]);
     } catch (e) {
-      const msg = e instanceof ApiError ? LEAVE_ERROR_MESSAGES[e.code] : undefined;
-      notifyError(e, msg ?? '연차 신청에 실패했습니다.');
+      notifyError(e, '연차 신청에 실패했습니다.', LEAVE_ERROR_MESSAGES);
     }
   }
 
@@ -77,13 +78,14 @@ export function MyAnnualLeavePage() {
                 <Table.Td><Badge color="grape" variant="light">확정</Badge></Table.Td>
               </Table.Tr>
             ))}
-            {!isLoading && data?.remainingLeaves.length === 0 && (
-              <Table.Tr>
-                <Table.Td colSpan={2}>
-                  <Text c="dimmed" ta="center" py="lg">예정된 연차가 없습니다.</Text>
-                </Table.Td>
-              </Table.Tr>
-            )}
+            <TableStateRow
+              colSpan={2}
+              isLoading={isLoading}
+              error={error}
+              isEmpty={data?.remainingLeaves.length === 0}
+              emptyText="예정된 연차가 없습니다."
+              onRetry={() => refetch()}
+            />
           </Table.Tbody>
         </Table>
       </Card>

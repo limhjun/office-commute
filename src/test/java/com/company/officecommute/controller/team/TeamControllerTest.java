@@ -14,11 +14,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
+import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 import java.util.List;
 
@@ -267,6 +269,45 @@ class TeamControllerTest {
                     .hasStatus(HttpStatus.OK)
                     .bodyJson()
                     .isLenientlyEqualTo("[]");
+        }
+    }
+
+    @Nested
+    @DisplayName("지원하지 않는 요청 형식")
+    class UnsupportedRequest {
+
+        @Test
+        @DisplayName("매핑되지 않은 HTTP 메서드는 500이 아니라 405 METHOD_NOT_ALLOWED, 허용 메서드는 Allow 헤더로 알린다")
+        void unsupportedMethodReturns405() {
+            MvcTestResult result = mockMvcTester
+                    .delete()
+                    .uri("/api/team")
+                    .session(managerSession())
+                    .exchange();
+
+            assertThat(result)
+                    .hasStatus(HttpStatus.METHOD_NOT_ALLOWED)
+                    .bodyJson()
+                    .extractingPath("$.code").isEqualTo("METHOD_NOT_ALLOWED");
+            assertThat(result)
+                    .headers()
+                    .satisfies(headers -> assertThat(headers.getAllow())
+                            .contains(HttpMethod.GET, HttpMethod.POST)
+                            .doesNotContain(HttpMethod.DELETE));
+        }
+
+        @Test
+        @DisplayName("JSON이 아닌 본문은 500이 아니라 415 UNSUPPORTED_MEDIA_TYPE")
+        void unsupportedMediaTypeReturns415() {
+            assertThat(mockMvcTester
+                    .post()
+                    .uri("/api/team")
+                    .session(managerSession())
+                    .contentType(MediaType.TEXT_PLAIN)
+                    .content("개발팀"))
+                    .hasStatus(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+                    .bodyJson()
+                    .extractingPath("$.code").isEqualTo("UNSUPPORTED_MEDIA_TYPE");
         }
     }
 

@@ -21,7 +21,7 @@ Admin SPA for the office-commute backend. Root-level rules (spec-first, error en
 - TanStack Query is configured not to retry 401/403.
 
 ## Structure
-- `src/hooks/` — one file per resource (`useTeams`, `useEmployees`, `useCommute`, `useCommuteCorrections`, `useMonthlyClosings`, `useAnnualLeave`, `useOvertime`). Correction/closing mutations invalidate commute months, request lists and closing status on success and on 409. wrapping TanStack Query.
+- `src/hooks/` — one file per resource (`useTeams`, `useEmployees`, `useCommute`, `useCommuteCorrections`, `useMonthlyClosings`, `useAnnualLeave`, `useOvertime`), each wrapping TanStack Query. Correction/closing mutations invalidate commute months, request lists and closing status on success and on 409.
 - `src/pages/` — one page per route; `src/components/AppLayout.tsx` — Mantine AppShell.
 - `src/lib/` — `errors` (ApiError/unwrap), `errorMessages` (error code → user copy; correction time codes → time-field errors), `download` (Excel blob + `Content-Disposition` filename), `notify`, `month` utils, `zonedTime` (record `workZone` wall time → offset ISO, DST gap/overlap), `roles`.
 - Correction/closing contract summary: `docs/COMMUTE_CORRECTION_API.md` (`openapi.yml` wins on conflict).

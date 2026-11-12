@@ -1,7 +1,6 @@
 package com.company.officecommute.config;
 
 import java.time.Clock;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
@@ -25,10 +24,6 @@ public class MutableClock extends Clock {
 
     public void setInstant(Instant instant) {
         this.instant = instant;
-    }
-
-    public void advance(Duration duration) {
-        this.instant = this.instant.plus(duration);
     }
 
     @Override

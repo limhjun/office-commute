@@ -12,8 +12,8 @@ Spring Boot 근태관리 API 위에 올리는 사내 HR 백오피스 웹앱. 저
 
 ## 요구사항
 
-- Node.js 18+ (권장 20+)
-- pnpm (패키지 매니저 — `pnpm-lock.yaml` 이 커밋되어 있으므로 npm/yarn 을 쓰지 않는다)
+- Node.js 22 (CI 와 같은 버전 — `.github/workflows/ci.yml`)
+- pnpm 10 (패키지 매니저 — `pnpm-lock.yaml` 이 커밋되어 있으므로 npm/yarn 을 쓰지 않는다)
 - 백엔드가 `http://localhost:8080` 에서 실행 중 (`./gradlew bootRun --args='--spring.profiles.active=dev'`)
 
 ## 개발 실행
@@ -25,17 +25,17 @@ pnpm gen:api   # ../openapi.yml → src/api/schema.d.ts 재생성
 pnpm dev       # http://localhost:5173
 ```
 
-Vite dev 서버가 `/api`, `/team`, `/employee`, `/commute`, `/annual-leave`, `/overtime` 를 `localhost:8080` 으로 프록시한다. 브라우저 입장에서 same-origin 이므로 **세션 쿠키(JSESSIONID)가 그대로 붙고 CORS 설정이 필요 없다.**
+Vite dev 서버가 `/api` 를 `localhost:8080` 으로 프록시한다(백엔드 API 는 전부 `/api/**` 아래). 브라우저 입장에서 same-origin 이므로 **세션 쿠키(JSESSIONID)가 그대로 붙고 CORS 설정이 필요 없다.**
 
 ## 배포 (same-origin 권장)
 
-프론트를 Spring 과 한 서버에서 서빙하면 세션 쿠키가 별도 설정 없이 동작한다.
+프론트와 API 를 한 출처에서 서빙하면 세션 쿠키가 별도 설정 없이 동작한다.
 
 ```bash
 pnpm build        # → frontend/dist
 ```
 
-`dist/` 를 백엔드의 `src/main/resources/static/` 으로 복사하거나, Gradle 빌드에 프론트 빌드를 연결한다. 이렇게 하면 CORS/SameSite 를 건드릴 필요가 없다. (프론트를 별도 도메인에 올리면 백엔드에 CORS + `credentials` + 쿠키 `SameSite=None; Secure` 설정을 추가해야 한다.)
+운영에서는 Nginx 가 `dist/` 를 정적으로 서빙하고 `/api` 만 백엔드로 넘긴다(`deploy/nginx.conf`, `docs/DEPLOYMENT.md`). 이렇게 하면 CORS/SameSite 를 건드릴 필요가 없다. (프론트를 별도 도메인에 올리면 백엔드에 CORS + `credentials` + 쿠키 `SameSite=None; Secure` 설정을 추가해야 한다.)
 
 ## `openapi.yml` 이 바뀌면
 
@@ -55,17 +55,17 @@ DTO/엔드포인트가 바뀌면 타입이 갱신되고, 어긋난 호출부는 
 src/
   api/        openapi-fetch 클라이언트 + 생성된 타입(schema.d.ts)
   auth/       AuthProvider (/api/auth/me 로 세션 복원)
-  routes/     RequireAuth / RequireManager 가드
-  components/ AppShell 레이아웃
+  routes/     RequireAuth / RequireRole / RequireManager 가드
+  components/ AppShell 레이아웃, 표 상태 행, 정정·마감 모달
   hooks/      리소스별 TanStack Query 훅
-  lib/        에러 매핑(ApiError), Excel 다운로드, 알림, 월 유틸
-  pages/      로그인 / 팀 / 직원 / 내 근태 / 내 연차 / 초과근무
+  lib/        에러 매핑(ApiError), Excel 다운로드, 알림, 월·시간대 유틸
+  pages/      로그인 / 팀 / 직원 / 초과근무 / 월 마감 / 정정 승인 / 내 근태 / 내 정정 요청 / 내 연차
 ```
 
 ## 구현해 둔 것
 
-- 세션 쿠키 인증 + 401 시 로그인 리다이렉트
-- 역할별 내비게이션·라우팅 (매니저: 팀/직원/초과근무, 멤버: 내 근태/연차)
+- 세션 쿠키 인증 + 비로그인 시 로그인 리다이렉트(부팅 시 `/api/auth/me`), 403 시 역할 재조회
+- 역할별 내비게이션·라우팅 (매니저: 팀/직원/초과근무/월 마감, 매니저·상위 승인자: 정정 승인, 전 역할: 내 근태/정정 요청/연차)
 - 백엔드 에러 계약 매핑: `ErrorResult` / `ValidationErrorResult.fieldErrorResults` → 폼 필드 에러
 - 도메인 에러 코드 → 사용자 문구 (`TEAM_ALREADY_EXISTS`, `ANNUAL_LEAVE_*`, `HOLIDAY_DATA_UNAVAILABLE` 등)
 - Excel 리포트 blob 다운로드 (`Content-Disposition` 파일명 처리 포함)

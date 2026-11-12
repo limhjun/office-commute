@@ -27,6 +27,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -65,6 +67,21 @@ public class GlobalExceptionHandler {
     public ErrorResult handleNoResourceFound(NoResourceFoundException e) {
         log.warn("No resource for path: {}", e.getResourcePath());
         return new ErrorResult("NOT_FOUND", "요청한 리소스를 찾을 수 없습니다");
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResult> handleMethodNotSupported(HttpRequestMethodNotSupportedException e) {
+        log.warn("Method not supported: {}", e.getMethod());
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+                .headers(e.getHeaders())
+                .body(new ErrorResult("METHOD_NOT_ALLOWED", "지원하지 않는 HTTP 메서드입니다"));
+    }
+
+    @ResponseStatus(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ErrorResult handleMediaTypeNotSupported(HttpMediaTypeNotSupportedException e) {
+        log.warn("Media type not supported: {}", e.getContentType());
+        return new ErrorResult("UNSUPPORTED_MEDIA_TYPE", "지원하지 않는 요청 본문 형식입니다");
     }
 
     @ResponseStatus(HttpStatus.BAD_REQUEST)

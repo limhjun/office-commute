@@ -14,11 +14,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
+import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 import java.util.List;
 
@@ -234,7 +236,7 @@ class TeamControllerTest {
         }
 
         @Test
-        @DisplayName("응답에 teamId/name/managerName/annualLeaveCriteria/memberCount 모두 포함, 매니저 미배정은 null")
+        @DisplayName("응답에 teamId/name/managerName/annualLeaveCriteria/memberCount 모두 포함, 매니저 미배정은 필드 생략")
         void returnsAllFieldsIncludingNullManager() {
             given(teamService.findTeam()).willReturn(List.of(
                     new TeamFindResponse(1L, "개발팀", "홍길동", 2, 5),
@@ -250,9 +252,11 @@ class TeamControllerTest {
                     .isLenientlyEqualTo("""
                             [
                               { "teamId": 1, "name": "개발팀", "managerName": "홍길동", "annualLeaveCriteria": 2, "memberCount": 5 },
-                              { "teamId": 2, "name": "기획팀", "managerName": null,    "annualLeaveCriteria": 0, "memberCount": 3 }
+                              { "teamId": 2, "name": "기획팀", "annualLeaveCriteria": 0, "memberCount": 3 }
                             ]
-                            """);
+                            """)
+                    // non_null 직렬화 정책: null 값은 null 로 내려가지 않고 필드가 빠진다
+                    .doesNotHavePath("$[1].managerName");
         }
 
         @Test
@@ -267,6 +271,45 @@ class TeamControllerTest {
                     .hasStatus(HttpStatus.OK)
                     .bodyJson()
                     .isLenientlyEqualTo("[]");
+        }
+    }
+
+    @Nested
+    @DisplayName("지원하지 않는 요청 형식")
+    class UnsupportedRequest {
+
+        @Test
+        @DisplayName("매핑되지 않은 HTTP 메서드는 500이 아니라 405 METHOD_NOT_ALLOWED, 허용 메서드는 Allow 헤더로 알린다")
+        void unsupportedMethodReturns405() {
+            MvcTestResult result = mockMvcTester
+                    .delete()
+                    .uri("/api/team")
+                    .session(managerSession())
+                    .exchange();
+
+            assertThat(result)
+                    .hasStatus(HttpStatus.METHOD_NOT_ALLOWED)
+                    .bodyJson()
+                    .extractingPath("$.code").isEqualTo("METHOD_NOT_ALLOWED");
+            assertThat(result)
+                    .headers()
+                    .satisfies(headers -> assertThat(headers.getAllow())
+                            .contains(HttpMethod.GET, HttpMethod.POST)
+                            .doesNotContain(HttpMethod.DELETE));
+        }
+
+        @Test
+        @DisplayName("JSON이 아닌 본문은 500이 아니라 415 UNSUPPORTED_MEDIA_TYPE")
+        void unsupportedMediaTypeReturns415() {
+            assertThat(mockMvcTester
+                    .post()
+                    .uri("/api/team")
+                    .session(managerSession())
+                    .contentType(MediaType.TEXT_PLAIN)
+                    .content("개발팀"))
+                    .hasStatus(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+                    .bodyJson()
+                    .extractingPath("$.code").isEqualTo("UNSUPPORTED_MEDIA_TYPE");
         }
     }
 

@@ -137,7 +137,7 @@ ADMIN_PASSWORD_HASH='$2a$10$N9qo8uLOickgx2ZMRZoMye...'
 7. SPA 라우트(`/teams`, `/employees`, `/overtime`) 직접 접속/새로고침 정상 확인.
 8. **읽기 전용 스모크** — ⚠️ `scripts/api_test.sh`는 운영에 돌리지 않는다: admin 비밀번호가 `admin1234`로 하드코딩되어 로테이션 후 로그인부터 실패하고, 팀·직원·출퇴근·연차를 생성만 하고 지우지 않아 운영 DB에 테스트 데이터가 영구 잔류한다 (로컬 리허설 전용 — 승격 조건은 §6). 대신 curl로:
    - 비로그인 `GET /api/team` → 401 envelope 확인
-   - 로그인 → `GET /api/auth/me`, `GET /api/team`, `GET /api/employees` → 200 확인
+   - 로그인 → `GET /api/auth/me`, `GET /api/team`, `GET /api/employee` → 200 확인
 9. **메일 스모크** — ⚠️ 지난달 발송 이력이 없는 신규 DB에서는 이 호출이 **실제 수신자에게 (빈) 리포트를 발송한다**. `REPORT_MAIL_CEO`를 운영자 주소로 임시 교체 후: `POST /api/overtime/report/dispatch?yearMonth=<지난달>`을 MANAGER로 호출해 응답 `status`가 `SENT`(또는 미마감이 있으면 `FAILED` + `UNCLOSED_COMMUTES`)인지 확인 → 실주소로 되돌리고 app 재기동. 배치 첫 발화(다음 달 1일 06:00 KST)를 기다리지 않고 발송 경로 전체를 검증하는 방법이다. 같은 달 재호출은 멱등(no-op)이라 안전하다.
 10. DB 백업 크론 + 로그 로테이션(`app-logs` 볼륨의 `office-commute.log`, 설정상 100MB/30일) 동작 확인.
 11. certbot 갱신 리허설: `certbot renew --dry-run` (webroot 설정 — §2.1-5).

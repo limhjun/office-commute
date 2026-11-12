@@ -11,7 +11,6 @@ public class EmployeeBuilder {
     private Role role;
     private LocalDate birthday;
     private LocalDate workStartDate;
-    private LocalDate workEndDate;
     private String employeeCode;
     private String email;
     private String password;
@@ -47,11 +46,6 @@ public class EmployeeBuilder {
         return this;
     }
 
-    public EmployeeBuilder withWorkEndDate(LocalDate date) {
-        this.workEndDate = date;
-        return this;
-    }
-
     public EmployeeBuilder withEmployeeCode(String employeeCode) {
         this.employeeCode = employeeCode;
         return this;
@@ -73,10 +67,6 @@ public class EmployeeBuilder {
     }
 
     public Employee build() {
-        Employee employee = new Employee(id, team, name, role, birthday, workStartDate, employeeCode, email, password, timezone);
-        if (workEndDate != null) {
-            employee.changeWorkEndDate(workEndDate);
-        }
-        return employee;
+        return new Employee(id, team, name, role, birthday, workStartDate, employeeCode, email, password, timezone);
     }
 }

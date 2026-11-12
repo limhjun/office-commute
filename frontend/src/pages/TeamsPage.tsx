@@ -5,11 +5,12 @@ import {
 import { useForm } from '@mantine/form';
 import { IconPlus } from '@tabler/icons-react';
 import { useTeams, useCreateTeam } from '@/hooks/useTeams';
+import { TableStateRow } from '@/components/TableStateRow';
 import { ApiError } from '@/lib/errors';
 import { notifyError, notifySuccess } from '@/lib/notify';
 
 export function TeamsPage() {
-  const { data: teams, isLoading } = useTeams();
+  const { data: teams, isLoading, error, refetch } = useTeams();
   const createTeam = useCreateTeam();
   const [opened, setOpened] = useState(false);
 
@@ -64,13 +65,14 @@ export function TeamsPage() {
                 <Table.Td>{t.memberCount}</Table.Td>
               </Table.Tr>
             ))}
-            {!isLoading && teams?.length === 0 && (
-              <Table.Tr>
-                <Table.Td colSpan={4}>
-                  <Text c="dimmed" ta="center" py="lg">등록된 팀이 없습니다. 첫 팀을 등록하세요.</Text>
-                </Table.Td>
-              </Table.Tr>
-            )}
+            <TableStateRow
+              colSpan={4}
+              isLoading={isLoading}
+              error={error}
+              isEmpty={teams?.length === 0}
+              emptyText="등록된 팀이 없습니다. 첫 팀을 등록하세요."
+              onRetry={() => refetch()}
+            />
           </Table.Tbody>
         </Table>
       </Card>

@@ -45,6 +45,7 @@ Backend package paths below are relative to `src/main/java/com/company/officecom
 | `service/` | Use cases, transactions, overtime calculations, and report generation |
 | `domain/` | Entities, value objects, domain rules, and exceptions |
 | `repository/` | JPA repositories and database queries |
+| `auth/` | Session authentication, role checks, and the Origin (CSRF) interceptor |
 | `global/`, `config/` | Shared exceptions, validation, persistence helpers, and configuration |
 | `web/`, `mail/`, `scheduler/` | Holiday API integration, email delivery, and report scheduling |
 | `src/main/resources/db/migration/` | Versioned Flyway SQL migrations |

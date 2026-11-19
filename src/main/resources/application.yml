@@ -13,11 +13,6 @@ spring:
       hibernate:
         format_sql: true
   
-  # SQL 초기화 설정
-#  sql:
-#    init:
-#      data-locations: classpath:data.sql
-
   # Jackson 공통 설정
   jackson:
     default-property-inclusion: non_null

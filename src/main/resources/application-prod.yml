@@ -1,6 +1,6 @@
 # 운영 환경 설정
 spring:
-  # MySQL 또는 PostgreSQL 사용 (운영용 DB)
+  # MySQL 사용 (운영용 DB)
   datasource:
     url: ${DB_URL:jdbc:mysql://localhost:3306/office_commute}
     username: ${DB_USERNAME:office_user}

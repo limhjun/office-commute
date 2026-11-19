@@ -21,9 +21,11 @@ export function LoginPage() {
     },
   });
 
+  // 가드가 넘겨준 원래 경로. 이미 로그인된 상태의 진입과 로그인 직후 이동이 같은 곳을 가리켜야 한다.
+  const from = (location.state as { from?: Location })?.from?.pathname ?? '/';
+
   if (user) {
-    const to = (location.state as { from?: Location })?.from?.pathname ?? '/';
-    return <Navigate to={to} replace />;
+    return <Navigate to={from} replace />;
   }
 
   async function onSubmit(values: { email: string; password: string }) {
@@ -31,7 +33,7 @@ export function LoginPage() {
     setLoading(true);
     try {
       await login(values.email, values.password);
-      navigate('/', { replace: true });
+      navigate(from, { replace: true });
     } catch (e) {
       setError(e instanceof ApiError ? e.message : '로그인에 실패했습니다.');
     } finally {

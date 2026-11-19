@@ -36,7 +36,6 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
@@ -246,8 +245,8 @@ class OverTimeControllerTest {
         }
 
         @Test
-        @DisplayName("엑셀 생성 중 IOException 발생 시 예외가 전파된다")
-        void downloadOverTimeReport_ioException() throws Exception {
+        @DisplayName("엑셀 생성 중 예외 발생 시 예외가 전파된다")
+        void downloadOverTimeReport_writeFailure() throws Exception {
             YearMonth yearMonth = YearMonth.of(2024, 8);
 
             given(overTimeReportService.generateReport(yearMonth))

@@ -35,8 +35,6 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
             @Param("rangeEnd") LocalDate rangeEnd
     );
 
-    Optional<Employee> findByEmployeeCode(String employeeCode);
-
     boolean existsByEmployeeCode(String employeeCode);
 
     Optional<Employee> findByEmail(String email);

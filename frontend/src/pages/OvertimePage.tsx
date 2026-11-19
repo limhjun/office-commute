@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { MonthPickerInput } from '@mantine/dates';
 import { IconFileSpreadsheet, IconAlertTriangle } from '@tabler/icons-react';
 import { useOvertime } from '@/hooks/useOvertime';
+import { TableStateRow } from '@/components/TableStateRow';
 import { currentYearMonth, toYearMonth, fromYearMonth, formatMinutes } from '@/lib/month';
 import { downloadFile } from '@/lib/download';
 import { ApiError } from '@/lib/errors';
@@ -77,7 +78,7 @@ export function OvertimePage() {
             {data?.map((r) => (
               <Table.Tr key={r.id}>
                 <Table.Td>{r.name}</Table.Td>
-                <Table.Td>{r.teamName ?? <Text c="dimmed" span>미배정</Text>}</Table.Td>
+                <Table.Td>{r.teamName}</Table.Td>
                 <Table.Td ta="right">
                   {r.overTimeMinutes > 0
                     ? formatMinutes(r.overTimeMinutes)
@@ -85,13 +86,15 @@ export function OvertimePage() {
                 </Table.Td>
               </Table.Tr>
             ))}
-            {!isLoading && !holidayUnavailable && data?.length === 0 && (
-              <Table.Tr>
-                <Table.Td colSpan={3}>
-                  <Text c="dimmed" ta="center" py="lg">해당 월의 데이터가 없습니다.</Text>
-                </Table.Td>
-              </Table.Tr>
-            )}
+            {/* 공휴일 API 실패는 위 Alert 가 안내하므로 표 안에서 한 번 더 보여주지 않는다 */}
+            <TableStateRow
+              colSpan={3}
+              isLoading={isLoading}
+              error={holidayUnavailable ? null : error}
+              isEmpty={!holidayUnavailable && data?.length === 0}
+              emptyText="해당 월의 데이터가 없습니다."
+              onRetry={() => refetch()}
+            />
           </Table.Tbody>
         </Table>
       </Card>

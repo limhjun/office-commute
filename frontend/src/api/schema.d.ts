@@ -227,7 +227,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description 직원 목록. 미배정 직원은 `teamId`/`teamName`이 null. */
+                /** @description 직원 목록. 미배정 직원은 `teamId`/`teamName`이 생략된다(null 값 필드는 응답에서 빠진다). */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -402,6 +402,15 @@ export interface paths {
                 403: components["responses"]["Forbidden"];
                 /** @description employeeId 미존재 (EMPLOYEE_NOT_FOUND) */
                 404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResult"];
+                    };
+                };
+                /** @description 이 직원이 신청했거나 처리해야 하는 승인 대기 정정 요청이 있음 (PENDING_CORRECTION_EXISTS) */
+                409: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -1380,7 +1389,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ErrorResult"];
+                        "application/json": components["schemas"]["ErrorResult"] | components["schemas"]["ValidationErrorResult"];
                     };
                 };
                 401: components["responses"]["Unauthorized"];
@@ -1399,6 +1408,7 @@ export interface paths {
                  *     - EMPLOYEE_WITHOUT_TEAM: 팀 미배정 직원의 신청
                  *     - DUPLICATE_WORK: 신청 일자에 이미 출근 기록 존재
                  *     - CLOSING_PERIOD_LOCKED: 신청 일자가 마감된 보고서의 집계 입력 기간에 속함
+                 *     - REPORT_DELIVERY_UNCERTAIN: 신청 일자가 수신 확인 전 보고서의 집계 입력 기간에 속함
                  */
                 409: {
                     headers: {
@@ -1714,13 +1724,16 @@ export interface components {
         ErrorResult: {
             /**
              * @description 에러 코드. 예시:
-             *     - BAD_REQUEST, INVALID_JSON, INVALID_PARAMETER, MISSING_PARAMETER
+             *     - VALIDATION_ERROR, INVALID_JSON, INVALID_PARAMETER, MISSING_PARAMETER
+             *     - NOT_FOUND(매핑되지 않은 경로), METHOD_NOT_ALLOWED, UNSUPPORTED_MEDIA_TYPE
              *     - UNAUTHORIZED, FORBIDDEN
              *     - TEAM_ALREADY_EXISTS, EMPLOYEE_ALREADY_EXISTS
-             *     - TEAM_NOT_FOUND, EMPLOYEE_NOT_FOUND
+             *     - TEAM_NOT_FOUND, EMPLOYEE_NOT_FOUND, INVALID_RETIREMENT_DATE
              *     - DUPLICATE_WORK, DATA_INTEGRITY_ERROR
+             *     - 연차: ANNUAL_LEAVE_CRITERIA_NOT_MET, ANNUAL_LEAVE_PAST_DATE, ANNUAL_LEAVE_DUPLICATE,
+             *       EMPLOYEE_WITHOUT_TEAM
              *     - HOLIDAY_DATA_UNAVAILABLE
-             *     - INTERNAL_SERVER_ERROR
+             *     - INTERNAL_SERVER_ERROR, UNEXPECTED_DOMAIN_VIOLATION
              *     - CSRF_ORIGIN_REJECTED
              *     - 근태: COMMUTE_NOT_STARTED, COMMUTE_ALREADY_ENDED, COMMUTE_END_WINDOW_EXPIRED,
              *       INVALID_COMMUTE_RANGE, COMMUTE_NOT_FOUND, CLOSING_PERIOD_LOCKED, REPORT_DELIVERY_UNCERTAIN
@@ -1865,7 +1878,7 @@ export interface components {
             workStartDate: string;
             /**
              * Format: date
-             * @description 퇴사일. null = 재직 중.
+             * @description 퇴사일. 재직 중이면 생략.
              */
             workEndDate?: string | null;
             /**
@@ -2277,7 +2290,8 @@ export interface components {
             id: number;
             employeeCode: string;
             name: string;
-            teamName: string | null;
+            /** @description 팀 미배정 직원은 "미배정" */
+            teamName: string;
             /**
              * Format: int64
              * @description 연장근로 분 — 1일 8시간 초과분 + 1주(월~일) 40시간 초과 잔여분, 가산 1.5배
@@ -2296,15 +2310,6 @@ export interface components {
         };
     };
     responses: {
-        /** @description 잘못된 요청 (BAD_REQUEST / INVALID_JSON 등) */
-        BadRequest: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/json": components["schemas"]["ErrorResult"];
-            };
-        };
         /** @description 입력값 검증 실패 (VALIDATION_ERROR) */
         ValidationError: {
             headers: {

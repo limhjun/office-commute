@@ -7,6 +7,9 @@ spring:
   mail:
     host: localhost
     port: 25
+  # 메인 application.yml 과 같은 값. 빠지면 컨트롤러 테스트가 운영과 다른 JSON(null 필드 포함)을 검증한다.
+  jackson:
+    default-property-inclusion: non_null
   flyway:
     enabled: false
     placeholders:

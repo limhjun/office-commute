@@ -39,9 +39,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     unwrap(await api.POST('/api/auth/login', { body: { email, password } }));
+    // AuthProvider 가 항상 관찰 중이라 무효화가 곧 재조회다 — refetch 를 따로 부르면 /me 가 두 번 나간다.
     await qc.invalidateQueries({ queryKey: ['auth', 'me'] });
-    await meQuery.refetch();
-  }, [qc, meQuery]);
+  }, [qc]);
 
   const logout = useCallback(async () => {
     await api.POST('/api/auth/logout', {});

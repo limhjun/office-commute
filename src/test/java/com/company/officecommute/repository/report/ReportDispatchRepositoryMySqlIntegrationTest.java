@@ -43,7 +43,7 @@ class ReportDispatchRepositoryMySqlIntegrationTest {
     private ReportDispatchRepository reportDispatchRepository;
 
     @Test
-    @DisplayName("V13 의 uk_report_dispatch_year_month 가 같은 달의 두 번째 선점을 막는다")
+    @DisplayName("V16 의 uk_report_dispatch_year_month_kind 가 같은 달·같은 종류의 두 번째 선점을 막는다")
     void duplicateYearMonth_rejectedByMigrationConstraint() {
         reportDispatchRepository.saveAndFlush(ReportDispatch.claim(JULY, NOW));
 

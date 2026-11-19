@@ -112,7 +112,7 @@ class EmployeeControllerTest {
                     {
                         "name": "",
                         "role": "MEMBER",
-                        "birthday": "2030-01-01",
+                        "birthday": "2999-01-01",
                         "workStartDate": "2099-12-31",
                         "employeeCode": "E00001",
                         "email": "john@company.com",
@@ -319,18 +319,21 @@ class EmployeeControllerTest {
                                     "employeeId": 1, "teamId": 10, "teamName": "백엔드팀",
                                     "name": "임형준", "employeeCode": "ABC123", "email": "hj@company.com",
                                     "role": "MEMBER",
-                                    "birthday": "1998-08-18", "workStartDate": "2024-01-01",
-                                    "workEndDate": null
+                                    "birthday": "1998-08-18", "workStartDate": "2024-01-01"
                                 },
                                 {
-                                    "employeeId": 2, "teamId": null, "teamName": null,
+                                    "employeeId": 2,
                                     "name": "미배정직원", "employeeCode": "XYZ789", "email": "unassigned@company.com",
                                     "role": "MEMBER",
                                     "birthday": "1990-01-01", "workStartDate": "2024-03-01",
                                     "workEndDate": "2026-07-31"
                                 }
                             ]
-                            """);
+                            """)
+                    // non_null 직렬화 정책: 재직 중·팀 미배정은 null 이 아니라 필드 생략으로 내려간다
+                    .doesNotHavePath("$[0].workEndDate")
+                    .doesNotHavePath("$[1].teamId")
+                    .doesNotHavePath("$[1].teamName");
         }
     }
 
